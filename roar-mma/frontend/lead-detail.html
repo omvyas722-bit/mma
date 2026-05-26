@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Lead Profile</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 10px 20px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .back-btn:hover { border-color: #ff4444; }
+        .header-title { font-size: 28px; font-weight: 700; }
+        .header-actions { display: flex; gap: 10px; }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+        .btn-success { background: #00ff0020; border: 1px solid #00ff00; color: #00ff00; }
+        .btn-success:hover { background: #00ff0030; }
+
+        .profile-header { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
+        .profile-top { display: flex; justify-content: space-between; align-items: start; margin-bottom: 25px; }
+        .profile-info { flex: 1; }
+        .profile-name { font-size: 32px; font-weight: 700; margin-bottom: 10px; }
+        .profile-meta { display: flex; gap: 20px; font-size: 14px; color: #888; flex-wrap: wrap; }
+
+        .score-display { text-align: center; }
+        .score-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; margin: 0 auto 10px; border: 4px solid; }
+        .score-value { font-size: 36px; font-weight: 700; }
+        .score-label { font-size: 12px; color: #888; margin-top: 5px; }
+        .score-high { border-color: #00ff00; color: #00ff00; }
+        .score-medium { border-color: #ff8800; color: #ff8800; }
+        .score-low { border-color: #888; color: #888; }
+
+        .stage-badge { padding: 6px 16px; border-radius: 16px; font-size: 13px; font-weight: 600; display: inline-block; }
+        .stage-new { background: #ff444420; color: #ff4444; }
+        .stage-contacted { background: #ff880020; color: #ff8800; }
+        .stage-trial_booked { background: #00ff0020; color: #00ff00; }
+        .stage-trial_completed { background: #00ffff20; color: #00ffff; }
+        .stage-converted { background: #00ff0040; color: #00ff00; }
+        .stage-lost { background: #88888820; color: #888; }
+
+        .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .info-field { margin-bottom: 15px; }
+        .info-label { font-size: 13px; color: #888; margin-bottom: 5px; }
+        .info-value { font-size: 15px; color: #fff; }
+
+        .score-breakdown { display: flex; flex-direction: column; gap: 15px; }
+        .score-item { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; }
+        .score-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .score-item-title { font-size: 14px; font-weight: 600; }
+        .score-item-value { font-size: 16px; font-weight: 700; color: #ff4444; }
+        .score-item-desc { font-size: 12px; color: #666; }
+
+        .timeline { display: flex; flex-direction: column; gap: 15px; }
+        .timeline-item { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; }
+        .timeline-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px; }
+        .timeline-date { font-size: 12px; color: #666; }
+        .timeline-title { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+        .timeline-desc { font-size: 13px; color: #888; }
+        .timeline-type { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .type-call { background: #ff444420; color: #ff4444; }
+        .type-email { background: #ff880020; color: #ff8800; }
+        .type-sms { background: #00ff0020; color: #00ff00; }
+        .type-note { background: #88888820; color: #888; }
+
+        .notes-section { display: flex; flex-direction: column; gap: 15px; }
+        .note-item { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; }
+        .note-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .note-author { font-size: 13px; font-weight: 600; }
+        .note-date { font-size: 12px; color: #666; }
+        .note-content { font-size: 14px; color: #e0e0e0; line-height: 1.5; }
+
+        .add-note-form { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; }
+        .note-textarea { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; font-family: inherit; resize: vertical; min-height: 80px; }
+        .note-textarea:focus { outline: none; border-color: #ff4444; }
+        .form-actions { display: flex; gap: 10px; margin-top: 10px; }
+
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #ff4444; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .empty-state { text-align: center; padding: 40px; color: #666; font-size: 14px; }
+
+        .action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item active" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-left">
+                <button class="back-btn" onclick="window.location.href='leads.html'">← Back</button>
+                <div class="header-title" id="page-title">Lead Profile</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="logInteraction('call')">📞 Call</button>
+                <button class="btn btn-secondary" onclick="logInteraction('email')">📧 Email</button>
+                <button class="btn btn-secondary" onclick="logInteraction('sms')">💬 SMS</button>
+                <button class="btn btn-success" onclick="convertLead()">✅ Convert to Member</button>
+            </div>
+        </div>
+
+        <div class="profile-header" id="profile-header">
+            <div class="loading"><div class="spinner"></div>Loading lead...</div>
+        </div>
+
+        <div class="content-grid">
+            <div>
+                <div class="card">
+                    <div class="card-title">Contact Information</div>
+                    <div class="info-grid" id="lead-info">
+                        <div class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Interaction History</div>
+                    <div class="timeline" id="interaction-timeline">
+                        <div class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Notes</div>
+                    <div class="add-note-form">
+                        <textarea class="note-textarea" id="note-input" placeholder="Add a note about this lead..."></textarea>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="addNote()">Add Note</button>
+                            <button class="btn btn-secondary" onclick="document.getElementById('note-input').value=''">Clear</button>
+                        </div>
+                    </div>
+                    <div class="notes-section" id="notes-list" style="margin-top: 20px;">
+                        <div class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <div class="card-title">Lead Score Breakdown</div>
+                    <div class="score-breakdown" id="score-breakdown">
+                        <div class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Quick Actions</div>
+                    <div class="action-grid">
+                        <button class="btn btn-secondary" onclick="updateStage('contacted')">Mark Contacted</button>
+                        <button class="btn btn-secondary" onclick="updateStage('trial_booked')">Book Trial</button>
+                        <button class="btn btn-secondary" onclick="updateStage('trial_completed')">Trial Done</button>
+                        <button class="btn btn-secondary" onclick="updateStage('lost')">Mark Lost</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let leadId = null;
+        let leadData = null;
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            leadId = params.get('id') || 1;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+
+                await Promise.all([
+                    loadLeadProfile(),
+                    loadLeadInfo(),
+                    loadScoreBreakdown(),
+                    loadInteractionHistory(),
+                    loadNotes()
+                ]);
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        async function loadLeadProfile() {
+            try {
+                const response = await fetch(`${API_BASE}/leads`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const leads = await response.json();
+                leadData = leads.find(l => l.id == leadId) || leads[0];
+
+                // Get score
+                try {
+                    const scoreResponse = await fetch(`${API_BASE}/lead-scoring/score-breakdown/${leadData.id}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    const scoreData = await scoreResponse.json();
+                    leadData.score = scoreData.total_score || 0;
+                    leadData.priority = scoreData.priority || 'low';
+                } catch (e) {
+                    leadData.score = 0;
+                    leadData.priority = 'low';
+                }
+
+                document.getElementById('page-title').textContent = `${leadData.first_name} ${leadData.last_name}`;
+
+                const scoreClass = leadData.score >= 70 ? 'score-high' : leadData.score >= 40 ? 'score-medium' : 'score-low';
+                const stageClass = `stage-${leadData.stage}`;
+                const createdDate = new Date(leadData.created_at).toLocaleDateString();
+                const daysSince = Math.floor((new Date() - new Date(leadData.created_at)) / (1000 * 60 * 60 * 24));
+
+                document.getElementById('profile-header').innerHTML = `
+                    <div class="profile-top">
+                        <div class="profile-info">
+                            <div class="profile-name">${leadData.first_name} ${leadData.last_name}</div>
+                            <div class="profile-meta">
+                                <span>📧 ${leadData.email || 'No email'}</span>
+                                <span>📱 ${leadData.phone}</span>
+                                <span>📅 Created ${createdDate}</span>
+                                <span>⏱️ ${daysSince} days ago</span>
+                                <span>🎯 ${leadData.source || 'Unknown source'}</span>
+                                ${leadData.interest_level ? `<span>🔥 ${leadData.interest_level} interest</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="score-display">
+                            <div class="score-circle ${scoreClass}">
+                                <div class="score-value">${leadData.score}</div>
+                                <div class="score-label">${leadData.priority.toUpperCase()}</div>
+                            </div>
+                            <span class="stage-badge ${stageClass}">${leadData.stage.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load profile:', error);
+            }
+        }
+
+        async function loadLeadInfo() {
+            try {
+                document.getElementById('lead-info').innerHTML = `
+                    <div class="info-field">
+                        <div class="info-label">Full Name</div>
+                        <div class="info-value">${leadData.first_name} ${leadData.last_name}</div>
+                    </div>
+                    <div class="info-field">
+                        <div class="info-label">Email</div>
+                        <div class="info-value">${leadData.email || 'Not provided'}</div>
+                    </div>
+                    <div class="info-field">
+                        <div class="info-label">Phone</div>
+                        <div class="info-value">${leadData.phone}</div>
+                    </div>
+                    <div class="info-field">
+                        <div class="info-label">Source</div>
+                        <div class="info-value">${leadData.source || 'Unknown'}</div>
+                    </div>
+                    <div class="info-field">
+                        <div class="info-label">Interest Level</div>
+                        <div class="info-value">${leadData.interest_level || 'Not set'}</div>
+                    </div>
+                    <div class="info-field">
+                        <div class="info-label">Current Stage</div>
+                        <div class="info-value">${leadData.stage.replace('_', ' ')}</div>
+                    </div>
+                    <div class="info-field">
+                        <div class="info-label">Created Date</div>
+                        <div class="info-value">${new Date(leadData.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div class="info-field">
+                        <div class="info-label">Last Updated</div>
+                        <div class="info-value">${new Date(leadData.updated_at).toLocaleDateString()}</div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load lead info:', error);
+            }
+        }
+
+        async function loadScoreBreakdown() {
+            try {
+                const response = await fetch(`${API_BASE}/lead-scoring/score-breakdown/${leadData.id}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const breakdown = await response.json();
+
+                let html = '';
+                breakdown.factors.forEach(factor => {
+                    html += `
+                        <div class="score-item">
+                            <div class="score-item-header">
+                                <div class="score-item-title">${factor.factor_name}</div>
+                                <div class="score-item-value">+${factor.points}</div>
+                            </div>
+                            <div class="score-item-desc">${factor.reason}</div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                    <div class="score-item" style="border: 2px solid #ff4444;">
+                        <div class="score-item-header">
+                            <div class="score-item-title">Total Score</div>
+                            <div class="score-item-value" style="font-size: 20px;">${breakdown.total_score}</div>
+                        </div>
+                        <div class="score-item-desc">Priority: ${breakdown.priority.toUpperCase()}</div>
+                    </div>
+                `;
+
+                document.getElementById('score-breakdown').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load score breakdown:', error);
+                document.getElementById('score-breakdown').innerHTML = `
+                    <div class="empty-state">Score breakdown not available</div>
+                `;
+            }
+        }
+
+        async function loadInteractionHistory() {
+            try {
+                // Sample interaction data
+                const interactions = [
+                    { date: '2026-05-13', type: 'call', title: 'Phone Call', desc: 'Discussed trial class options. Interested in BJJ fundamentals.' },
+                    { date: '2026-05-10', type: 'email', title: 'Welcome Email Sent', desc: 'Automated welcome email with gym info and trial booking link.' },
+                    { date: '2026-05-09', type: 'sms', title: 'SMS Follow-up', desc: 'Sent SMS with trial class schedule and pricing.' },
+                    { date: '2026-05-08', type: 'note', title: 'Lead Created', desc: 'Inquiry from website contact form. Interested in MMA training.' }
+                ];
+
+                let html = '';
+                interactions.forEach(interaction => {
+                    html += `
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <div class="timeline-title">${interaction.title}</div>
+                                    <div class="timeline-date">${new Date(interaction.date).toLocaleDateString()}</div>
+                                </div>
+                                <span class="timeline-type type-${interaction.type}">${interaction.type.toUpperCase()}</span>
+                            </div>
+                            <div class="timeline-desc">${interaction.desc}</div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('interaction-timeline').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load interactions:', error);
+            }
+        }
+
+        async function loadNotes() {
+            try {
+                // Sample notes data
+                const notes = [
+                    { author: 'Admin User', date: '2026-05-13', content: 'Very interested in BJJ. Has previous martial arts experience (Karate). Looking to start next week.' },
+                    { author: 'Admin User', date: '2026-05-10', content: 'Responded well to email. Clicked trial booking link but did not complete booking.' }
+                ];
+
+                if (notes.length === 0) {
+                    document.getElementById('notes-list').innerHTML = `
+                        <div class="empty-state">No notes yet</div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                notes.forEach(note => {
+                    html += `
+                        <div class="note-item">
+                            <div class="note-header">
+                                <div class="note-author">${note.author}</div>
+                                <div class="note-date">${new Date(note.date).toLocaleDateString()}</div>
+                            </div>
+                            <div class="note-content">${note.content}</div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('notes-list').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load notes:', error);
+            }
+        }
+
+        async function addNote() {
+            const content = document.getElementById('note-input').value.trim();
+            if (!content) {
+                alert('Please enter a note');
+                return;
+            }
+
+            try {
+                // In real app, would POST to /leads/:id/notes
+                alert('Note added successfully!');
+                document.getElementById('note-input').value = '';
+                await loadNotes();
+            } catch (error) {
+                console.error('Failed to add note:', error);
+                alert('Failed to add note');
+            }
+        }
+
+        async function logInteraction(type) {
+            try {
+                // In real app, would POST to /leads/:id/interactions
+                alert(`${type.toUpperCase()} interaction logged`);
+                await loadInteractionHistory();
+            } catch (error) {
+                console.error('Failed to log interaction:', error);
+            }
+        }
+
+        async function updateStage(newStage) {
+            try {
+                const response = await fetch(`${API_BASE}/leads/${leadData.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ stage: newStage })
+                });
+
+                if (response.ok) {
+                    alert('Stage updated successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Failed to update stage');
+                }
+            } catch (error) {
+                console.error('Failed to update stage:', error);
+                alert('Error updating stage');
+            }
+        }
+
+        async function convertLead() {
+            if (!confirm('Convert this lead to a member? This will create a new member account.')) {
+                return;
+            }
+
+            try {
+                // In real app, would POST to /leads/:id/convert
+                alert('Lead converted to member successfully!');
+                window.location.href = 'members.html';
+            } catch (error) {
+                console.error('Failed to convert lead:', error);
+                alert('Error converting lead');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

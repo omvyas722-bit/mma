@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Billing & Payments</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; overflow-y: auto; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-title { font-size: 28px; font-weight: 700; }
+        .header-actions { display: flex; gap: 10px; }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+
+        .alert-banner { background: #ff444420; border: 1px solid #ff4444; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        .alert-icon { font-size: 32px; }
+        .alert-content { flex: 1; }
+        .alert-title { font-size: 16px; font-weight: 600; margin-bottom: 5px; color: #ff4444; }
+        .alert-text { font-size: 14px; color: #ff8888; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; }
+        .stat-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; }
+        .stat-trend { font-size: 12px; margin-top: 5px; }
+        .trend-up { color: #00ff00; }
+        .trend-down { color: #ff4444; }
+
+        .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+
+        .payment-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .payment-tab { padding: 12px 24px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-weight: 600; }
+        .payment-tab.active { background: #ff444420; border-color: #ff4444; color: #ff4444; }
+
+        .payment-list { display: flex; flex-direction: column; gap: 12px; }
+        .payment-item { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; transition: all 0.3s; }
+        .payment-item:hover { border-color: #333; }
+        .payment-item.failed { border-color: #ff4444; background: #ff444410; }
+        .payment-item.pending { border-color: #ff8800; background: #ff880010; }
+
+        .payment-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .payment-info { flex: 1; }
+        .payment-member { font-size: 16px; font-weight: 600; margin-bottom: 5px; }
+        .payment-details { font-size: 13px; color: #888; }
+        .payment-amount { font-size: 20px; font-weight: 700; }
+        .amount-success { color: #00ff00; }
+        .amount-failed { color: #ff4444; }
+        .amount-pending { color: #ff8800; }
+
+        .payment-meta { display: flex; gap: 15px; font-size: 12px; color: #888; margin-bottom: 10px; }
+        .payment-actions { display: flex; gap: 8px; }
+        .action-btn { padding: 6px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.3s; }
+        .action-btn:hover { border-color: #ff4444; }
+
+        .status-badge { padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .status-success { background: #00ff0020; color: #00ff00; }
+        .status-failed { background: #ff444420; color: #ff4444; }
+        .status-pending { background: #ff880020; color: #ff8800; }
+        .status-scheduled { background: #88888820; color: #888; }
+
+        .upcoming-billing { display: flex; flex-direction: column; gap: 12px; }
+        .billing-item { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; }
+        .billing-date { font-size: 12px; color: #666; margin-bottom: 8px; }
+        .billing-info { display: flex; justify-content: space-between; align-items: center; }
+        .billing-member { font-size: 14px; font-weight: 600; }
+        .billing-amount { font-size: 16px; font-weight: 700; color: #00ff00; }
+
+        .revenue-forecast { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 20px; }
+        .forecast-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #222; }
+        .forecast-row:last-child { border-bottom: none; }
+        .forecast-label { font-size: 14px; color: #888; }
+        .forecast-value { font-size: 18px; font-weight: 700; }
+
+        .payment-methods { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .method-card { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; text-align: center; }
+        .method-icon { font-size: 32px; margin-bottom: 10px; }
+        .method-name { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+        .method-count { font-size: 20px; font-weight: 700; color: #ff4444; }
+        .method-label { font-size: 11px; color: #666; }
+
+        .collection-workflow { display: flex; flex-direction: column; gap: 12px; }
+        .workflow-stage { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 15px; }
+        .workflow-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .workflow-title { font-size: 14px; font-weight: 600; }
+        .workflow-count { padding: 4px 10px; background: #ff444420; color: #ff4444; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .workflow-desc { font-size: 12px; color: #888; }
+
+        .filters-bar { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+        .filter-select { padding: 10px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; cursor: pointer; }
+
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #ff4444; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='locations.html'">📍 Locations</div>
+            <div class="nav-item" onclick="window.location.href='trial-bookings.html'">🎯 Trial Bookings</div>
+            <div class="nav-item" onclick="window.location.href='membership-tiers.html'">💎 Membership Tiers</div>
+            <div class="nav-item" onclick="window.location.href='instructors.html'">👨‍🏫 Instructors</div>
+            <div class="nav-item" onclick="window.location.href='specialized-programs.html'">🎓 Specialized Programs</div>
+            <div class="nav-item" onclick="window.location.href='advanced-analytics.html'">📊 Advanced Analytics</div>
+            <div class="nav-item" onclick="window.location.href='contracts.html'">📄 Contracts</div>
+            <div class="nav-item" onclick="window.location.href='discipline-tracking.html'">🥊 Discipline Tracking</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item active">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
+            <div class="nav-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title">Billing & Payments</div>
+            <div class="header-actions">
+                <button class="btn btn-secondary">📊 Export Report</button>
+                <button class="btn btn-secondary">⚙️ Billing Settings</button>
+                <button class="btn btn-primary">+ Manual Payment</button>
+            </div>
+        </div>
+
+        <div class="alert-banner">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+                <div class="alert-title">8 Failed Payments Require Action</div>
+                <div class="alert-text">$1,592 in failed payments need to be recovered. Automated retry scheduled for tomorrow.</div>
+            </div>
+            <button class="btn btn-primary">Review Failed</button>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Monthly Recurring Revenue</div>
+                <div class="stat-value" style="color: #00ff00;">$28,450</div>
+                <div class="stat-trend trend-up">↑ $1,200 vs last month</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Collection Rate</div>
+                <div class="stat-value" style="color: #00ff00;">96.2%</div>
+                <div class="stat-trend trend-up">↑ 1.5% vs last month</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Failed Payments</div>
+                <div class="stat-value" style="color: #ff4444;">8</div>
+                <div class="stat-trend">$1,592 outstanding</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Next Billing Cycle</div>
+                <div class="stat-value" style="font-size: 20px;">May 20</div>
+                <div class="stat-trend">142 payments scheduled</div>
+            </div>
+        </div>
+
+        <div class="payment-tabs">
+            <div class="payment-tab active" onclick="filterPayments('all')">All Payments</div>
+            <div class="payment-tab" onclick="filterPayments('failed')">Failed (8)</div>
+            <div class="payment-tab" onclick="filterPayments('pending')">Pending (12)</div>
+            <div class="payment-tab" onclick="filterPayments('success')">Successful</div>
+        </div>
+
+        <div class="filters-bar">
+            <span style="font-size: 13px; color: #888;">Filter:</span>
+            <select class="filter-select">
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+            </select>
+            <select class="filter-select">
+                <option value="">All Methods</option>
+                <option value="card">Credit Card</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="cash">Cash</option>
+            </select>
+            <select class="filter-select">
+                <option value="">All Plans</option>
+                <option value="unlimited">Unlimited</option>
+                <option value="3x_week">3x Week</option>
+                <option value="2x_week">2x Week</option>
+            </select>
+        </div>
+
+        <div class="content-grid">
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <span>Recent Transactions</span>
+                        <span style="font-size: 14px; color: #888;">Last 24 hours</span>
+                    </div>
+                    <div class="payment-list">
+                        <!-- Failed Payment -->
+                        <div class="payment-item failed">
+                            <div class="payment-header">
+                                <div class="payment-info">
+                                    <div class="payment-member">John Smith</div>
+                                    <div class="payment-details">Unlimited Plan • Monthly Subscription</div>
+                                </div>
+                                <div class="payment-amount amount-failed">$199</div>
+                            </div>
+                            <div class="payment-meta">
+                                <span>📅 May 15, 2026</span>
+                                <span>💳 Card ending 4242</span>
+                                <span class="status-badge status-failed">FAILED</span>
+                                <span>❌ Insufficient funds</span>
+                            </div>
+                            <div class="payment-actions">
+                                <button class="action-btn">🔄 Retry Payment</button>
+                                <button class="action-btn">💬 Contact Member</button>
+                                <button class="action-btn">💳 Update Card</button>
+                            </div>
+                        </div>
+
+                        <!-- Pending Payment -->
+                        <div class="payment-item pending">
+                            <div class="payment-header">
+                                <div class="payment-info">
+                                    <div class="payment-member">Sarah Johnson</div>
+                                    <div class="payment-details">3x Week Plan • Monthly Subscription</div>
+                                </div>
+                                <div class="payment-amount amount-pending">$149</div>
+                            </div>
+                            <div class="payment-meta">
+                                <span>📅 May 15, 2026</span>
+                                <span>🏦 Bank Transfer</span>
+                                <span class="status-badge status-pending">PENDING</span>
+                                <span>⏳ Processing</span>
+                            </div>
+                            <div class="payment-actions">
+                                <button class="action-btn">✅ Mark Received</button>
+                                <button class="action-btn">👁️ View Details</button>
+                            </div>
+                        </div>
+
+                        <!-- Successful Payment -->
+                        <div class="payment-item">
+                            <div class="payment-header">
+                                <div class="payment-info">
+                                    <div class="payment-member">Mike Chen</div>
+                                    <div class="payment-details">Unlimited Plan • Monthly Subscription</div>
+                                </div>
+                                <div class="payment-amount amount-success">$199</div>
+                            </div>
+                            <div class="payment-meta">
+                                <span>📅 May 15, 2026</span>
+                                <span>💳 Card ending 5555</span>
+                                <span class="status-badge status-success">SUCCESS</span>
+                                <span>✅ Completed</span>
+                            </div>
+                            <div class="payment-actions">
+                                <button class="action-btn">📄 Receipt</button>
+                                <button class="action-btn">👁️ View Details</button>
+                            </div>
+                        </div>
+
+                        <div class="payment-item">
+                            <div class="payment-header">
+                                <div class="payment-info">
+                                    <div class="payment-member">Emma Wilson</div>
+                                    <div class="payment-details">2x Week Plan • Monthly Subscription</div>
+                                </div>
+                                <div class="payment-amount amount-success">$99</div>
+                            </div>
+                            <div class="payment-meta">
+                                <span>📅 May 14, 2026</span>
+                                <span>💳 Card ending 1234</span>
+                                <span class="status-badge status-success">SUCCESS</span>
+                                <span>✅ Completed</span>
+                            </div>
+                            <div class="payment-actions">
+                                <button class="action-btn">📄 Receipt</button>
+                                <button class="action-btn">👁️ View Details</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <div class="card-title">Upcoming Billing</div>
+                    <div class="upcoming-billing">
+                        <div class="billing-item">
+                            <div class="billing-date">Tomorrow • May 16</div>
+                            <div class="billing-info">
+                                <div class="billing-member">45 members</div>
+                                <div class="billing-amount">$6,755</div>
+                            </div>
+                        </div>
+                        <div class="billing-item">
+                            <div class="billing-date">May 20</div>
+                            <div class="billing-info">
+                                <div class="billing-member">97 members</div>
+                                <div class="billing-amount">$14,230</div>
+                            </div>
+                        </div>
+                        <div class="billing-item">
+                            <div class="billing-date">May 25</div>
+                            <div class="billing-info">
+                                <div class="billing-member">28 members</div>
+                                <div class="billing-amount">$4,180</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Revenue Forecast</div>
+                    <div class="revenue-forecast">
+                        <div class="forecast-row">
+                            <div class="forecast-label">This Month</div>
+                            <div class="forecast-value" style="color: #00ff00;">$28,450</div>
+                        </div>
+                        <div class="forecast-row">
+                            <div class="forecast-label">Next Month</div>
+                            <div class="forecast-value">$29,200</div>
+                        </div>
+                        <div class="forecast-row">
+                            <div class="forecast-label">Annual Run Rate</div>
+                            <div class="forecast-value">$341,400</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Payment Methods</div>
+                    <div class="payment-methods">
+                        <div class="method-card">
+                            <div class="method-icon">💳</div>
+                            <div class="method-name">Credit Card</div>
+                            <div class="method-count">142</div>
+                            <div class="method-label">members</div>
+                        </div>
+                        <div class="method-card">
+                            <div class="method-icon">🏦</div>
+                            <div class="method-name">Bank Transfer</div>
+                            <div class="method-count">8</div>
+                            <div class="method-label">members</div>
+                        </div>
+                        <div class="method-card">
+                            <div class="method-icon">💵</div>
+                            <div class="method-name">Cash</div>
+                            <div class="method-count">4</div>
+                            <div class="method-label">members</div>
+                        </div>
+                        <div class="method-card">
+                            <div class="method-icon">📱</div>
+                            <div class="method-name">Digital Wallet</div>
+                            <div class="method-count">2</div>
+                            <div class="method-label">members</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Collection Workflow</div>
+                    <div class="collection-workflow">
+                        <div class="workflow-stage">
+                            <div class="workflow-header">
+                                <div class="workflow-title">1st Retry (24h)</div>
+                                <div class="workflow-count">3</div>
+                            </div>
+                            <div class="workflow-desc">Automatic retry scheduled</div>
+                        </div>
+                        <div class="workflow-stage">
+                            <div class="workflow-header">
+                                <div class="workflow-title">Email Reminder</div>
+                                <div class="workflow-count">2</div>
+                            </div>
+                            <div class="workflow-desc">Payment update requested</div>
+                        </div>
+                        <div class="workflow-stage">
+                            <div class="workflow-header">
+                                <div class="workflow-title">SMS Follow-up</div>
+                                <div class="workflow-count">2</div>
+                            </div>
+                            <div class="workflow-desc">Urgent payment notice sent</div>
+                        </div>
+                        <div class="workflow-stage">
+                            <div class="workflow-header">
+                                <div class="workflow-title">Manual Contact</div>
+                                <div class="workflow-count">1</div>
+                            </div>
+                            <div class="workflow-desc">Staff intervention required</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid" style="margin-top: 30px;">
+            <div class="card">
+                <div class="card-title">Autopay Settings</div>
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #0a0a0a; border-radius: 8px;">
+                        <div>
+                            <div style="font-size: 15px; font-weight: 600; margin-bottom: 5px;">Flexible Billing Dates</div>
+                            <div style="font-size: 13px; color: #888;">Allow members to choose 1st or 15th of month</div>
+                        </div>
+                        <label style="position: relative; display: inline-block; width: 50px; height: 24px;">
+                            <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ff4444; transition: .4s; border-radius: 24px;"></span>
+                        </label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #0a0a0a; border-radius: 8px;">
+                        <div>
+                            <div style="font-size: 15px; font-weight: 600; margin-bottom: 5px;">Auto-Retry Failed Payments</div>
+                            <div style="font-size: 13px; color: #888;">Retry after 24h, 72h, 7 days, 14 days</div>
+                        </div>
+                        <label style="position: relative; display: inline-block; width: 50px; height: 24px;">
+                            <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ff4444; transition: .4s; border-radius: 24px;"></span>
+                        </label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #0a0a0a; border-radius: 8px;">
+                        <div>
+                            <div style="font-size: 15px; font-weight: 600; margin-bottom: 5px;">Grace Period</div>
+                            <div style="font-size: 13px; color: #888;">5-day grace before late fees</div>
+                        </div>
+                        <select style="padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff;">
+                            <option>3 days</option>
+                            <option selected>5 days</option>
+                            <option>7 days</option>
+                            <option>10 days</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #0a0a0a; border-radius: 8px;">
+                        <div>
+                            <div style="font-size: 15px; font-weight: 600; margin-bottom: 5px;">Late Fee Amount</div>
+                            <div style="font-size: 13px; color: #888;">Charge after grace period expires</div>
+                        </div>
+                        <input type="number" value="25" style="width: 100px; padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Billing Date Distribution</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px;">
+                    <div style="text-align: center; padding: 20px; background: #0a0a0a; border-radius: 8px;">
+                        <div style="font-size: 32px; font-weight: 700; color: #ff4444; margin-bottom: 5px;">87</div>
+                        <div style="font-size: 13px; color: #888;">Members billed on 1st</div>
+                    </div>
+                    <div style="text-align: center; padding: 20px; background: #0a0a0a; border-radius: 8px;">
+                        <div style="font-size: 32px; font-weight: 700; color: #ff4444; margin-bottom: 5px;">69</div>
+                        <div style="font-size: 13px; color: #888;">Members billed on 15th</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+
+        async function init() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        function filterPayments(type) {
+            document.querySelectorAll('.payment-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            alert(`Filtering by ${type} payments`);
+        }
+
+        init();
+    </script>
+</body>
+</html>

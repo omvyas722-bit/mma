@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude local config
+.claude/
+
+# Research cache
+.research/
+
+# Logs
+*.log
+
+# Credentials
+credentials.json
+token.json
+*.pem
+*.key
+
+# Root-level documentation and planning files
+/*.md
+/*.html
+/*.csv
+
+# Email automation scripts
+gym_email_automation.py
+EMAIL_SETUP_INSTRUCTIONS.md
+README_EMAIL_AUTOMATION.md

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Settings</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; overflow-y: auto; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; max-width: 1400px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-title { font-size: 28px; font-weight: 700; }
+        .header-actions { display: flex; gap: 10px; }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+
+        .settings-layout { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+
+        .settings-nav { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; height: fit-content; position: sticky; top: 20px; }
+        .settings-nav-title { font-size: 14px; font-weight: 600; color: #888; margin-bottom: 15px; text-transform: uppercase; }
+        .settings-nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+        .settings-nav-item:hover { background: #0a0a0a; }
+        .settings-nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .settings-content { display: flex; flex-direction: column; gap: 20px; }
+        .settings-section { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 30px; }
+        .section-header { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #333; }
+        .section-title { font-size: 20px; font-weight: 700; margin-bottom: 5px; }
+        .section-desc { font-size: 14px; color: #888; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .form-field { margin-bottom: 20px; }
+        .form-field.full-width { grid-column: 1 / -1; }
+        .form-label { display: block; font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 600; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; font-family: inherit; transition: all 0.3s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #ff4444; }
+        .form-textarea { resize: vertical; min-height: 100px; }
+        .form-hint { font-size: 12px; color: #666; margin-top: 5px; }
+
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 26px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: #888; transition: .4s; border-radius: 50%; }
+        input:checked + .toggle-slider { background-color: #ff4444; }
+        input:checked + .toggle-slider:before { transform: translateX(24px); background-color: #fff; }
+
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #222; }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-info { flex: 1; }
+        .setting-title { font-size: 15px; font-weight: 600; margin-bottom: 5px; }
+        .setting-desc { font-size: 13px; color: #888; }
+
+        .color-picker { width: 60px; height: 40px; border: 2px solid #333; border-radius: 8px; cursor: pointer; }
+
+        .plan-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .plan-card { background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.3s; }
+        .plan-card:hover { border-color: #ff4444; }
+        .plan-card.active { border-color: #ff4444; background: #ff444410; }
+        .plan-name { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+        .plan-price { font-size: 24px; font-weight: 700; color: #ff4444; margin-bottom: 10px; }
+        .plan-features { font-size: 13px; color: #888; }
+
+        .danger-zone { background: #ff444410; border: 1px solid #ff4444; border-radius: 12px; padding: 30px; }
+        .danger-title { font-size: 18px; font-weight: 700; color: #ff4444; margin-bottom: 15px; }
+        .danger-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-danger { background: #ff444420; border: 1px solid #ff4444; color: #ff4444; }
+        .btn-danger:hover { background: #ff444430; }
+
+        .save-bar { position: fixed; bottom: 0; left: 240px; right: 0; background: #1a1a1a; border-top: 1px solid #333; padding: 20px; display: none; z-index: 50; }
+        .save-bar.show { display: flex; justify-content: space-between; align-items: center; }
+        .save-message { color: #ff8800; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='locations.html'">📍 Locations</div>
+            <div class="nav-item" onclick="window.location.href='trial-bookings.html'">🎯 Trial Bookings</div>
+            <div class="nav-item" onclick="window.location.href='membership-tiers.html'">💎 Membership Tiers</div>
+            <div class="nav-item" onclick="window.location.href='instructors.html'">👨‍🏫 Instructors</div>
+            <div class="nav-item" onclick="window.location.href='specialized-programs.html'">🎓 Specialized Programs</div>
+            <div class="nav-item" onclick="window.location.href='advanced-analytics.html'">📊 Advanced Analytics</div>
+            <div class="nav-item" onclick="window.location.href='contracts.html'">📄 Contracts</div>
+            <div class="nav-item" onclick="window.location.href='discipline-tracking.html'">🥊 Discipline Tracking</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
+            <div class="nav-item active">⚙️ Settings</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title">Settings</div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="resetSettings()">Reset to Default</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+            </div>
+        </div>
+
+        <div class="settings-layout">
+            <div class="settings-nav">
+                <div class="settings-nav-title">Settings</div>
+                <div class="settings-nav-item active" onclick="showSection('general')">
+                    <span>🏢</span> General
+                </div>
+                <div class="settings-nav-item" onclick="showSection('billing')">
+                    <span>💳</span> Billing
+                </div>
+                <div class="settings-nav-item" onclick="showSection('classes')">
+                    <span>📅</span> Classes
+                </div>
+                <div class="settings-nav-item" onclick="showSection('notifications')">
+                    <span>🔔</span> Notifications
+                </div>
+                <div class="settings-nav-item" onclick="showSection('integrations')">
+                    <span>🔌</span> Integrations
+                </div>
+                <div class="settings-nav-item" onclick="showSection('security')">
+                    <span>🔒</span> Security
+                </div>
+                <div class="settings-nav-item" onclick="showSection('advanced')">
+                    <span>⚡</span> Advanced
+                </div>
+            </div>
+
+            <div class="settings-content">
+                <!-- General Settings -->
+                <div class="settings-section">
+                    <div class="section-header">
+                        <div class="section-title">General Settings</div>
+                        <div class="section-desc">Basic gym information and preferences</div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label class="form-label">Gym Name</label>
+                            <input type="text" class="form-input" value="ROAR MMA" onchange="markChanged()">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Business Name</label>
+                            <input type="text" class="form-input" value="ROAR MMA Pty Ltd" onchange="markChanged()">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" value="admin@roarmma.com.au" onchange="markChanged()">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-input" value="(02) 1234 5678" onchange="markChanged()">
+                        </div>
+                        <div class="form-field full-width">
+                            <label class="form-label">Address</label>
+                            <input type="text" class="form-input" value="123 Fighter Street, Sydney NSW 2000" onchange="markChanged()">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Timezone</label>
+                            <select class="form-select" onchange="markChanged()">
+                                <option>Australia/Sydney</option>
+                                <option>Australia/Melbourne</option>
+                                <option>Australia/Brisbane</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Currency</label>
+                            <select class="form-select" onchange="markChanged()">
+                                <option>AUD ($)</option>
+                                <option>USD ($)</option>
+                                <option>EUR (€)</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Primary Color</label>
+                            <input type="color" class="color-picker" value="#ff4444" onchange="markChanged()">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Max Capacity</label>
+                            <input type="number" class="form-input" value="150" onchange="markChanged()">
+                            <div class="form-hint">Maximum members allowed in gym at once</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Billing Settings -->
+                <div class="settings-section">
+                    <div class="section-header">
+                        <div class="section-title">Billing & Payments</div>
+                        <div class="section-desc">Configure payment processing and billing cycles</div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Automatic Billing</div>
+                            <div class="setting-desc">Automatically charge members on their billing date</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Failed Payment Retry</div>
+                            <div class="setting-desc">Automatically retry failed payments after 24 hours</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Late Payment Grace Period</div>
+                            <div class="setting-desc">Days before suspending access for non-payment</div>
+                        </div>
+                        <select class="form-select" style="width: 150px;" onchange="markChanged()">
+                            <option>3 days</option>
+                            <option selected>7 days</option>
+                            <option>14 days</option>
+                            <option>30 days</option>
+                        </select>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 20px;">
+                        <div class="form-field">
+                            <label class="form-label">Payment Gateway</label>
+                            <select class="form-select" onchange="markChanged()">
+                                <option>Stripe</option>
+                                <option>Square</option>
+                                <option>PayPal</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Tax Rate (%)</label>
+                            <input type="number" class="form-input" value="10" step="0.1" onchange="markChanged()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Class Settings -->
+                <div class="settings-section">
+                    <div class="section-header">
+                        <div class="section-title">Class Management</div>
+                        <div class="section-desc">Configure class booking and scheduling</div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Allow Online Booking</div>
+                            <div class="setting-desc">Members can book classes through the app</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Waitlist</div>
+                            <div class="setting-desc">Enable waitlist for full classes</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Late Cancellation Fee</div>
+                            <div class="setting-desc">Charge fee for cancellations within 2 hours</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 20px;">
+                        <div class="form-field">
+                            <label class="form-label">Booking Window (days)</label>
+                            <input type="number" class="form-input" value="14" onchange="markChanged()">
+                            <div class="form-hint">How far in advance members can book</div>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Cancellation Window (hours)</label>
+                            <input type="number" class="form-input" value="2" onchange="markChanged()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="settings-section">
+                    <div class="section-header">
+                        <div class="section-title">Notifications</div>
+                        <div class="section-desc">Configure automated notifications and reminders</div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Class Reminders</div>
+                            <div class="setting-desc">Send reminder 2 hours before class</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Payment Receipts</div>
+                            <div class="setting-desc">Email receipt after successful payment</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Failed Payment Alerts</div>
+                            <div class="setting-desc">Notify member when payment fails</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Belt Promotion Notifications</div>
+                            <div class="setting-desc">Congratulate members on belt promotions</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Marketing Integration -->
+                <div class="settings-section">
+                    <div class="section-header">
+                        <div class="section-title">Marketing Integration</div>
+                        <div class="section-desc">Connect marketing and analytics platforms</div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Google Ads Conversion Tracking</div>
+                            <div class="setting-desc">Track trial bookings and membership signups</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 15px; margin-bottom: 20px;">
+                        <div class="form-field">
+                            <label class="form-label">Google Ads Conversion ID</label>
+                            <input type="text" class="form-input" placeholder="AW-123456789" onchange="markChanged()">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Conversion Label</label>
+                            <input type="text" class="form-input" placeholder="abc123def456" onchange="markChanged()">
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Facebook Pixel</div>
+                            <div class="setting-desc">Track events and build custom audiences</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-field" style="margin-top: 15px; margin-bottom: 20px;">
+                        <label class="form-label">Facebook Pixel ID</label>
+                        <input type="text" class="form-input" placeholder="123456789012345" onchange="markChanged()">
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Email Marketing (Mailchimp)</div>
+                            <div class="setting-desc">Sync members to email lists automatically</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-field" style="margin-top: 15px; margin-bottom: 20px;">
+                        <label class="form-label">Mailchimp API Key</label>
+                        <input type="password" class="form-input" placeholder="Enter API key" onchange="markChanged()">
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Lead Source Attribution</div>
+                            <div class="setting-desc">Track where members come from (UTM parameters)</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="markChanged()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="danger-zone">
+                    <div class="danger-title">⚠️ Danger Zone</div>
+                    <div style="font-size: 14px; color: #ff8888; margin-bottom: 20px;">
+                        These actions are irreversible. Please be certain before proceeding.
+                    </div>
+                    <div class="danger-actions">
+                        <button class="btn btn-danger">Export All Data</button>
+                        <button class="btn btn-danger">Reset Database</button>
+                        <button class="btn btn-danger">Delete Account</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="save-bar" id="save-bar">
+        <div class="save-message">⚠️ You have unsaved changes</div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" onclick="discardChanges()">Discard</button>
+            <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let hasChanges = false;
+
+        async function init() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.settings-nav-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+            alert(`Showing ${section} settings`);
+        }
+
+        function markChanged() {
+            hasChanges = true;
+            document.getElementById('save-bar').classList.add('show');
+        }
+
+        function saveSettings() {
+            hasChanges = false;
+            document.getElementById('save-bar').classList.remove('show');
+            alert('Settings saved successfully!');
+        }
+
+        function discardChanges() {
+            if (confirm('Discard all unsaved changes?')) {
+                hasChanges = false;
+                document.getElementById('save-bar').classList.remove('show');
+                window.location.reload();
+            }
+        }
+
+        function resetSettings() {
+            if (confirm('Reset all settings to default values?')) {
+                alert('Settings reset to default');
+                window.location.reload();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

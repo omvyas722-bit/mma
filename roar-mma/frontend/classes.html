@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Class Schedule</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-title { font-size: 28px; font-weight: 700; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+
+        .view-toggle { display: flex; gap: 5px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 4px; }
+        .view-btn { padding: 8px 16px; border: none; background: transparent; color: #888; border-radius: 6px; cursor: pointer; transition: all 0.3s; font-size: 13px; }
+        .view-btn.active { background: #ff4444; color: #fff; }
+
+        .week-nav { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .week-display { font-size: 18px; font-weight: 600; }
+        .nav-arrows { display: flex; gap: 10px; }
+        .arrow-btn { padding: 8px 16px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .arrow-btn:hover { border-color: #ff4444; }
+
+        .schedule-grid { display: grid; grid-template-columns: 80px repeat(7, 1fr); gap: 1px; background: #333; border: 1px solid #333; border-radius: 12px; overflow: hidden; }
+        .time-header { background: #1a1a1a; padding: 15px 10px; text-align: center; font-weight: 600; font-size: 12px; color: #888; }
+        .day-header { background: #1a1a1a; padding: 15px; text-align: center; }
+        .day-name { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+        .day-date { font-size: 12px; color: #888; }
+        .day-header.today { background: #ff444420; border: 2px solid #ff4444; }
+
+        .time-slot { background: #1a1a1a; padding: 10px; text-align: center; font-size: 12px; color: #666; }
+        .class-cell { background: #1a1a1a; padding: 5px; position: relative; min-height: 80px; }
+
+        .class-card { background: linear-gradient(135deg, #ff444420 0%, #ff444410 100%); border: 1px solid #ff4444; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.3s; height: 100%; }
+        .class-card:hover { transform: translateY(-2px); border-color: #ff6666; }
+        .class-card.bjj { background: linear-gradient(135deg, #4444ff20 0%, #4444ff10 100%); border-color: #4444ff; }
+        .class-card.mma { background: linear-gradient(135deg, #ff444420 0%, #ff444410 100%); border-color: #ff4444; }
+        .class-card.boxing { background: linear-gradient(135deg, #ff880020 0%, #ff880010 100%); border-color: #ff8800; }
+        .class-card.muay-thai { background: linear-gradient(135deg, #00ff0020 0%, #00ff0010 100%); border-color: #00ff00; }
+        .class-card.kids { background: linear-gradient(135deg, #ff00ff20 0%, #ff00ff10 100%); border-color: #ff00ff; }
+
+        .class-name { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+        .class-time { font-size: 11px; color: #888; margin-bottom: 5px; }
+        .class-info { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+        .class-spots { color: #00ff00; }
+        .class-spots.low { color: #ff8800; }
+        .class-spots.full { color: #ff4444; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; }
+        .stat-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; }
+
+        .filters-bar { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+        .filter-select { padding: 10px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; cursor: pointer; }
+
+        .loading { text-align: center; padding: 60px; color: #666; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #ff4444; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='locations.html'">📍 Locations</div>
+            <div class="nav-item" onclick="window.location.href='trial-bookings.html'">🎯 Trial Bookings</div>
+            <div class="nav-item" onclick="window.location.href='membership-tiers.html'">💎 Membership Tiers</div>
+            <div class="nav-item" onclick="window.location.href='instructors.html'">👨‍🏫 Instructors</div>
+            <div class="nav-item" onclick="window.location.href='specialized-programs.html'">🎓 Specialized Programs</div>
+            <div class="nav-item" onclick="window.location.href='advanced-analytics.html'">📊 Advanced Analytics</div>
+            <div class="nav-item" onclick="window.location.href='contracts.html'">📄 Contracts</div>
+            <div class="nav-item" onclick="window.location.href='discipline-tracking.html'">🥊 Discipline Tracking</div>
+            <div class="nav-item active">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
+            <div class="nav-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title">Class Schedule</div>
+            <div class="header-actions">
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="switchView('week')">Week</button>
+                    <button class="view-btn" onclick="switchView('day')">Day</button>
+                    <button class="view-btn" onclick="switchView('list')">List</button>
+                </div>
+                <button class="btn btn-secondary">⚙️ Manage Classes</button>
+                <button class="btn btn-primary">+ Add Class</button>
+            </div>
+        </div>
+
+        <div class="stats-row" id="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Classes This Week</div>
+                <div class="stat-value">42</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Bookings</div>
+                <div class="stat-value" style="color: #00ff00;">287</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Attendance</div>
+                <div class="stat-value">68%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Instructor:Student Ratio</div>
+                <div class="stat-value" style="color: #ff8800;">1:14</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Classes Today</div>
+                <div class="stat-value" style="color: #ff4444;">6</div>
+            </div>
+        </div>
+
+        <div class="filters-bar">
+            <span style="font-size: 13px; color: #888;">Filter:</span>
+            <select class="filter-select" id="class-type-filter">
+                <option value="">All Classes</option>
+                <option value="bjj">BJJ</option>
+                <option value="mma">MMA</option>
+                <option value="boxing">Boxing</option>
+                <option value="muay-thai">Muay Thai</option>
+                <option value="kids">Kids Classes</option>
+            </select>
+            <select class="filter-select" id="instructor-filter">
+                <option value="">All Instructors</option>
+                <option value="1">Coach Mike</option>
+                <option value="2">Coach Sarah</option>
+                <option value="3">Coach Alex</option>
+            </select>
+            <select class="filter-select" id="level-filter">
+                <option value="">All Levels</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+            </select>
+        </div>
+
+        <div class="week-nav">
+            <button class="arrow-btn" onclick="changeWeek(-1)">← Previous</button>
+            <div class="week-display" id="week-display">May 12 - May 18, 2026</div>
+            <button class="arrow-btn" onclick="changeWeek(1)">Next →</button>
+        </div>
+
+        <div class="schedule-grid" id="schedule-grid">
+            <div class="loading"><div class="spinner"></div>Loading schedule...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let currentWeekStart = new Date();
+        currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
+
+        // Sample class data
+        const sampleClasses = [
+            { id: 1, name: 'BJJ Fundamentals', type: 'bjj', day: 1, time: '06:00', duration: 60, instructor: 'Coach Mike', capacity: 20, booked: 15, level: 'beginner' },
+            { id: 2, name: 'MMA Sparring', type: 'mma', day: 1, time: '18:00', duration: 90, instructor: 'Coach Sarah', capacity: 16, booked: 16, level: 'advanced' },
+            { id: 3, name: 'Boxing Basics', type: 'boxing', day: 2, time: '07:00', duration: 60, instructor: 'Coach Alex', capacity: 15, booked: 12, level: 'beginner' },
+            { id: 4, name: 'BJJ Advanced', type: 'bjj', day: 2, time: '19:00', duration: 90, instructor: 'Coach Mike', capacity: 12, booked: 10, level: 'advanced' },
+            { id: 5, name: 'Muay Thai', type: 'muay-thai', day: 3, time: '06:30', duration: 60, instructor: 'Coach Sarah', capacity: 18, booked: 14, level: 'intermediate' },
+            { id: 6, name: 'Kids BJJ', type: 'kids', day: 3, time: '16:00', duration: 45, instructor: 'Coach Alex', capacity: 20, booked: 18, level: 'beginner' },
+            { id: 7, name: 'MMA Conditioning', type: 'mma', day: 4, time: '06:00', duration: 60, instructor: 'Coach Mike', capacity: 20, booked: 17, level: 'intermediate' },
+            { id: 8, name: 'Boxing Advanced', type: 'boxing', day: 4, time: '18:30', duration: 75, instructor: 'Coach Sarah', capacity: 12, booked: 11, level: 'advanced' },
+            { id: 9, name: 'BJJ Open Mat', type: 'bjj', day: 5, time: '19:00', duration: 120, instructor: 'Coach Mike', capacity: 25, booked: 20, level: 'intermediate' },
+            { id: 10, name: 'Muay Thai Sparring', type: 'muay-thai', day: 6, time: '10:00', duration: 90, instructor: 'Coach Sarah', capacity: 16, booked: 13, level: 'advanced' },
+        ];
+
+        async function init() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+
+                renderSchedule();
+            } catch (error) {
+                console.error('Init failed:', error);
+                renderSchedule(); // Render with sample data anyway
+            }
+        }
+
+        function renderSchedule() {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const times = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+
+            let html = '<div class="time-header"></div>';
+
+            // Day headers
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + i);
+                const isToday = date.toDateString() === new Date().toDateString();
+
+                html += `
+                    <div class="day-header ${isToday ? 'today' : ''}">
+                        <div class="day-name">${days[i]}</div>
+                        <div class="day-date">${date.getDate()}/${date.getMonth() + 1}</div>
+                    </div>
+                `;
+            }
+
+            // Time slots and classes
+            times.forEach(time => {
+                html += `<div class="time-slot">${time}</div>`;
+
+                for (let day = 0; day < 7; day++) {
+                    const classesAtTime = sampleClasses.filter(c => c.day === day && c.time === time);
+
+                    if (classesAtTime.length > 0) {
+                        const cls = classesAtTime[0];
+                        const spotsLeft = cls.capacity - cls.booked;
+                        const spotsClass = spotsLeft === 0 ? 'full' : spotsLeft <= 3 ? 'low' : '';
+
+                        html += `
+                            <div class="class-cell">
+                                <div class="class-card ${cls.type}" onclick="viewClass(${cls.id})">
+                                    <div class="class-name">${cls.name}</div>
+                                    <div class="class-time">${cls.time} • ${cls.duration}min</div>
+                                    <div class="class-info">
+                                        <span>${cls.instructor}</span>
+                                        <span class="class-spots ${spotsClass}">${spotsLeft}/${cls.capacity}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html += '<div class="class-cell"></div>';
+                    }
+                }
+            });
+
+            document.getElementById('schedule-grid').innerHTML = html;
+        }
+
+        function changeWeek(direction) {
+            currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+            updateWeekDisplay();
+            renderSchedule();
+        }
+
+        function updateWeekDisplay() {
+            const endDate = new Date(currentWeekStart);
+            endDate.setDate(endDate.getDate() + 6);
+
+            const options = { month: 'short', day: 'numeric' };
+            const start = currentWeekStart.toLocaleDateString('en-US', options);
+            const end = endDate.toLocaleDateString('en-US', options);
+            const year = currentWeekStart.getFullYear();
+
+            document.getElementById('week-display').textContent = `${start} - ${end}, ${year}`;
+        }
+
+        function switchView(view) {
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (view === 'day' || view === 'list') {
+                alert(`${view.charAt(0).toUpperCase() + view.slice(1)} view coming soon`);
+            }
+        }
+
+        function viewClass(classId) {
+            alert(`Class detail page for class #${classId} would open`);
+        }
+
+        updateWeekDisplay();
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Trial Bookings</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; overflow-y: auto; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-title { font-size: 28px; font-weight: 700; }
+        .header-actions { display: flex; gap: 15px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 14px; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+        .btn-secondary:hover { border-color: #ff4444; }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 1px solid #333; }
+        .tab { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s; font-weight: 600; }
+        .tab.active { color: #ff4444; border-bottom-color: #ff4444; }
+        .tab:hover { color: #ff6666; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; }
+        .stat-icon { font-size: 24px; margin-bottom: 10px; }
+        .stat-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; }
+        .stat-change { font-size: 12px; margin-top: 5px; }
+        .change-positive { color: #00ff00; }
+        .change-negative { color: #ff4444; }
+
+        .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+
+        .funnel-container { display: flex; flex-direction: column; gap: 15px; }
+        .funnel-stage { background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center; position: relative; }
+        .funnel-stage::after { content: '↓'; position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 20px; color: #666; }
+        .funnel-stage:last-child::after { display: none; }
+        .stage-info { flex: 1; }
+        .stage-name { font-size: 16px; font-weight: 600; margin-bottom: 5px; }
+        .stage-desc { font-size: 13px; color: #888; }
+        .stage-metrics { display: flex; gap: 30px; align-items: center; }
+        .stage-count { font-size: 32px; font-weight: 700; }
+        .stage-rate { font-size: 14px; color: #888; }
+        .stage-bar { height: 8px; background: #333; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+        .stage-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4444, #ff6666); transition: width 0.3s; }
+
+        .bookings-table { width: 100%; border-collapse: collapse; }
+        .bookings-table th { text-align: left; padding: 12px; border-bottom: 1px solid #333; font-size: 13px; color: #888; font-weight: 600; }
+        .bookings-table td { padding: 12px; border-bottom: 1px solid #222; font-size: 14px; }
+        .bookings-table tr:hover { background: #0f0f0f; }
+
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .status-pending { background: #ff880020; color: #ff8800; }
+        .status-confirmed { background: #00ff0020; color: #00ff00; }
+        .status-completed { background: #0088ff20; color: #0088ff; }
+        .status-converted { background: #ff00ff20; color: #ff00ff; }
+        .status-cancelled { background: #88888820; color: #888; }
+
+        .source-badge { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 11px; background: #333; }
+
+        .filters { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-label { font-size: 12px; color: #888; }
+        .filter-select { padding: 8px 12px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; }
+
+        .action-btn { padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1px solid #333; background: #1a1a1a; color: #fff; transition: all 0.3s; }
+        .action-btn:hover { border-color: #ff4444; }
+
+        .chart-container { height: 300px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='locations.html'">📍 Locations</div>
+            <div class="nav-item active">🎯 Trial Bookings</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
+            <div class="nav-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title">Trial Bookings</div>
+            <div class="header-actions">
+                <button class="btn btn-secondary">Export Data</button>
+                <button class="btn btn-primary" onclick="window.open('trial-booking-form.html', '_blank')">Public Booking Form</button>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('overview')">Overview</div>
+            <div class="tab" onclick="switchTab('bookings')">All Bookings</div>
+            <div class="tab" onclick="switchTab('analytics')">Analytics</div>
+        </div>
+
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="overview-tab">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-label">Trial Bookings</div>
+                    <div class="stat-value">127</div>
+                    <div class="stat-change change-positive">↑ 18% vs last month</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-label">Completed Trials</div>
+                    <div class="stat-value">94</div>
+                    <div class="stat-change change-positive">↑ 12% vs last month</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-label">Converted to Members</div>
+                    <div class="stat-value">67</div>
+                    <div class="stat-change change-positive">↑ 24% vs last month</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-label">Conversion Rate</div>
+                    <div class="stat-value">71.3%</div>
+                    <div class="stat-change change-positive">↑ 8.2% vs last month</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Conversion Funnel</div>
+                <div class="funnel-container">
+                    <div class="funnel-stage">
+                        <div class="stage-info">
+                            <div class="stage-name">Trial Booked</div>
+                            <div class="stage-desc">Initial booking submitted</div>
+                            <div class="stage-bar">
+                                <div class="stage-bar-fill" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div class="stage-metrics">
+                            <div class="stage-count">127</div>
+                            <div class="stage-rate">100%</div>
+                        </div>
+                    </div>
+
+                    <div class="funnel-stage">
+                        <div class="stage-info">
+                            <div class="stage-name">Confirmed</div>
+                            <div class="stage-desc">Booking confirmed by staff</div>
+                            <div class="stage-bar">
+                                <div class="stage-bar-fill" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        <div class="stage-metrics">
+                            <div class="stage-count">108</div>
+                            <div class="stage-rate">85.0%</div>
+                        </div>
+                    </div>
+
+                    <div class="funnel-stage">
+                        <div class="stage-info">
+                            <div class="stage-name">Attended</div>
+                            <div class="stage-desc">Showed up for trial class</div>
+                            <div class="stage-bar">
+                                <div class="stage-bar-fill" style="width: 74%"></div>
+                            </div>
+                        </div>
+                        <div class="stage-metrics">
+                            <div class="stage-count">94</div>
+                            <div class="stage-rate">74.0%</div>
+                        </div>
+                    </div>
+
+                    <div class="funnel-stage">
+                        <div class="stage-info">
+                            <div class="stage-name">Converted</div>
+                            <div class="stage-desc">Signed up as member</div>
+                            <div class="stage-bar">
+                                <div class="stage-bar-fill" style="width: 53%"></div>
+                            </div>
+                        </div>
+                        <div class="stage-metrics">
+                            <div class="stage-count">67</div>
+                            <div class="stage-rate">52.8%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Recent Trial Bookings</div>
+                <table class="bookings-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Class Type</th>
+                            <th>Date & Time</th>
+                            <th>Location</th>
+                            <th>Source</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-bookings"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- All Bookings Tab -->
+        <div class="tab-content" id="bookings-tab">
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Status</label>
+                    <select class="filter-select" onchange="filterBookings()">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="completed">Completed</option>
+                        <option value="converted">Converted</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Class Type</label>
+                    <select class="filter-select" onchange="filterBookings()">
+                        <option value="">All Classes</option>
+                        <option value="bjj">BJJ</option>
+                        <option value="mma">MMA</option>
+                        <option value="boxing">Boxing</option>
+                        <option value="muay-thai">Muay Thai</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Location</label>
+                    <select class="filter-select" onchange="filterBookings()">
+                        <option value="">All Locations</option>
+                        <option value="cbd">Sydney CBD</option>
+                        <option value="parramatta">Parramatta</option>
+                        <option value="bondi">Bondi</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Source</label>
+                    <select class="filter-select" onchange="filterBookings()">
+                        <option value="">All Sources</option>
+                        <option value="website">Website</option>
+                        <option value="google">Google Ads</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="referral">Referral</option>
+                        <option value="walk-in">Walk-in</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <table class="bookings-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>Class Type</th>
+                            <th>Date & Time</th>
+                            <th>Location</th>
+                            <th>Source</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="all-bookings"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div class="tab-content" id="analytics-tab">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-label">Avg Conversion Time</div>
+                    <div class="stat-value">4.2 days</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💵</div>
+                    <div class="stat-label">Avg Customer Value</div>
+                    <div class="stat-value">$1,847</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-label">Show-up Rate</div>
+                    <div class="stat-value">87.0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-label">Best Class Type</div>
+                    <div class="stat-value">BJJ (78%)</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Bookings by Source</div>
+                <div class="chart-container">
+                    <canvas id="source-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Conversion Rate by Class Type</div>
+                <div class="chart-container">
+                    <canvas id="class-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Trial Bookings Trend</div>
+                <div class="chart-container">
+                    <canvas id="trend-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let bookings = [];
+
+        async function init() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+
+                await loadBookings();
+                initCharts();
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        async function loadBookings() {
+            // Mock data
+            bookings = [
+                { id: 1, name: 'James Wilson', email: 'james@email.com', phone: '0412 345 678', class_type: 'BJJ', date: '2026-05-18', time: '18:00', location: 'Sydney CBD', source: 'google', status: 'confirmed' },
+                { id: 2, name: 'Sarah Chen', email: 'sarah@email.com', phone: '0423 456 789', class_type: 'MMA', date: '2026-05-18', time: '19:00', location: 'Parramatta', source: 'facebook', status: 'pending' },
+                { id: 3, name: 'Michael Brown', email: 'michael@email.com', phone: '0434 567 890', class_type: 'Boxing', date: '2026-05-19', time: '18:00', location: 'Bondi', source: 'website', status: 'confirmed' },
+                { id: 4, name: 'Emma Davis', email: 'emma@email.com', phone: '0445 678 901', class_type: 'Muay Thai', date: '2026-05-19', time: '19:00', location: 'Sydney CBD', source: 'instagram', status: 'completed' },
+                { id: 5, name: 'David Lee', email: 'david@email.com', phone: '0456 789 012', class_type: 'BJJ', date: '2026-05-20', time: '18:00', location: 'Parramatta', source: 'referral', status: 'converted' },
+                { id: 6, name: 'Lisa Taylor', email: 'lisa@email.com', phone: '0467 890 123', class_type: 'MMA', date: '2026-05-20', time: '19:00', location: 'Bondi', source: 'walk-in', status: 'confirmed' },
+                { id: 7, name: 'Tom Anderson', email: 'tom@email.com', phone: '0478 901 234', class_type: 'Boxing', date: '2026-05-21', time: '18:00', location: 'Sydney CBD', source: 'google', status: 'pending' },
+                { id: 8, name: 'Rachel White', email: 'rachel@email.com', phone: '0489 012 345', class_type: 'BJJ', date: '2026-05-21', time: '19:00', location: 'Parramatta', source: 'facebook', status: 'confirmed' }
+            ];
+
+            renderRecentBookings();
+            renderAllBookings();
+        }
+
+        function renderRecentBookings() {
+            const tbody = document.getElementById('recent-bookings');
+            const recent = bookings.slice(0, 5);
+
+            tbody.innerHTML = recent.map(b => `
+                <tr>
+                    <td>${b.name}</td>
+                    <td>${b.class_type}</td>
+                    <td>${b.date} ${b.time}</td>
+                    <td>${b.location}</td>
+                    <td><span class="source-badge">${b.source}</span></td>
+                    <td><span class="status-badge status-${b.status}">${b.status.toUpperCase()}</span></td>
+                    <td>
+                        <button class="action-btn" onclick="viewBooking(${b.id})">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderAllBookings() {
+            const tbody = document.getElementById('all-bookings');
+
+            tbody.innerHTML = bookings.map(b => `
+                <tr>
+                    <td>#${b.id}</td>
+                    <td>${b.name}</td>
+                    <td>${b.email}<br><small style="color: #888">${b.phone}</small></td>
+                    <td>${b.class_type}</td>
+                    <td>${b.date} ${b.time}</td>
+                    <td>${b.location}</td>
+                    <td><span class="source-badge">${b.source}</span></td>
+                    <td><span class="status-badge status-${b.status}">${b.status.toUpperCase()}</span></td>
+                    <td>
+                        <button class="action-btn" onclick="viewBooking(${b.id})">View</button>
+                        <button class="action-btn" onclick="editBooking(${b.id})">Edit</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+        }
+
+        function filterBookings() {
+            // Filter logic here
+            renderAllBookings();
+        }
+
+        function viewBooking(id) {
+            alert(`View booking ${id} - Detail modal coming soon`);
+        }
+
+        function editBooking(id) {
+            alert(`Edit booking ${id} - Edit modal coming soon`);
+        }
+
+        function initCharts() {
+            // Source Chart
+            new Chart(document.getElementById('source-chart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Website', 'Google Ads', 'Facebook', 'Instagram', 'Referral', 'Walk-in'],
+                    datasets: [{
+                        data: [32, 28, 18, 12, 7, 3],
+                        backgroundColor: ['#ff4444', '#ff6666', '#ff8888', '#ffaaaa', '#ffcccc', '#ffeeee']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } }
+                    }
+                }
+            });
+
+            // Class Type Chart
+            new Chart(document.getElementById('class-chart'), {
+                type: 'bar',
+                data: {
+                    labels: ['BJJ', 'MMA', 'Boxing', 'Muay Thai'],
+                    datasets: [{
+                        label: 'Conversion Rate (%)',
+                        data: [78, 68, 65, 72],
+                        backgroundColor: '#ff4444'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 100, ticks: { color: '#888' }, grid: { color: '#222' } },
+                        x: { ticks: { color: '#888' }, grid: { color: '#222' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } }
+                    }
+                }
+            });
+
+            // Trend Chart
+            new Chart(document.getElementById('trend-chart'), {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+                    datasets: [{
+                        label: 'Trial Bookings',
+                        data: [89, 95, 108, 112, 127],
+                        borderColor: '#ff4444',
+                        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#888' }, grid: { color: '#222' } },
+                        x: { ticks: { color: '#888' }, grid: { color: '#222' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } }
+                    }
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

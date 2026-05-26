@@ -1,0 +1,404 @@
+/* Print Styles for Reports and Documents */
+
+@media print {
+  /* Hide non-essential elements */
+  nav,
+  aside,
+  .no-print,
+  button:not(.print-button),
+  .btn:not(.print-button),
+  header,
+  footer,
+  .sidebar,
+  .command-palette,
+  .notification,
+  .toast,
+  .modal-backdrop {
+    display: none !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  body {
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+  }
+
+  /* Reset colors for print */
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Preserve important colors */
+  .print-color {
+    color: inherit !important;
+  }
+
+  /* Links */
+  a,
+  a:visited {
+    text-decoration: underline;
+    color: #000 !important;
+  }
+
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 90%;
+  }
+
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: "";
+  }
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+    font-weight: bold;
+  }
+
+  h1 {
+    font-size: 24pt;
+    margin-bottom: 12pt;
+  }
+
+  h2 {
+    font-size: 18pt;
+    margin-bottom: 10pt;
+  }
+
+  h3 {
+    font-size: 14pt;
+    margin-bottom: 8pt;
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  th,
+  td {
+    border: 1px solid #ddd !important;
+    padding: 8pt;
+    text-align: left;
+  }
+
+  th {
+    background-color: #f5f5f5 !important;
+    font-weight: bold;
+  }
+
+  /* Images */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Charts - ensure they print */
+  svg,
+  canvas {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+
+  /* Cards and sections */
+  .card,
+  .section {
+    border: 1px solid #ddd !important;
+    padding: 12pt;
+    margin-bottom: 12pt;
+    page-break-inside: avoid;
+  }
+
+  /* Stats cards */
+  .stats-card {
+    border: 1px solid #ddd !important;
+    padding: 8pt;
+    margin-bottom: 8pt;
+  }
+
+  /* Avoid breaking these elements */
+  blockquote,
+  pre,
+  ul,
+  ol,
+  dl {
+    page-break-inside: avoid;
+  }
+
+  /* Lists */
+  ul,
+  ol {
+    margin-left: 20pt;
+  }
+
+  /* Code blocks */
+  pre,
+  code {
+    border: 1px solid #ddd !important;
+    padding: 4pt;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+  }
+
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-avoid {
+    page-break-inside: avoid;
+  }
+
+  /* Print header */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 20pt;
+    border-bottom: 2px solid #000 !important;
+    padding-bottom: 10pt;
+  }
+
+  .print-header h1 {
+    margin: 0;
+  }
+
+  .print-header .subtitle {
+    font-size: 10pt;
+    color: #666 !important;
+  }
+
+  /* Print footer */
+  .print-footer {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 9pt;
+    color: #666 !important;
+    border-top: 1px solid #ddd !important;
+    padding-top: 5pt;
+  }
+
+  /* Report specific styles */
+  .report-title {
+    font-size: 20pt;
+    font-weight: bold;
+    margin-bottom: 10pt;
+    text-align: center;
+  }
+
+  .report-date {
+    text-align: center;
+    font-size: 10pt;
+    color: #666 !important;
+    margin-bottom: 20pt;
+  }
+
+  .report-section {
+    margin-bottom: 20pt;
+    page-break-inside: avoid;
+  }
+
+  .report-section-title {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-bottom: 10pt;
+    border-bottom: 1px solid #000 !important;
+    padding-bottom: 5pt;
+  }
+
+  /* Summary boxes */
+  .summary-box {
+    border: 2px solid #000 !important;
+    padding: 10pt;
+    margin-bottom: 15pt;
+    page-break-inside: avoid;
+  }
+
+  .summary-box .label {
+    font-weight: bold;
+    font-size: 10pt;
+  }
+
+  .summary-box .value {
+    font-size: 18pt;
+    font-weight: bold;
+  }
+
+  /* Grid layouts for print */
+  .print-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10pt;
+  }
+
+  .print-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10pt;
+  }
+
+  /* Signatures */
+  .signature-line {
+    border-top: 1px solid #000 !important;
+    margin-top: 40pt;
+    padding-top: 5pt;
+    width: 200pt;
+  }
+
+  /* Watermark */
+  .watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 72pt;
+    opacity: 0.1;
+    z-index: -1;
+  }
+
+  /* QR codes and barcodes */
+  .qr-code,
+  .barcode {
+    page-break-inside: avoid;
+    max-width: 150pt;
+  }
+
+  /* Invoice specific */
+  .invoice-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20pt;
+  }
+
+  .invoice-total {
+    font-size: 16pt;
+    font-weight: bold;
+    text-align: right;
+    margin-top: 10pt;
+    padding-top: 10pt;
+    border-top: 2px solid #000 !important;
+  }
+
+  /* Member card */
+  .member-card {
+    border: 2px solid #000 !important;
+    padding: 15pt;
+    page-break-inside: avoid;
+  }
+
+  .member-card .photo {
+    width: 100pt;
+    height: 100pt;
+    border: 1px solid #000 !important;
+  }
+
+  /* Attendance sheet */
+  .attendance-sheet {
+    width: 100%;
+  }
+
+  .attendance-sheet th {
+    background-color: #e0e0e0 !important;
+  }
+
+  .attendance-sheet .signature-cell {
+    width: 150pt;
+    height: 30pt;
+  }
+
+  /* Class schedule */
+  .schedule-grid {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .schedule-grid .time-slot {
+    border: 1px solid #000 !important;
+    padding: 5pt;
+    min-height: 40pt;
+  }
+
+  /* Badges and labels */
+  .badge,
+  .label,
+  .tag {
+    border: 1px solid #000 !important;
+    padding: 2pt 6pt;
+    display: inline-block;
+    font-size: 9pt;
+  }
+
+  /* Charts - make them grayscale */
+  .chart {
+    filter: grayscale(100%);
+  }
+
+  /* Utility classes */
+  .print-only {
+    display: block !important;
+  }
+
+  .print-inline {
+    display: inline !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-landscape {
+    size: landscape;
+  }
+
+  .print-portrait {
+    size: portrait;
+  }
+}
+
+/* Print button styling (visible on screen, hidden in print) */
+.print-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+@media print {
+  .print-button {
+    display: none !important;
+  }
+}

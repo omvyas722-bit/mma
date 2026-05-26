@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Locations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; overflow-y: auto; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-title { font-size: 28px; font-weight: 700; }
+        .header-actions { display: flex; gap: 15px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 14px; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+        .btn-secondary:hover { border-color: #ff4444; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; }
+        .stat-icon { font-size: 24px; margin-bottom: 10px; }
+        .stat-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; }
+
+        .locations-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px; }
+        .location-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 25px; transition: all 0.3s; }
+        .location-card:hover { border-color: #ff4444; transform: translateY(-2px); }
+
+        .location-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; }
+        .location-name { font-size: 20px; font-weight: 700; margin-bottom: 5px; }
+        .location-status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .status-active { background: #00ff0020; color: #00ff00; }
+        .status-inactive { background: #88888820; color: #888; }
+
+        .location-info { margin-bottom: 20px; }
+        .info-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #aaa; }
+        .info-icon { font-size: 16px; }
+
+        .location-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #333; }
+        .metric { text-align: center; }
+        .metric-value { font-size: 24px; font-weight: 700; color: #fff; }
+        .metric-label { font-size: 12px; color: #888; margin-top: 5px; }
+
+        .location-actions { display: flex; gap: 10px; }
+        .btn-small { padding: 8px 16px; font-size: 13px; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .modal-title { font-size: 22px; font-weight: 700; }
+        .close-btn { font-size: 24px; cursor: pointer; color: #888; }
+        .close-btn:hover { color: #fff; }
+
+        .form-field { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 600; }
+        .form-label.required::after { content: ' *'; color: #ff4444; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; font-family: inherit; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #ff4444; }
+        .form-textarea { resize: vertical; min-height: 80px; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .form-field.full-width { grid-column: 1 / -1; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+        .empty-icon { font-size: 48px; margin-bottom: 15px; }
+        .empty-text { font-size: 16px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item active">📍 Locations</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
+            <div class="nav-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title">Locations</div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openAddModal()">+ Add Location</button>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📍</div>
+                <div class="stat-label">Total Locations</div>
+                <div class="stat-value" id="total-locations">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-label">Total Members</div>
+                <div class="stat-value" id="total-members">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-label">Classes/Week</div>
+                <div class="stat-value" id="total-classes">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value" id="total-revenue">$0</div>
+            </div>
+        </div>
+
+        <div class="locations-grid" id="locations-grid"></div>
+    </div>
+
+    <!-- Add/Edit Location Modal -->
+    <div class="modal" id="location-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Add New Location</div>
+                <div class="close-btn" onclick="closeModal()">&times;</div>
+            </div>
+            <form id="location-form" onsubmit="handleSubmit(event)">
+                <div class="form-field full-width">
+                    <label class="form-label required">Location Name</label>
+                    <input type="text" class="form-input" name="name" required placeholder="e.g., ROAR MMA Downtown">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">Status</label>
+                        <select class="form-select" name="status" required>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Max Capacity</label>
+                        <input type="number" class="form-input" name="max_capacity" required min="1" value="150">
+                    </div>
+                </div>
+
+                <div class="form-field full-width">
+                    <label class="form-label required">Address</label>
+                    <input type="text" class="form-input" name="address" required placeholder="Street address">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">City</label>
+                        <input type="text" class="form-input" name="city" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">State</label>
+                        <input type="text" class="form-input" name="state" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Postcode</label>
+                        <input type="text" class="form-input" name="postcode" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Country</label>
+                        <input type="text" class="form-input" name="country" required value="Australia">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">Phone</label>
+                        <input type="tel" class="form-input" name="phone" required placeholder="+61 2 1234 5678">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Email</label>
+                        <input type="email" class="form-input" name="email" required placeholder="location@roarmma.com.au">
+                    </div>
+                </div>
+
+                <div class="form-field full-width">
+                    <label class="form-label">Operating Hours</label>
+                    <input type="text" class="form-input" name="hours" placeholder="e.g., Mon-Fri 6am-10pm, Sat-Sun 7am-9pm">
+                </div>
+
+                <div class="form-field full-width">
+                    <label class="form-label">Facilities</label>
+                    <textarea class="form-textarea" name="facilities" placeholder="e.g., 2 mat areas, boxing ring, weights room, showers, parking"></textarea>
+                </div>
+
+                <div class="form-field full-width">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-textarea" name="notes" placeholder="Additional information about this location"></textarea>
+                </div>
+
+                <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 25px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Location</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let locations = [];
+        let editingLocationId = null;
+
+        async function init() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+
+                await loadLocations();
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        async function loadLocations() {
+            // Mock data for now - will integrate with backend API
+            locations = [
+                {
+                    id: 1,
+                    name: 'ROAR MMA Sydney CBD',
+                    status: 'active',
+                    address: '123 George Street',
+                    city: 'Sydney',
+                    state: 'NSW',
+                    postcode: '2000',
+                    country: 'Australia',
+                    phone: '+61 2 9876 5432',
+                    email: 'cbd@roarmma.com.au',
+                    hours: 'Mon-Fri 6am-10pm, Sat-Sun 7am-9pm',
+                    max_capacity: 150,
+                    current_members: 287,
+                    classes_per_week: 85,
+                    monthly_revenue: 42850,
+                    facilities: '2 mat areas, boxing ring, weights room, showers, parking'
+                },
+                {
+                    id: 2,
+                    name: 'ROAR MMA Parramatta',
+                    status: 'active',
+                    address: '456 Church Street',
+                    city: 'Parramatta',
+                    state: 'NSW',
+                    postcode: '2150',
+                    country: 'Australia',
+                    phone: '+61 2 9876 5433',
+                    email: 'parramatta@roarmma.com.au',
+                    hours: 'Mon-Fri 6am-10pm, Sat-Sun 7am-9pm',
+                    max_capacity: 120,
+                    current_members: 198,
+                    classes_per_week: 72,
+                    monthly_revenue: 29700,
+                    facilities: '1 mat area, boxing ring, weights room, showers'
+                },
+                {
+                    id: 3,
+                    name: 'ROAR MMA Bondi',
+                    status: 'active',
+                    address: '789 Campbell Parade',
+                    city: 'Bondi Beach',
+                    state: 'NSW',
+                    postcode: '2026',
+                    country: 'Australia',
+                    phone: '+61 2 9876 5434',
+                    email: 'bondi@roarmma.com.au',
+                    hours: 'Mon-Fri 6am-10pm, Sat-Sun 7am-9pm',
+                    max_capacity: 100,
+                    current_members: 156,
+                    classes_per_week: 64,
+                    monthly_revenue: 23400,
+                    facilities: '1 mat area, outdoor training space, showers'
+                },
+                {
+                    id: 4,
+                    name: 'ROAR MMA North Shore',
+                    status: 'inactive',
+                    address: '321 Pacific Highway',
+                    city: 'Chatswood',
+                    state: 'NSW',
+                    postcode: '2067',
+                    country: 'Australia',
+                    phone: '+61 2 9876 5435',
+                    email: 'northshore@roarmma.com.au',
+                    hours: 'Opening Soon',
+                    max_capacity: 130,
+                    current_members: 0,
+                    classes_per_week: 0,
+                    monthly_revenue: 0,
+                    facilities: 'Under construction'
+                }
+            ];
+
+            renderLocations();
+            updateStats();
+        }
+
+        function renderLocations() {
+            const grid = document.getElementById('locations-grid');
+
+            if (locations.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📍</div>
+                        <div class="empty-text">No locations yet</div>
+                        <button class="btn btn-primary" onclick="openAddModal()">Add First Location</button>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = locations.map(loc => `
+                <div class="location-card">
+                    <div class="location-header">
+                        <div>
+                            <div class="location-name">${loc.name}</div>
+                            <span class="location-status status-${loc.status}">${loc.status.toUpperCase()}</span>
+                        </div>
+                    </div>
+
+                    <div class="location-info">
+                        <div class="info-row">
+                            <span class="info-icon">📍</span>
+                            <span>${loc.address}, ${loc.city} ${loc.state} ${loc.postcode}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-icon">📞</span>
+                            <span>${loc.phone}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-icon">✉️</span>
+                            <span>${loc.email}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-icon">🕐</span>
+                            <span>${loc.hours}</span>
+                        </div>
+                    </div>
+
+                    <div class="location-metrics">
+                        <div class="metric">
+                            <div class="metric-value">${loc.current_members}</div>
+                            <div class="metric-label">Members</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${loc.classes_per_week}</div>
+                            <div class="metric-label">Classes/Week</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">$${loc.monthly_revenue.toLocaleString()}</div>
+                            <div class="metric-label">Revenue</div>
+                        </div>
+                    </div>
+
+                    <div class="location-actions">
+                        <button class="btn btn-secondary btn-small" onclick="viewLocation(${loc.id})">View Details</button>
+                        <button class="btn btn-secondary btn-small" onclick="editLocation(${loc.id})">Edit</button>
+                        <button class="btn btn-secondary btn-small" onclick="deleteLocation(${loc.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            const activeLocations = locations.filter(l => l.status === 'active');
+            const totalMembers = locations.reduce((sum, l) => sum + l.current_members, 0);
+            const totalClasses = locations.reduce((sum, l) => sum + l.classes_per_week, 0);
+            const totalRevenue = locations.reduce((sum, l) => sum + l.monthly_revenue, 0);
+
+            document.getElementById('total-locations').textContent = activeLocations.length;
+            document.getElementById('total-members').textContent = totalMembers;
+            document.getElementById('total-classes').textContent = totalClasses;
+            document.getElementById('total-revenue').textContent = `$${totalRevenue.toLocaleString()}`;
+        }
+
+        function openAddModal() {
+            editingLocationId = null;
+            document.getElementById('modal-title').textContent = 'Add New Location';
+            document.getElementById('location-form').reset();
+            document.getElementById('location-modal').classList.add('active');
+        }
+
+        function editLocation(id) {
+            editingLocationId = id;
+            const location = locations.find(l => l.id === id);
+            if (!location) return;
+
+            document.getElementById('modal-title').textContent = 'Edit Location';
+            const form = document.getElementById('location-form');
+            form.name.value = location.name;
+            form.status.value = location.status;
+            form.max_capacity.value = location.max_capacity;
+            form.address.value = location.address;
+            form.city.value = location.city;
+            form.state.value = location.state;
+            form.postcode.value = location.postcode;
+            form.country.value = location.country;
+            form.phone.value = location.phone;
+            form.email.value = location.email;
+            form.hours.value = location.hours;
+            form.facilities.value = location.facilities || '';
+            form.notes.value = location.notes || '';
+
+            document.getElementById('location-modal').classList.add('active');
+        }
+
+        function viewLocation(id) {
+            // Navigate to location detail page (to be built)
+            alert(`View details for location ${id} - Detail page coming soon`);
+        }
+
+        function deleteLocation(id) {
+            if (!confirm('Are you sure you want to delete this location?')) return;
+
+            locations = locations.filter(l => l.id !== id);
+            renderLocations();
+            updateStats();
+        }
+
+        function closeModal() {
+            document.getElementById('location-modal').classList.remove('active');
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            if (editingLocationId) {
+                // Update existing location
+                const index = locations.findIndex(l => l.id === editingLocationId);
+                if (index !== -1) {
+                    locations[index] = {
+                        ...locations[index],
+                        ...data,
+                        max_capacity: parseInt(data.max_capacity)
+                    };
+                }
+            } else {
+                // Add new location
+                const newLocation = {
+                    id: Math.max(...locations.map(l => l.id), 0) + 1,
+                    ...data,
+                    max_capacity: parseInt(data.max_capacity),
+                    current_members: 0,
+                    classes_per_week: 0,
+                    monthly_revenue: 0
+                };
+                locations.push(newLocation);
+            }
+
+            renderLocations();
+            updateStats();
+            closeModal();
+        }
+
+        init();
+    </script>
+</body>
+</html>

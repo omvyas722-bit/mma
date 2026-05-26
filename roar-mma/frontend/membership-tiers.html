@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Membership Tiers</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; overflow-y: auto; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-title { font-size: 28px; font-weight: 700; }
+        .header-actions { display: flex; gap: 15px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 14px; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+        .btn-secondary:hover { border-color: #ff4444; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; }
+        .stat-icon { font-size: 24px; margin-bottom: 10px; }
+        .stat-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; }
+
+        .tiers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .tier-card { background: #1a1a1a; border: 2px solid #333; border-radius: 12px; padding: 30px; transition: all 0.3s; position: relative; }
+        .tier-card:hover { border-color: #ff4444; transform: translateY(-5px); }
+        .tier-card.featured { border-color: #ff4444; background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); }
+        .tier-badge { position: absolute; top: -12px; right: 20px; background: #ff4444; color: #fff; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+
+        .tier-header { margin-bottom: 20px; }
+        .tier-name { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+        .tier-desc { font-size: 14px; color: #888; margin-bottom: 20px; }
+        .tier-price { font-size: 42px; font-weight: 700; color: #ff4444; margin-bottom: 5px; }
+        .tier-price-period { font-size: 14px; color: #888; }
+
+        .tier-features { margin: 25px 0; }
+        .feature-item { display: flex; align-items: start; gap: 10px; margin-bottom: 12px; font-size: 14px; }
+        .feature-icon { color: #00ff00; font-size: 16px; }
+        .feature-icon.disabled { color: #666; }
+
+        .tier-actions { display: flex; gap: 10px; margin-top: 25px; }
+        .btn-small { padding: 8px 16px; font-size: 13px; }
+
+        .comparison-table { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 25px; margin-bottom: 30px; }
+        .table-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
+        .comparison-grid { display: grid; grid-template-columns: 200px repeat(4, 1fr); gap: 1px; background: #333; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+        .comparison-cell { background: #1a1a1a; padding: 15px; font-size: 14px; }
+        .comparison-header { background: #0f0f0f; font-weight: 600; text-align: center; }
+        .comparison-feature { font-weight: 600; }
+        .check-icon { color: #00ff00; text-align: center; }
+        .cross-icon { color: #666; text-align: center; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .modal-title { font-size: 22px; font-weight: 700; }
+        .close-btn { font-size: 24px; cursor: pointer; color: #888; }
+        .close-btn:hover { color: #fff; }
+
+        .form-field { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 600; }
+        .form-label.required::after { content: ' *'; color: #ff4444; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; font-family: inherit; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #ff4444; }
+        .form-textarea { resize: vertical; min-height: 80px; }
+
+        .checkbox-group { display: flex; flex-direction: column; gap: 10px; }
+        .checkbox-item { display: flex; align-items: center; gap: 10px; }
+        .checkbox-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-item label { cursor: pointer; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='locations.html'">📍 Locations</div>
+            <div class="nav-item" onclick="window.location.href='trial-bookings.html'">🎯 Trial Bookings</div>
+            <div class="nav-item active">💎 Membership Tiers</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
+            <div class="nav-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title">Membership Tiers</div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openAddModal()">+ Add Tier</button>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">💎</div>
+                <div class="stat-label">Active Tiers</div>
+                <div class="stat-value">5</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-label">Total Members</div>
+                <div class="stat-value">641</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-label">Monthly Revenue</div>
+                <div class="stat-value">$95,950</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-label">Avg Tier Value</div>
+                <div class="stat-value">$149</div>
+            </div>
+        </div>
+
+        <div class="tiers-grid" id="tiers-grid"></div>
+
+        <div class="comparison-table">
+            <div class="table-title">Tier Comparison</div>
+            <div class="comparison-grid">
+                <div class="comparison-cell comparison-header comparison-feature">Feature</div>
+                <div class="comparison-cell comparison-header">Basic</div>
+                <div class="comparison-cell comparison-header">Single Discipline</div>
+                <div class="comparison-cell comparison-header">Unlimited</div>
+                <div class="comparison-cell comparison-header">Competition</div>
+
+                <div class="comparison-cell comparison-feature">Classes per Week</div>
+                <div class="comparison-cell">2</div>
+                <div class="comparison-cell">Unlimited</div>
+                <div class="comparison-cell">Unlimited</div>
+                <div class="comparison-cell">Unlimited</div>
+
+                <div class="comparison-cell comparison-feature">Disciplines</div>
+                <div class="comparison-cell">1</div>
+                <div class="comparison-cell">1</div>
+                <div class="comparison-cell">All</div>
+                <div class="comparison-cell">All</div>
+
+                <div class="comparison-cell comparison-feature">Open Gym Access</div>
+                <div class="comparison-cell cross-icon">✗</div>
+                <div class="comparison-cell check-icon">✓</div>
+                <div class="comparison-cell check-icon">✓</div>
+                <div class="comparison-cell check-icon">✓</div>
+
+                <div class="comparison-cell comparison-feature">Competition Training</div>
+                <div class="comparison-cell cross-icon">✗</div>
+                <div class="comparison-cell cross-icon">✗</div>
+                <div class="comparison-cell cross-icon">✗</div>
+                <div class="comparison-cell check-icon">✓</div>
+
+                <div class="comparison-cell comparison-feature">Private Training Discount</div>
+                <div class="comparison-cell cross-icon">✗</div>
+                <div class="comparison-cell">10%</div>
+                <div class="comparison-cell">15%</div>
+                <div class="comparison-cell">20%</div>
+
+                <div class="comparison-cell comparison-feature">Retail Discount</div>
+                <div class="comparison-cell cross-icon">✗</div>
+                <div class="comparison-cell">5%</div>
+                <div class="comparison-cell">10%</div>
+                <div class="comparison-cell">15%</div>
+
+                <div class="comparison-cell comparison-feature">Guest Passes/Month</div>
+                <div class="comparison-cell">0</div>
+                <div class="comparison-cell">1</div>
+                <div class="comparison-cell">2</div>
+                <div class="comparison-cell">4</div>
+
+                <div class="comparison-cell comparison-feature">Contract Length</div>
+                <div class="comparison-cell">Month-to-month</div>
+                <div class="comparison-cell">3 months</div>
+                <div class="comparison-cell">6 months</div>
+                <div class="comparison-cell">12 months</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Tier Modal -->
+    <div class="modal" id="tier-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Add New Tier</div>
+                <div class="close-btn" onclick="closeModal()">&times;</div>
+            </div>
+            <form id="tier-form" onsubmit="handleSubmit(event)">
+                <div class="form-field">
+                    <label class="form-label required">Tier Name</label>
+                    <input type="text" class="form-input" name="name" required placeholder="e.g., Unlimited Access">
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label required">Description</label>
+                    <textarea class="form-textarea" name="description" required placeholder="Brief description of this tier"></textarea>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label required">Monthly Price ($)</label>
+                    <input type="number" class="form-input" name="price" required min="0" step="0.01" placeholder="149.00">
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label required">Contract Length</label>
+                    <select class="form-select" name="contract_length" required>
+                        <option value="">Select...</option>
+                        <option value="month-to-month">Month-to-month</option>
+                        <option value="3-months">3 Months</option>
+                        <option value="6-months">6 Months</option>
+                        <option value="12-months">12 Months</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Classes per Week</label>
+                    <input type="text" class="form-input" name="classes_per_week" placeholder="e.g., Unlimited, 2, 3">
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Initiation Fee ($)</label>
+                    <input type="number" class="form-input" name="initiation_fee" min="0" step="0.01" placeholder="0.00">
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Features & Benefits</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="all-disciplines" name="all_disciplines">
+                            <label for="all-disciplines">Access to all disciplines</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="open-gym" name="open_gym">
+                            <label for="open-gym">Open gym access</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="competition" name="competition">
+                            <label for="competition">Competition training</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="pt-discount" name="pt_discount">
+                            <label for="pt-discount">Private training discount</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="retail-discount" name="retail_discount">
+                            <label for="retail-discount">Retail discount</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="guest-passes" name="guest_passes">
+                            <label for="guest-passes">Guest passes</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 25px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Tier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let tiers = [];
+        let editingTierId = null;
+
+        async function init() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+
+                await loadTiers();
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        async function loadTiers() {
+            // Mock data
+            tiers = [
+                {
+                    id: 1,
+                    name: 'Basic',
+                    description: 'Perfect for beginners wanting to try martial arts',
+                    price: 79,
+                    contract_length: 'month-to-month',
+                    classes_per_week: '2',
+                    initiation_fee: 0,
+                    features: ['2 classes per week', 'Single discipline', 'No contract'],
+                    members: 87,
+                    featured: false,
+                    status: 'active'
+                },
+                {
+                    id: 2,
+                    name: 'Single Discipline',
+                    description: 'Unlimited classes in one martial art',
+                    price: 129,
+                    contract_length: '3-months',
+                    classes_per_week: 'Unlimited',
+                    initiation_fee: 50,
+                    features: ['Unlimited classes', 'One discipline', 'Open gym access', '10% PT discount', '5% retail discount', '1 guest pass/month'],
+                    members: 234,
+                    featured: false,
+                    status: 'active'
+                },
+                {
+                    id: 3,
+                    name: 'Unlimited Access',
+                    description: 'Train all disciplines, unlimited classes',
+                    price: 179,
+                    contract_length: '6-months',
+                    classes_per_week: 'Unlimited',
+                    initiation_fee: 100,
+                    features: ['Unlimited classes', 'All disciplines', 'Open gym access', '15% PT discount', '10% retail discount', '2 guest passes/month'],
+                    members: 298,
+                    featured: true,
+                    status: 'active'
+                },
+                {
+                    id: 4,
+                    name: 'Competition Team',
+                    description: 'Elite training for serious competitors',
+                    price: 249,
+                    contract_length: '12-months',
+                    classes_per_week: 'Unlimited',
+                    initiation_fee: 150,
+                    features: ['Unlimited classes', 'All disciplines', 'Competition training', 'Open gym 24/7', '20% PT discount', '15% retail discount', '4 guest passes/month', 'Competition support'],
+                    members: 22,
+                    featured: false,
+                    status: 'active'
+                },
+                {
+                    id: 5,
+                    name: 'Corporate',
+                    description: 'Group membership for businesses',
+                    price: 119,
+                    contract_length: '12-months',
+                    classes_per_week: 'Unlimited',
+                    initiation_fee: 0,
+                    features: ['Unlimited classes', 'All disciplines', 'Flexible scheduling', 'Group rates', 'Corporate wellness reports'],
+                    members: 0,
+                    featured: false,
+                    status: 'inactive'
+                }
+            ];
+
+            renderTiers();
+        }
+
+        function renderTiers() {
+            const grid = document.getElementById('tiers-grid');
+
+            grid.innerHTML = tiers.map(tier => `
+                <div class="tier-card ${tier.featured ? 'featured' : ''}">
+                    ${tier.featured ? '<div class="tier-badge">MOST POPULAR</div>' : ''}
+                    <div class="tier-header">
+                        <div class="tier-name">${tier.name}</div>
+                        <div class="tier-desc">${tier.description}</div>
+                        <div class="tier-price">$${tier.price}</div>
+                        <div class="tier-price-period">per month</div>
+                    </div>
+                    <div class="tier-features">
+                        ${tier.features.map(f => `
+                            <div class="feature-item">
+                                <span class="feature-icon">✓</span>
+                                <span>${f}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="padding-top: 15px; border-top: 1px solid #333; margin-top: 15px;">
+                        <div style="font-size: 13px; color: #888; margin-bottom: 5px;">Contract: ${tier.contract_length}</div>
+                        <div style="font-size: 13px; color: #888; margin-bottom: 5px;">Initiation: $${tier.initiation_fee}</div>
+                        <div style="font-size: 13px; color: #888;">Members: ${tier.members}</div>
+                    </div>
+                    <div class="tier-actions">
+                        <button class="btn btn-secondary btn-small" onclick="editTier(${tier.id})">Edit</button>
+                        <button class="btn btn-secondary btn-small" onclick="deleteTier(${tier.id})">Delete</button>
+                        <button class="btn btn-primary btn-small" onclick="viewMembers(${tier.id})">View Members</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openAddModal() {
+            editingTierId = null;
+            document.getElementById('modal-title').textContent = 'Add New Tier';
+            document.getElementById('tier-form').reset();
+            document.getElementById('tier-modal').classList.add('active');
+        }
+
+        function editTier(id) {
+            editingTierId = id;
+            const tier = tiers.find(t => t.id === id);
+            if (!tier) return;
+
+            document.getElementById('modal-title').textContent = 'Edit Tier';
+            const form = document.getElementById('tier-form');
+            form.name.value = tier.name;
+            form.description.value = tier.description;
+            form.price.value = tier.price;
+            form.contract_length.value = tier.contract_length;
+            form.classes_per_week.value = tier.classes_per_week;
+            form.initiation_fee.value = tier.initiation_fee;
+            form.status.value = tier.status;
+
+            document.getElementById('tier-modal').classList.add('active');
+        }
+
+        function deleteTier(id) {
+            if (!confirm('Are you sure you want to delete this tier?')) return;
+
+            tiers = tiers.filter(t => t.id !== id);
+            renderTiers();
+        }
+
+        function viewMembers(id) {
+            alert(`View members for tier ${id} - Coming soon`);
+        }
+
+        function closeModal() {
+            document.getElementById('tier-modal').classList.remove('active');
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            // Collect features
+            const features = [];
+            if (data.all_disciplines) features.push('All disciplines');
+            if (data.open_gym) features.push('Open gym access');
+            if (data.competition) features.push('Competition training');
+            if (data.pt_discount) features.push('PT discount');
+            if (data.retail_discount) features.push('Retail discount');
+            if (data.guest_passes) features.push('Guest passes');
+
+            if (editingTierId) {
+                // Update existing tier
+                const index = tiers.findIndex(t => t.id === editingTierId);
+                if (index !== -1) {
+                    tiers[index] = {
+                        ...tiers[index],
+                        ...data,
+                        price: parseFloat(data.price),
+                        initiation_fee: parseFloat(data.initiation_fee) || 0,
+                        features: features
+                    };
+                }
+            } else {
+                // Add new tier
+                const newTier = {
+                    id: Math.max(...tiers.map(t => t.id), 0) + 1,
+                    ...data,
+                    price: parseFloat(data.price),
+                    initiation_fee: parseFloat(data.initiation_fee) || 0,
+                    features: features,
+                    members: 0,
+                    featured: false
+                };
+                tiers.push(newTier);
+            }
+
+            renderTiers();
+            closeModal();
+        }
+
+        init();
+    </script>
+</body>
+</html>

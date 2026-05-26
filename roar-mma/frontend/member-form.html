@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Add/Edit Member</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; max-width: 1200px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 10px 20px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .back-btn:hover { border-color: #ff4444; }
+        .header-title { font-size: 28px; font-weight: 700; }
+
+        .form-container { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 30px; }
+        .form-section { margin-bottom: 35px; }
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #333; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .form-field { margin-bottom: 20px; }
+        .form-field.full-width { grid-column: 1 / -1; }
+        .form-label { display: block; font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 600; }
+        .form-label.required::after { content: ' *'; color: #ff4444; }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #ff4444;
+        }
+        .form-textarea { resize: vertical; min-height: 100px; }
+
+        .radio-group, .checkbox-group { display: flex; gap: 20px; flex-wrap: wrap; }
+        .radio-option, .checkbox-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .radio-option:hover, .checkbox-option:hover { border-color: #ff4444; }
+        .radio-option input, .checkbox-option input { cursor: pointer; }
+
+        .form-actions { display: flex; gap: 15px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #333; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 14px; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+        .btn-secondary:hover { border-color: #ff4444; }
+
+        .form-hint { font-size: 12px; color: #666; margin-top: 5px; }
+        .error-message { color: #ff4444; font-size: 12px; margin-top: 5px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item active" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-left">
+                <button class="back-btn" onclick="window.location.href='members.html'">← Back</button>
+                <div class="header-title" id="page-title">Add New Member</div>
+            </div>
+        </div>
+
+        <form class="form-container" id="member-form" onsubmit="handleSubmit(event)">
+            <div class="form-section">
+                <div class="section-title">Personal Information</div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">First Name</label>
+                        <input type="text" class="form-input" name="first_name" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Last Name</label>
+                        <input type="text" class="form-input" name="last_name" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Email</label>
+                        <input type="email" class="form-input" name="email" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Phone</label>
+                        <input type="tel" class="form-input" name="phone" required placeholder="0400000000">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Date of Birth</label>
+                        <input type="date" class="form-input" name="date_of_birth">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Gender</label>
+                        <select class="form-select" name="gender">
+                            <option value="">Select...</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                            <option value="prefer_not_to_say">Prefer not to say</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Address</div>
+                <div class="form-grid">
+                    <div class="form-field full-width">
+                        <label class="form-label">Street Address</label>
+                        <input type="text" class="form-input" name="address">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">City</label>
+                        <input type="text" class="form-input" name="city">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">State</label>
+                        <select class="form-select" name="state">
+                            <option value="">Select...</option>
+                            <option value="NSW">NSW</option>
+                            <option value="VIC">VIC</option>
+                            <option value="QLD">QLD</option>
+                            <option value="WA">WA</option>
+                            <option value="SA">SA</option>
+                            <option value="TAS">TAS</option>
+                            <option value="ACT">ACT</option>
+                            <option value="NT">NT</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Postcode</label>
+                        <input type="text" class="form-input" name="postcode" maxlength="4">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Emergency Contact</div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label">Contact Name</label>
+                        <input type="text" class="form-input" name="emergency_contact_name">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Contact Phone</label>
+                        <input type="tel" class="form-input" name="emergency_contact_phone">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Relationship</label>
+                        <input type="text" class="form-input" name="emergency_contact_relationship" placeholder="e.g., Spouse, Parent, Sibling">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Membership Details</div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">Membership Plan</label>
+                        <select class="form-select" name="plan" required>
+                            <option value="">Select plan...</option>
+                            <option value="unlimited">Unlimited ($199/month)</option>
+                            <option value="3x_week">3x Per Week ($149/month)</option>
+                            <option value="2x_week">2x Per Week ($99/month)</option>
+                            <option value="casual">Casual ($25/class)</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Status</label>
+                        <select class="form-select" name="status" required>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="paused">Paused</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-input" name="start_date" value="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Belt Rank</label>
+                        <select class="form-select" name="belt_rank">
+                            <option value="">Select...</option>
+                            <option value="white">White Belt</option>
+                            <option value="blue">Blue Belt</option>
+                            <option value="purple">Purple Belt</option>
+                            <option value="brown">Brown Belt</option>
+                            <option value="black">Black Belt</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Health & Medical</div>
+                <div class="form-grid">
+                    <div class="form-field full-width">
+                        <label class="form-label">Medical Conditions</label>
+                        <textarea class="form-textarea" name="medical_conditions" placeholder="Any medical conditions, injuries, or health concerns we should be aware of..."></textarea>
+                        <div class="form-hint">This information is kept confidential and used for safety purposes only</div>
+                    </div>
+                    <div class="form-field full-width">
+                        <label class="form-label">Goals & Interests</label>
+                        <textarea class="form-textarea" name="goals" placeholder="What are your fitness goals? What classes are you interested in?"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Additional Information</div>
+                <div class="form-grid">
+                    <div class="form-field full-width">
+                        <label class="form-label">How did you hear about us?</label>
+                        <select class="form-select" name="referral_source">
+                            <option value="">Select...</option>
+                            <option value="google">Google Search</option>
+                            <option value="facebook">Facebook</option>
+                            <option value="instagram">Instagram</option>
+                            <option value="friend">Friend/Family Referral</option>
+                            <option value="walk_in">Walk-in</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-field full-width">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-textarea" name="notes" placeholder="Any additional notes or comments..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='members.html'">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Member</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let memberId = null;
+        let isEditMode = false;
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            memberId = params.get('id');
+            isEditMode = !!memberId;
+
+            if (isEditMode) {
+                document.getElementById('page-title').textContent = 'Edit Member';
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+
+                if (isEditMode) {
+                    await loadMemberData();
+                }
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        async function loadMemberData() {
+            try {
+                // In real app, would fetch from /members/:id
+                // For now, populate with sample data
+                const form = document.getElementById('member-form');
+                form.first_name.value = 'John';
+                form.last_name.value = 'Smith';
+                form.email.value = 'john.smith@example.com';
+                form.phone.value = '0412345678';
+                form.plan.value = 'unlimited';
+                form.status.value = 'active';
+            } catch (error) {
+                console.error('Failed to load member:', error);
+            }
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const url = isEditMode ? `${API_BASE}/members/${memberId}` : `${API_BASE}/members`;
+                const method = isEditMode ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert(`Member ${isEditMode ? 'updated' : 'created'} successfully!`);
+                    window.location.href = 'members.html';
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to save member: ${error.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Failed to save member:', error);
+                alert('Error saving member. Please try again.');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

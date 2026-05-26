@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAR MMA - Add/Edit Product</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #0f0f0f; border-right: 1px solid #222; padding: 20px; z-index: 100; }
+        .logo { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
+        .nav-menu { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
+        .nav-item.active { background: #ff444420; color: #ff4444; }
+
+        .main-content { margin-left: 240px; padding: 20px; max-width: 1200px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 10px 20px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .back-btn:hover { border-color: #ff4444; }
+        .header-title { font-size: 28px; font-weight: 700; }
+
+        .form-container { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 30px; }
+        .form-section { margin-bottom: 35px; }
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #333; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .form-field { margin-bottom: 20px; }
+        .form-field.full-width { grid-column: 1 / -1; }
+        .form-label { display: block; font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 600; }
+        .form-label.required::after { content: ' *'; color: #ff4444; }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #ff4444;
+        }
+        .form-textarea { resize: vertical; min-height: 100px; }
+
+        .margin-calculator { background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 20px; }
+        .calc-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #222; }
+        .calc-row:last-child { border-bottom: none; margin-bottom: 0; }
+        .calc-label { font-size: 14px; color: #888; }
+        .calc-value { font-size: 16px; font-weight: 600; }
+        .calc-profit { color: #00ff00; }
+        .calc-margin { color: #ff8800; }
+
+        .form-actions { display: flex; gap: 15px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #333; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 14px; }
+        .btn-primary { background: #ff4444; color: #fff; }
+        .btn-primary:hover { background: #ff6666; }
+        .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #fff; }
+        .btn-secondary:hover { border-color: #ff4444; }
+
+        .form-hint { font-size: 12px; color: #666; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">⚡ ROAR MMA</div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
+            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
+            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
+            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
+            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
+            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
+            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
+            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
+            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
+            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
+            <div class="nav-item active" onclick="window.location.href='stock.html'">📦 Stock</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-left">
+                <button class="back-btn" onclick="window.location.href='stock.html'">← Back</button>
+                <div class="header-title" id="page-title">Add New Product</div>
+            </div>
+        </div>
+
+        <form class="form-container" id="product-form" onsubmit="handleSubmit(event)">
+            <div class="form-section">
+                <div class="section-title">Product Information</div>
+                <div class="form-grid">
+                    <div class="form-field full-width">
+                        <label class="form-label required">Product Name</label>
+                        <input type="text" class="form-input" name="name" required placeholder="e.g., ROAR MMA Rashguard">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">SKU</label>
+                        <input type="text" class="form-input" name="sku" required placeholder="e.g., RG-BLK-L">
+                        <div class="form-hint">Unique product identifier</div>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Category</label>
+                        <select class="form-select" name="category" required>
+                            <option value="">Select category...</option>
+                            <option value="apparel">Apparel</option>
+                            <option value="equipment">Training Equipment</option>
+                            <option value="supplements">Supplements</option>
+                            <option value="accessories">Accessories</option>
+                            <option value="merchandise">Merchandise</option>
+                        </select>
+                    </div>
+                    <div class="form-field full-width">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-textarea" name="description" placeholder="Product description, features, materials, etc."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Pricing</div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">Cost Price</label>
+                        <input type="number" class="form-input" name="cost_price" required step="0.01" min="0" placeholder="0.00" onchange="calculateMargin()">
+                        <div class="form-hint">What you pay for the product</div>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Sell Price</label>
+                        <input type="number" class="form-input" name="sell_price" required step="0.01" min="0" placeholder="0.00" onchange="calculateMargin()">
+                        <div class="form-hint">What customers pay</div>
+                    </div>
+                    <div class="form-field full-width">
+                        <div class="margin-calculator" id="margin-calculator">
+                            <div class="calc-row">
+                                <span class="calc-label">Profit per Unit</span>
+                                <span class="calc-value calc-profit" id="profit-value">$0.00</span>
+                            </div>
+                            <div class="calc-row">
+                                <span class="calc-label">Profit Margin</span>
+                                <span class="calc-value calc-margin" id="margin-value">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Inventory</div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">Current Stock</label>
+                        <input type="number" class="form-input" name="stock_quantity" required min="0" value="0">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label required">Minimum Stock Level</label>
+                        <input type="number" class="form-input" name="min_stock_level" required min="0" value="5">
+                        <div class="form-hint">Alert when stock falls below this</div>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Reorder Quantity</label>
+                        <input type="number" class="form-input" name="reorder_quantity" min="0" value="20">
+                        <div class="form-hint">Suggested reorder amount</div>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Location</label>
+                        <input type="text" class="form-input" name="location" placeholder="e.g., Shelf A3, Storage Room">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Product Details</div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label">Size</label>
+                        <select class="form-select" name="size">
+                            <option value="">N/A</option>
+                            <option value="XS">XS</option>
+                            <option value="S">S</option>
+                            <option value="M">M</option>
+                            <option value="L">L</option>
+                            <option value="XL">XL</option>
+                            <option value="XXL">XXL</option>
+                            <option value="XXXL">XXXL</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Color</label>
+                        <input type="text" class="form-input" name="color" placeholder="e.g., Black, Red, Blue">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Brand</label>
+                        <input type="text" class="form-input" name="brand" placeholder="e.g., ROAR MMA, Venum, Hayabusa">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Barcode</label>
+                        <input type="text" class="form-input" name="barcode" placeholder="Product barcode">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Supplier Information</div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label">Supplier Name</label>
+                        <input type="text" class="form-input" name="supplier_name" placeholder="Supplier or manufacturer">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Supplier SKU</label>
+                        <input type="text" class="form-input" name="supplier_sku" placeholder="Supplier's product code">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Lead Time (days)</label>
+                        <input type="number" class="form-input" name="lead_time_days" min="0" placeholder="Delivery time">
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label">Last Order Date</label>
+                        <input type="date" class="form-input" name="last_order_date">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Additional Options</div>
+                <div class="form-grid">
+                    <div class="form-field full-width">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-textarea" name="notes" placeholder="Any additional notes about this product..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='stock.html'">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Product</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+        let productId = null;
+        let isEditMode = false;
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            productId = params.get('id');
+            isEditMode = !!productId;
+
+            if (isEditMode) {
+                document.getElementById('page-title').textContent = 'Edit Product';
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                });
+                const data = await response.json();
+                authToken = data.token;
+
+                if (isEditMode) {
+                    await loadProductData();
+                }
+            } catch (error) {
+                console.error('Init failed:', error);
+            }
+        }
+
+        async function loadProductData() {
+            try {
+                const response = await fetch(`${API_BASE}/stock/products`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const products = await response.json();
+                const product = products.find(p => p.id == productId);
+
+                if (product) {
+                    const form = document.getElementById('product-form');
+                    form.name.value = product.name || '';
+                    form.sku.value = product.sku || '';
+                    form.category.value = product.category || '';
+                    form.description.value = product.description || '';
+                    form.cost_price.value = product.cost_price || '';
+                    form.sell_price.value = product.sell_price || '';
+                    form.stock_quantity.value = product.stock_quantity || 0;
+                    form.min_stock_level.value = product.min_stock_level || 5;
+                    form.reorder_quantity.value = product.reorder_quantity || 20;
+                    form.location.value = product.location || '';
+
+                    calculateMargin();
+                }
+            } catch (error) {
+                console.error('Failed to load product:', error);
+            }
+        }
+
+        function calculateMargin() {
+            const costPrice = parseFloat(document.querySelector('[name="cost_price"]').value) || 0;
+            const sellPrice = parseFloat(document.querySelector('[name="sell_price"]').value) || 0;
+
+            const profit = sellPrice - costPrice;
+            const margin = costPrice > 0 ? ((profit / costPrice) * 100) : 0;
+
+            document.getElementById('profit-value').textContent = `$${profit.toFixed(2)}`;
+            document.getElementById('margin-value').textContent = `${margin.toFixed(1)}%`;
+
+            // Color code the margin
+            const marginElement = document.getElementById('margin-value');
+            if (margin < 20) {
+                marginElement.style.color = '#ff4444';
+            } else if (margin < 40) {
+                marginElement.style.color = '#ff8800';
+            } else {
+                marginElement.style.color = '#00ff00';
+            }
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            // Convert numeric fields
+            data.cost_price = parseFloat(data.cost_price);
+            data.sell_price = parseFloat(data.sell_price);
+            data.stock_quantity = parseInt(data.stock_quantity);
+            data.min_stock_level = parseInt(data.min_stock_level);
+            data.reorder_quantity = parseInt(data.reorder_quantity) || null;
+            data.lead_time_days = parseInt(data.lead_time_days) || null;
+
+            try {
+                const url = isEditMode ? `${API_BASE}/stock/products/${productId}` : `${API_BASE}/stock/products`;
+                const method = isEditMode ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert(`Product ${isEditMode ? 'updated' : 'created'} successfully!`);
+                    window.location.href = 'stock.html';
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to save product: ${error.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Failed to save product:', error);
+                alert('Error saving product. Please try again.');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
