@@ -1,0 +1,2877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROAR MMA — Software PRD v1.0</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0a0c;
+    --bg2: #111116;
+    --bg3: #18181f;
+    --border: #2a2a35;
+    --border-bright: #3d3d50;
+    --red: #e8321a;
+    --red-dim: #7a1a0d;
+    --orange: #f07a2a;
+    --yellow: #f5c842;
+    --green: #2dba6b;
+    --blue: #3a7aff;
+    --purple: #8b5cf6;
+    --text: #d4d4e0;
+    --text-dim: #6b6b80;
+    --text-bright: #f0f0fa;
+    --mono: 'Space Mono', monospace;
+    --display: 'Bebas Neue', sans-serif;
+    --body: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  /* ── SIDEBAR NAV ── */
+  #sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    width: 260px; height: 100vh;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 100;
+    padding: 24px 0 40px;
+  }
+
+  .sidebar-logo {
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .sidebar-logo .logo-mark {
+    font-family: var(--display);
+    font-size: 28px;
+    color: var(--red);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .sidebar-logo .logo-sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .nav-section-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 12px 20px 6px;
+  }
+
+  .nav-item {
+    display: block;
+    padding: 7px 20px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+
+  .nav-item:hover {
+    color: var(--text-bright);
+    background: var(--bg3);
+    border-left-color: var(--red);
+  }
+
+  .nav-item.active {
+    color: var(--red);
+    border-left-color: var(--red);
+  }
+
+  /* ── MAIN CONTENT ── */
+  #main {
+    margin-left: 260px;
+    padding: 0;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 64px 64px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(232,50,26,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .hero-tag::before {
+    content: '';
+    display: inline-block;
+    width: 24px; height: 1px;
+    background: var(--red);
+  }
+
+  .hero h1 {
+    font-family: var(--display);
+    font-size: 72px;
+    color: var(--text-bright);
+    line-height: 0.95;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+
+  .hero h1 span { color: var(--red); }
+
+  .hero-meta {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta-item {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .hero-meta-item strong {
+    color: var(--text);
+    display: block;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    padding: 56px 64px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section:nth-child(even) { background: var(--bg2); }
+
+  .section-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-tag::before {
+    content: '';
+    display: inline-block;
+    width: 16px; height: 1px;
+    background: var(--red);
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-size: 44px;
+    color: var(--text-bright);
+    letter-spacing: 1px;
+    line-height: 1;
+    margin-bottom: 24px;
+  }
+
+  h3 {
+    font-family: var(--display);
+    font-size: 28px;
+    color: var(--orange);
+    letter-spacing: 1px;
+    margin: 40px 0 16px;
+  }
+
+  h4 {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--yellow);
+    margin: 28px 0 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  p { margin-bottom: 14px; color: var(--text); line-height: 1.7; }
+
+  /* ── ASCII WIREFRAME BLOCKS ── */
+  .wireframe {
+    background: #0d0d10;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 4px;
+    padding: 24px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+
+  .wireframe-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .wireframe pre {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: #9d9db8;
+    line-height: 1.5;
+    white-space: pre;
+  }
+
+  .wireframe pre .hl { color: var(--text-bright); }
+  .wireframe pre .accent { color: var(--orange); }
+  .wireframe pre .red { color: var(--red); }
+  .wireframe pre .green { color: var(--green); }
+  .wireframe pre .blue { color: var(--blue); }
+  .wireframe pre .yellow { color: var(--yellow); }
+
+  /* ── INTERACTION SPEC CARDS ── */
+  .interaction-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  .interaction-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+  }
+
+  .interaction-card .card-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .interaction-card .card-title {
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+
+  .interaction-card .card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .interaction-card .card-trigger {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .interaction-card .card-trigger strong {
+    color: var(--orange);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── AGENT CARDS ── */
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+
+  .agent-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--purple);
+    border-radius: 6px;
+    padding: 20px;
+  }
+
+  .agent-card.orchestrator { border-top-color: var(--red); }
+  .agent-card.sales { border-top-color: var(--orange); }
+  .agent-card.social { border-top-color: var(--blue); }
+  .agent-card.billing { border-top-color: var(--green); }
+  .agent-card.comms { border-top-color: var(--yellow); }
+
+  .agent-name {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--text-bright);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .agent-role {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .agent-card ul {
+    list-style: none;
+    margin: 0;
+  }
+
+  .agent-card ul li {
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .agent-card ul li::before {
+    content: '→';
+    color: var(--purple);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .agent-card.orchestrator ul li::before { color: var(--red); }
+  .agent-card.sales ul li::before { color: var(--orange); }
+  .agent-card.social ul li::before { color: var(--blue); }
+  .agent-card.billing ul li::before { color: var(--green); }
+  .agent-card.comms ul li::before { color: var(--yellow); }
+
+  /* ── TABLES ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 13px;
+  }
+
+  th {
+    background: var(--bg3);
+    color: var(--text-bright);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 2px solid var(--red);
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+    vertical-align: top;
+  }
+
+  tr:hover td { background: var(--bg3); }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin: 2px;
+  }
+
+  .badge-red { background: rgba(232,50,26,0.15); color: var(--red); border: 1px solid var(--red-dim); }
+  .badge-green { background: rgba(45,186,107,0.12); color: var(--green); border: 1px solid rgba(45,186,107,0.3); }
+  .badge-blue { background: rgba(58,122,255,0.12); color: var(--blue); border: 1px solid rgba(58,122,255,0.3); }
+  .badge-orange { background: rgba(240,122,42,0.12); color: var(--orange); border: 1px solid rgba(240,122,42,0.3); }
+  .badge-yellow { background: rgba(245,200,66,0.12); color: var(--yellow); border: 1px solid rgba(245,200,66,0.3); }
+  .badge-purple { background: rgba(139,92,246,0.12); color: var(--purple); border: 1px solid rgba(139,92,246,0.3); }
+  .badge-dim { background: var(--bg3); color: var(--text-dim); border: 1px solid var(--border); }
+
+  /* ── CALL-OUT BOXES ── */
+  .callout {
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .callout.ai {
+    background: rgba(139,92,246,0.06);
+    border-color: rgba(139,92,246,0.3);
+    color: var(--text);
+  }
+
+  .callout.ai .callout-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .callout.warn {
+    background: rgba(245,200,66,0.05);
+    border-color: rgba(245,200,66,0.25);
+    color: var(--text);
+  }
+
+  .callout.warn .callout-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--yellow);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .callout.human-loop {
+    background: rgba(240,122,42,0.06);
+    border-color: rgba(240,122,42,0.3);
+    color: var(--text);
+  }
+
+  .callout.human-loop .callout-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  /* ── TOC ── */
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 24px 0;
+  }
+
+  .toc-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+    text-decoration: none;
+    transition: all 0.15s;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .toc-item:hover {
+    border-color: var(--red);
+    background: rgba(232,50,26,0.05);
+  }
+
+  .toc-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--red);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .toc-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    #main { margin-left: 0; }
+    .hero { padding: 40px 24px; }
+    .section { padding: 40px 24px; }
+    .hero h1 { font-size: 48px; }
+    .toc-grid { grid-template-columns: 1fr; }
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+
+  .flow-step {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .flow-arrow {
+    color: var(--red);
+    font-size: 18px;
+    padding: 0 8px;
+    font-weight: bold;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 20px 0;
+  }
+
+  @media (max-width: 700px) {
+    .two-col { grid-template-columns: 1fr; }
+    .interaction-grid { grid-template-columns: 1fr; }
+  }
+
+  .spec-list {
+    list-style: none;
+    margin: 0 0 16px 0;
+  }
+
+  .spec-list li {
+    padding: 6px 0 6px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-dim);
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .spec-list li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--red);
+  }
+
+  .spec-list li strong { color: var(--text); }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">ROAR MMA</div>
+    <div class="logo-sub">Software PRD · v1.0</div>
+  </div>
+
+  <div class="nav-section-label">Overview</div>
+  <a class="nav-item" href="#overview">System Overview</a>
+  <a class="nav-item" href="#architecture">Architecture</a>
+  <a class="nav-item" href="#roles">Roles & Permissions</a>
+  <a class="nav-item" href="#locations">Locations & Spaces</a>
+
+  <div class="nav-section-label">Core Modules</div>
+  <a class="nav-item" href="#dashboard">01 · Dashboard</a>
+  <a class="nav-item" href="#members">02 · Members</a>
+  <a class="nav-item" href="#timetable">03 · Timetable & Classes</a>
+  <a class="nav-item" href="#leads">04 · Leads & CRM</a>
+  <a class="nav-item" href="#social">05 · Social Media</a>
+  <a class="nav-item" href="#billing">06 · Billing & Payments</a>
+  <a class="nav-item" href="#gradings">07 · Gradings</a>
+  <a class="nav-item" href="#pos">08 · Merchandise / POS</a>
+  <a class="nav-item" href="#comms">09 · Communications</a>
+  <a class="nav-item" href="#staff">10 · Staff & Coaches</a>
+  <a class="nav-item" href="#reports">11 · Reports & Analytics</a>
+  <a class="nav-item" href="#waivers">12 · Waivers & Docs</a>
+
+  <div class="nav-section-label">AI System</div>
+  <a class="nav-item" href="#ai-overview">AI Agent Architecture</a>
+  <a class="nav-item" href="#agents">Agent Roster</a>
+  <a class="nav-item" href="#mission-control">Mission Control GUI</a>
+  <a class="nav-item" href="#openrouter">OpenRouter Setup</a>
+  <a class="nav-item" href="#healing">Self-Healing System</a>
+
+  <div class="nav-section-label">Delivery</div>
+  <a class="nav-item" href="#techstack">Tech Stack</a>
+  <a class="nav-item" href="#datamodel">Data Models</a>
+  <a class="nav-item" href="#v1scope">V1 Scope</a>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════ -->
+<main id="main">
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="hero-tag">Product Requirements Document</div>
+  <h1>ROAR <span>MMA</span><br>COMMAND SYSTEM</h1>
+  <div class="hero-meta">
+    <div class="hero-meta-item"><strong>Version</strong>1.0 — April 2026</div>
+    <div class="hero-meta-item"><strong>Status</strong>V1 Build Begins</div>
+    <div class="hero-meta-item"><strong>Locations</strong>Rockingham · Bibra Lake · 24/7 Gym</div>
+    <div class="hero-meta-item"><strong>Stack</strong>Free · Open Source · Self-Hosted</div>
+    <div class="hero-meta-item"><strong>AI Engine</strong>OpenRouter/Free + OpenClaw + Mission Control</div>
+  </div>
+</div>
+
+<!-- ════════════ OVERVIEW ════════════ -->
+<section class="section" id="overview">
+  <div class="section-tag">Section 0</div>
+  <h2>SYSTEM OVERVIEW</h2>
+
+  <p>ROAR MMA Command System is an all-in-one staff-facing web application that replaces the patchwork of Evolve Strategies, PGM, spreadsheets, and manual processes currently running the gym. It is a single source of truth for member management, class scheduling, lead tracking, billing, social media analytics, communications, gradings, merch sales, reporting — and is supercharged by a fleet of AI agents that automate as much operational work as physically possible.</p>
+
+  <p>The app is <strong>staff and coach facing only</strong>. Members interact with their existing mobile app. This system runs on a free tech stack — no paid SaaS, no licence fees — and is built to be shipped as a working V1 within one week using Claude Code.</p>
+
+  <div class="toc-grid">
+    <a class="toc-item" href="#dashboard"><span class="toc-num">01</span><span class="toc-text">Dashboard & Command Centre</span></a>
+    <a class="toc-item" href="#members"><span class="toc-num">02</span><span class="toc-text">Member Management</span></a>
+    <a class="toc-item" href="#timetable"><span class="toc-num">03</span><span class="toc-text">Timetable & Class Management</span></a>
+    <a class="toc-item" href="#leads"><span class="toc-num">04</span><span class="toc-text">Leads, CRM & Sales Pipeline</span></a>
+    <a class="toc-item" href="#social"><span class="toc-num">05</span><span class="toc-text">Social Media Tracking</span></a>
+    <a class="toc-item" href="#billing"><span class="toc-num">06</span><span class="toc-text">Billing & Payments</span></a>
+    <a class="toc-item" href="#gradings"><span class="toc-num">07</span><span class="toc-text">Gradings & Progression</span></a>
+    <a class="toc-item" href="#pos"><span class="toc-num">08</span><span class="toc-text">Merchandise & POS</span></a>
+    <a class="toc-item" href="#comms"><span class="toc-num">09</span><span class="toc-text">Communications</span></a>
+    <a class="toc-item" href="#staff"><span class="toc-num">10</span><span class="toc-text">Staff & Coach Management</span></a>
+    <a class="toc-item" href="#reports"><span class="toc-num">11</span><span class="toc-text">Reports & Analytics</span></a>
+    <a class="toc-item" href="#waivers"><span class="toc-num">12</span><span class="toc-text">Waivers & Documents</span></a>
+  </div>
+</section>
+
+<!-- ════════════ ARCHITECTURE ════════════ -->
+<section class="section" id="architecture">
+  <div class="section-tag">Section 0.1</div>
+  <h2>HIGH-LEVEL ARCHITECTURE</h2>
+
+  <div class="wireframe">
+    <div class="wireframe-title">System Architecture Diagram</div>
+    <pre>
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                         ROAR MMA COMMAND SYSTEM                             │
+  │                    Staff Web App  (React + Vite, runs on port 5173)         │
+  └───────────────────────────────────┬─────────────────────────────────────────┘
+                                      │ REST + WebSocket
+  ┌───────────────────────────────────▼─────────────────────────────────────────┐
+  │                          BACKEND API  (Node.js + Express)                   │
+  │   /members   /classes   /leads   /billing   /social   /gradings   /reports  │
+  │   /merch     /comms     /staff   /waivers   /ai       /webhooks             │
+  └────┬──────────────┬──────────────┬──────────────┬──────────────┬────────────┘
+       │              │              │              │              │
+  ┌────▼────┐   ┌─────▼─────┐  ┌────▼────┐   ┌────▼────┐   ┌────▼────────────┐
+  │ SQLite  │   │  Lightspeed│  │  Email  │   │  SMS    │   │  OpenRouter API  │
+  │ (main   │   │  Payments  │  │  SMTP   │   │ Twilio  │   │  (Free Models)   │
+  │  DB)    │   │  Webhook   │  │         │   │  Free   │   │  AI Agent Fleet  │
+  └─────────┘   └───────────┘  └─────────┘   └─────────┘   └─────────────────┘
+                                                                    │
+  ┌─────────────────────────────────────────────────────────────────▼───────────┐
+  │                      OPENCLAW GATEWAY  (port 18789)                         │
+  │        Master Orchestrator ──► Sub-Agents  ──► Tools / MCP Servers         │
+  │        Mission Control Dashboard  (builderz-labs/mission-control)           │
+  └─────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Page Shell Layout (all screens inherit this)</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────────────────────────┐
+ │  ███ ROAR MMA         [Bibra Lake ▼]  [🔔 3]  [⚡AI Status]  [Con ▾]   │  ← TOPBAR
+ ├──────────┬───────────────────────────────────────────────────────────────┤
+ │          │                                                               │
+ │ [⊞ Dash] │                                                               │
+ │ [👥 Mem] │                                                               │
+ │ [📅 Cls] │             MAIN CONTENT AREA                                │
+ │ [🎯 Leads│                                                               │
+ │ [📱 Soc] │                                                               │
+ │ [💳 Bill]│                                                               │
+ │ [🥋 Grad]│                                                               │
+ │ [🛒 Merch│                                                               │
+ │ [📨 Comm]│                                                               │
+ │ [👨 Staf]│                                                               │
+ │ [📊 Rep] │                                                               │
+ │ [📄 Docs]│                                                               │
+ │ ─────── │                                                               │
+ │ [🤖 AI ] │                                                               │
+ │ [⚙  Cfg] │                                                               │
+ │          │                                                               │
+ └──────────┴───────────────────────────────────────────────────────────────┘
+  260px nav   remaining width
+    </pre>
+  </div>
+
+  <h4>Topbar Interactions</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Interaction</div>
+      <div class="card-title">Location Switcher</div>
+      <div class="card-desc">Dropdown with 3 options: Rockingham, Bibra Lake, 24/7 Gym. Switching location filters ALL data on the current screen to that location only. A "All Locations" option shows cross-location aggregated view. Selection persists for the session per user.</div>
+      <div class="card-trigger"><strong>Trigger:</strong> Click "[Bibra Lake ▼]" dropdown</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Interaction</div>
+      <div class="card-title">Notification Bell</div>
+      <div class="card-desc">Number badge shows unread count. Clicking opens a sliding panel from the right listing: failed payments, new leads assigned to you, class cancellations awaiting notice, grading eligibility alerts, AI agent actions awaiting human approval. Each notification links to the relevant screen and can be dismissed.</div>
+      <div class="card-trigger"><strong>Trigger:</strong> Click "[🔔 3]"</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Interaction</div>
+      <div class="card-title">AI Status Pill</div>
+      <div class="card-desc">Shows real-time status of AI fleet: green = all agents active, yellow = 1+ agents paused, red = error/disconnected. Clicking opens the Mission Control modal overlay. Shows "3 tasks running" or "Idle" text dynamically.</div>
+      <div class="card-trigger"><strong>Trigger:</strong> Click "[⚡AI Status]"</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Interaction</div>
+      <div class="card-title">User Menu</div>
+      <div class="card-desc">Shows logged-in staff name. Dropdown: My Profile, Change Password, My Schedule (coaches), Notification Preferences, Logout. Role-badge visible (Owner, GM, Front Desk, Coach).</div>
+      <div class="card-trigger"><strong>Trigger:</strong> Click "[Con ▾]"</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ ROLES ════════════ -->
+<section class="section" id="roles">
+  <div class="section-tag">Section 0.2</div>
+  <h2>ROLES & PERMISSIONS</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Role</th>
+        <th>Who</th>
+        <th>Access</th>
+        <th>Restrictions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-red">Owner</span></td>
+        <td>Gym owner</td>
+        <td>Everything. All locations. All data. AI config. Billing setup. Staff management.</td>
+        <td>None</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-orange">General Manager</span></td>
+        <td>GM</td>
+        <td>All modules across all locations. Can edit timetable. Can manage leads. Full reports. Can manage all members.</td>
+        <td>Cannot delete staff accounts. Cannot change billing gateway settings.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">Front Desk / Admin</span></td>
+        <td>Reception team</td>
+        <td>Members (view + create + edit), Class bookings, Check-in, Waiver upload, Merch POS, Comms to their location. Basic reports.</td>
+        <td>Cannot see full financial reports. Cannot see AI system. Cannot manage staff.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-green">Coach</span></td>
+        <td>Coaches (29+)</td>
+        <td>Own class roster and attendance. Own PT client list. Own schedule. View class capacity. Message their class groups. Mark grading eligible. View own PT revenue share.</td>
+        <td>Cannot see other coaches' clients. Cannot see full membership financials. Cannot edit timetable (view only). Cannot access leads.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-purple">Sales</span></td>
+        <td>Con (Salesperson)</td>
+        <td>Full Leads & CRM module. Member view for converting trials. Social media analytics. Lead source reporting.</td>
+        <td>Cannot edit memberships directly. Cannot access billing internals. Cannot access staff management.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">Social Media Manager</span></td>
+        <td>Min</td>
+        <td>Full social media module. Content calendar. Post scheduling. Analytics. Campaign ROI.</td>
+        <td>Cannot see member data. Cannot access billing or leads in detail.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ════════════ LOCATIONS ════════════ -->
+<section class="section" id="locations">
+  <div class="section-tag">Section 0.3</div>
+  <h2>LOCATIONS & SPACES</h2>
+
+  <div class="two-col">
+    <div>
+      <h4>Rockingham MMA (Primary Fight Gym)</h4>
+      <ul class="spec-list">
+        <li><strong>Address:</strong> Unit 2/4 Commodore Dr, Rockingham WA 6168</li>
+        <li><strong>Room 1:</strong> Grappling Mat Space (BJJ, Wrestling, Judo)</li>
+        <li><strong>Room 2:</strong> Muay Thai Room</li>
+        <li><strong>Room 3:</strong> Boxing Area (Upstairs)</li>
+        <li>Up to 3 simultaneous classes per hour</li>
+        <li>Fighter-focused. Competitive team trains here.</li>
+      </ul>
+
+      <h4>Bibra Lake MMA</h4>
+      <ul class="spec-list">
+        <li><strong>Address:</strong> 23 Port Kembla Drive, Bibra Lake WA 6163</li>
+        <li><strong>Room 1:</strong> Large Mat Space (can be divided for simultaneous BJJ)</li>
+        <li><strong>Room 2:</strong> Striking Room (Boxing / Muay Thai — no overlap rule)</li>
+        <li>Inside ROAR Active gym — access to wider gym facilities</li>
+        <li>Largest member base location</li>
+      </ul>
+
+      <h4>24/7 Strength & Conditioning Gym</h4>
+      <ul class="spec-list">
+        <li>Rockingham area. Open 24 hours, 7 days.</li>
+        <li>No scheduled MMA classes</li>
+        <li>Members get discounted access with MMA membership</li>
+        <li>Check-ins tracked via app (no staff always present)</li>
+      </ul>
+    </div>
+    <div>
+      <div class="wireframe">
+        <div class="wireframe-title">Location Card (used throughout the app)</div>
+        <pre>
+┌─────────────────────────────────┐
+│ ● ROCKINGHAM MMA                │
+│   Unit 2/4 Commodore Dr         │
+│ ─────────────────────────────── │
+│  Members    Classes    Rev/wk   │
+│    [142]    [~36/wk]   [$4.2k]  │
+│ ─────────────────────────────── │
+│  Rooms: Grappling · MT · Boxing │
+│  Status: ● OPEN  08:00–21:00   │
+│  Staff on shift: Mel, Jordan    │
+└─────────────────────────────────┘
+        </pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 01: DASHBOARD
+════════════════════════════════════════════ -->
+<section class="section" id="dashboard">
+  <div class="section-tag">Module 01</div>
+  <h2>DASHBOARD</h2>
+  <p>The dashboard is the first screen seen on login. It is the daily operations command centre. It shows the most important live metrics, today's class schedule, pending tasks, AI agent status, and the end-of-day report preview. Everything is real-time via WebSocket.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Dashboard — Full Layout (Owner / GM view)</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  DASHBOARD            📍 All Locations  ·  Sun 13 Apr 2026  ·  14:32 AWST  │
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │                                                                             │
+ │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+ │  │ TOTAL MEMBERS│  │ NEW THIS WEEK│  │ ACTIVE TRIALS│  │ OPEN LEADS   │   │
+ │  │     347      │  │      +8      │  │     12       │  │     23       │   │
+ │  │ ▲ +3 vs last │  │  ████░░  80% │  │  trial ends  │  │  [3 hot 🔥]  │   │
+ │  │   week       │  │  monthly goal│  │  Monday      │  │  [Con owns]  │   │
+ │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
+ │                                                                             │
+ │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+ │  │ WEEKLY REV   │  │ FAILED PYMTS │  │ CLASS FILL   │  │ GOAL TRACKER │   │
+ │  │  $8,420      │  │  ⚠ 4 members │  │  avg 68%     │  │ 30/mo target │   │
+ │  │  ▲ +$340     │  │  $312 at risk│  │  2 classes   │  │ ████████░░   │   │
+ │  │  vs last wk  │  │  [Resolve →] │  │  >90% full   │  │   24 / 30    │   │
+ │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
+ │                                                                             │
+ │  ┌──────────────────────────────────┐  ┌────────────────────────────────┐  │
+ │  │  TODAY'S CLASSES                 │  │  AI AGENT STATUS               │  │
+ │  │  📍 Rockingham                   │  │  ┌─────────────────────────┐   │  │
+ │  │  09:00 Kids BJJ          9/20 ▓░ │  │  │ ⚡ ZEUS (Master)  ● RUN │   │  │
+ │  │  10:00 Adults Boxing    18/25 ▓▓ │  │  │ Tasks queued: 3         │   │  │
+ │  │  11:00 Muay Thai Adv     6/20 ░░ │  │  ├─────────────────────────┤   │  │
+ │  │  ─────────────────────────────   │  │  │ 📧 HERMES (Comms) ● RUN│   │  │
+ │  │  📍 Bibra Lake                   │  │  │ Sent 4 emails today     │   │  │
+ │  │  09:30 Kids MMA          12/20 ▓ │  │  ├─────────────────────────┤   │  │
+ │  │  10:30 Adult BJJ Fund    19/25 ▓▓│  │  │ 💰 MIDAS (Billing) ● RUN│  │  │
+ │  │  11:30 Wrestling          7/15 ░ │  │  │ Chased 2 late payments  │   │  │
+ │  │  [View Full Timetable →]         │  │  ├─────────────────────────┤   │  │
+ │  └──────────────────────────────────┘  │  │ 📊 ORACLE (Reports) ● IDL│  │  │
+ │                                        │  │ EOD report in 5h 28m    │   │  │
+ │  ┌──────────────────────────────────┐  │  └─────────────────────────┘   │  │
+ │  │  RECENT ACTIVITY FEED            │  │  [Open Mission Control →]      │  │
+ │  │  14:28 · Jordan checked in  BJJ  │  └────────────────────────────────┘  │
+ │  │  14:20 · New lead: Sarah M.      │                                       │
+ │  │  14:15 · Payment failed: T.Nguye │  ┌────────────────────────────────┐  │
+ │  │  14:10 · Trial booked: Wed 6pm   │  │  END-OF-DAY REPORT PREVIEW     │  │
+ │  │  14:02 · Class cancelled: Judo   │  │  (Auto-generated at 21:00)     │  │
+ │  │  [View All Activity →]           │  │  • Revenue today: $1,240       │  │
+ │  └──────────────────────────────────┘  │  • New members: 2              │  │
+ │                                        │  • Classes run: 8/9            │  │
+ │                                        │  • Leads contacted: 5          │  │
+ │                                        │  [Preview Full Report →]       │  │
+ │                                        └────────────────────────────────┘  │
+ └─────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Dashboard Interactions — Full Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Stat Cards (top row)</div>
+      <div class="card-title">KPI Metric Cards</div>
+      <div class="card-desc">Each card is clickable and navigates to the relevant detail module. The delta label (▲ +3 vs last week) is calculated against the same 7-day rolling window. Hover shows a small sparkline of the last 30 days. Cards auto-refresh every 30 seconds via WebSocket push.</div>
+      <div class="card-trigger"><strong>Click:</strong> TOTAL MEMBERS → /members<br><strong>Click:</strong> OPEN LEADS → /leads<br><strong>Click:</strong> FAILED PYMTS → /billing?filter=failed</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Today's Classes Panel</div>
+      <div class="card-title">Live Class Roster</div>
+      <div class="card-desc">Shows all classes today, grouped by location. Each row shows class name, time, and a fill bar (booked / capacity). Clicking a class row opens a Class Detail Sheet (side panel): full attendee list, who has checked in (green) vs booked (white), coach name, cancel button. Fill bar turns orange at 80%+, red at 100%.</div>
+      <div class="card-trigger"><strong>Click row:</strong> Opens class detail side panel<br><strong>Right click:</strong> Cancel class / Edit class</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">AI Agent Status Panel</div>
+      <div class="card-title">Live Agent Health Monitor</div>
+      <div class="card-desc">Each agent card shows name, status pill (RUN / IDLE / ERR / PAUSED), and last action text. Click "Open Mission Control" to open a full-page overlay of the Mission Control dashboard. Individual agent cards are clickable to see agent's task queue. Agents with pending human-approval items show an orange "1 pending ⚠" badge.</div>
+      <div class="card-trigger"><strong>Click agent card:</strong> Expands task list<br><strong>Click "Mission Control":</strong> Full overlay</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Activity Feed</div>
+      <div class="card-title">Real-Time Event Stream</div>
+      <div class="card-desc">Chronological feed of all system events: check-ins, new leads, payment events, bookings, cancellations, AI agent completions, staff actions. Clicking any item deep-links to the relevant record. "View All Activity" opens a full audit log with filters by location, category, and date range. Feeds are filtered to the currently selected location.</div>
+      <div class="card-trigger"><strong>Click event:</strong> Deep-link to record<br><strong>Click "View All":</strong> Full audit log</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Goal Tracker</div>
+      <div class="card-title">Monthly Membership Goal</div>
+      <div class="card-desc">Progress bar toward the 30-new-members/month target. Shows current count vs target numerically. Below the bar: 3 sub-metrics (New Trials, Trial→Paid Conversion %, Referrals this month). Clicking opens the full analytics view. Owner can edit the monthly target in Settings.</div>
+      <div class="card-trigger"><strong>Click:</strong> Opens Analytics → Growth section<br><strong>Owner:</strong> Click pencil icon to edit target</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Failed Payments</div>
+      <div class="card-title">Payment Failure Alert Card</div>
+      <div class="card-desc">Red warning card when there are failed payments. Shows count and dollar amount at risk. Clicking "[Resolve →]" navigates to Billing module pre-filtered to failed status. AI billing agent (MIDAS) may have already sent the member a payment link — this is shown inline ("MIDAS chased 2h ago").</div>
+      <div class="card-trigger"><strong>Click "[Resolve →]":</strong> Billing → Failed filter</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 02: MEMBERS
+════════════════════════════════════════════ -->
+<section class="section" id="members">
+  <div class="section-tag">Module 02</div>
+  <h2>MEMBER MANAGEMENT</h2>
+  <p>Central database for all members across all locations. Members come in many types: active paying members, trial members (7-day free trial), casual class drop-ins, fighters (invitation-only), and kids (linked to a parent account). Every interaction with a member is logged.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Member List View</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────────────────────────────┐
+ │  MEMBERS (347 total)         [+ Add Member]  [Import CSV]  [Export]         │
+ ├──────────────────────────────────────────────────────────────────────────────┤
+ │  🔍 Search name, email, phone...     [Status ▼] [Type ▼] [Location ▼] [Art▼]│
+ ├──────────────────────────────────────────────────────────────────────────────┤
+ │  NAME               TYPE        PLAN          LOCATION    STATUS    JOINED   │
+ │  ─────────────────────────────────────────────────────────────────────────── │
+ │  ● Jordan Smith     Adult       Unlimited     Rocko       Active    Jan 25   │
+ │  ● Sarah Nguyen     Adult       2x/wk $49.50  Bibra       Active    Mar 26   │
+ │  ● Tyler Mason      Trial       7-Day Free    Rocko       ⏱Trial    Apr 26   │
+ │  ● Emily Chen       Kids        1x/wk $29.50  Bibra       Active    Sep 25   │
+ │  ◌ Marcus Webb      Fighter     Invite-only   Rocko       Active    Jun 24   │
+ │  ✕ Dave Briggs      Adult       Unlimited     Bibra       Paused    Feb 26   │
+ │  ✕ Rosa Park        Teen        1x/wk $29.50  Rocko       Cancelled Mar 26   │
+ │  ...                                                                         │
+ ├──────────────────────────────────────────────────────────────────────────────┤
+ │  Showing 1–50 of 347   [← Prev]  Page 1 of 7  [Next →]                     │
+ └──────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Member Profile — Full View (side panel or full page)</div>
+    <pre>
+ ┌────────────────────────────────────────────────────────────┐
+ │  [← Back to Members]          [Edit]  [⋯ More Actions]    │
+ ├────────────────────────────────────────────────────────────┤
+ │  ●  JORDAN SMITH                   [Active] [Adult]        │
+ │     📧 jordan@email.com                                    │
+ │     📞 0412 345 678                                        │
+ │     📍 Rockingham · Member since Jan 2025                  │
+ │     🎂 DOB: 14 Mar 1995                                    │
+ │     Emergency: Mum – 0411 111 222                          │
+ ├────────────────────────────────────────────────────────────┤
+ │  MEMBERSHIP                                                │
+ │  Plan:     Unlimited  ($59.50/wk)                          │
+ │  Joined:   12 Jan 2025                                     │
+ │  Reg. Fee: ✅ Paid ($60 once-off · 12 Jan 2025)           │
+ │  Billing:  Direct Debit · Weekly · Lightspeed              │
+ │  Next Bill: 19 Apr 2026                                    │
+ │  Status:   ● Active                                        │
+ │  [Change Plan]  [Pause Membership]  [Cancel Membership]    │
+ ├────────────────────────────────────────────────────────────┤
+ │  DISCIPLINES & BELT LEVELS                                 │
+ │  BJJ:           🟣 Purple Belt  (since Nov 2025)          │
+ │  Muay Thai:     🔵 Intermediate (Level 3)                  │
+ │  Wrestling:     Fundamentals                               │
+ │  [Edit Belts / Grades]                                     │
+ ├────────────────────────────────────────────────────────────┤
+ │  ENROLLED CLASSES (this week)                              │
+ │  Mon 17:30  Adult BJJ Intermediate    Rocko  ✅ Checked in │
+ │  Wed 18:00  Muay Thai Adults          Rocko  ⏳ Booked     │
+ │  Fri 17:30  Wrestling Adults          Rocko  ⏳ Booked     │
+ │  [Book Another Class]                                      │
+ ├────────────────────────────────────────────────────────────┤
+ │  PT SESSIONS                                               │
+ │  Coach: Kane  ·  Next: Tue 7am  ·  Pack: 3/10 remaining  │
+ │  [Book PT]  [View PT History]                              │
+ ├────────────────────────────────────────────────────────────┤
+ │  ATTENDANCE HISTORY          [Last 30 days: 9 classes]     │
+ │  ▓▓░▓▓▓░░▓▓░▓▓░░▓▓▓░░▓░▓▓░░ (calendar heatmap)          │
+ │  Streak: 12 days  ·  Avg: 2.4 classes/wk  ·  Since join: 94│
+ ├────────────────────────────────────────────────────────────┤
+ │  PAYMENTS                                                  │
+ │  12 Apr 26  $59.50   ✅ Paid                               │
+ │  05 Apr 26  $59.50   ✅ Paid                               │
+ │  29 Mar 26  $59.50   ✅ Paid                               │
+ │  [View Full History]                                       │
+ ├────────────────────────────────────────────────────────────┤
+ │  DOCUMENTS                                                 │
+ │  Waiver:    ✅ Signed 12 Jan 2025  [View]                  │
+ │  Health Dec:✅ Signed 12 Jan 2025  [View]                  │
+ │  Insurance: ✅ Active (via $60 reg fee)                    │
+ ├────────────────────────────────────────────────────────────┤
+ │  NOTES / TIMELINE                                          │
+ │  14 Apr · Auto: MIDAS sent renewal reminder                │
+ │  02 Apr · Con: "Interested in private sessions"            │
+ │  15 Jan · Admin: "Family discount applied – sibling Kyle"  │
+ │  [Add Note]                                                │
+ ├────────────────────────────────────────────────────────────┤
+ │  REFERRALS                                                 │
+ │  Referred by: Mike T.                                      │
+ │  Referred: Sarah Nguyen (active)  · Voucher issued ✅      │
+ │  [Add Referral]                                            │
+ └────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Member Management — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">List View</div>
+      <div class="card-title">Search & Filter</div>
+      <div class="card-desc">Search bar does real-time fuzzy search across name, email, phone number. Filter dropdowns: Status (Active, Paused, Cancelled, Trial, Overdue), Type (Ninja 4-6, Kids 6-13, Teen 13-15, Adult, Fighter, Casual), Location (Rocko, Bibra, Both), Martial Art (BJJ, Boxing, MT, Wrestling, Judo, MMA, Kids MMA, Kids Boxing). Filters are additive (AND logic). URL parameters persist filters on refresh. Bulk select with checkboxes allows: bulk message, bulk export, bulk status change.</div>
+      <div class="card-trigger"><strong>Real-time:</strong> Search updates list as you type (300ms debounce)</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Add Member</div>
+      <div class="card-title">New Member Form Flow</div>
+      <div class="card-desc">Multi-step form: Step 1 — Personal details (name, DOB, email, phone, emergency contact). Step 2 — Membership selection (plan, start date, payment method, apply $60 reg fee unless already paid). Step 3 — Waiver & Health declaration (digital sign). Step 4 — Class enrolment (select this week's classes). Step 5 — Confirm & create. System auto-checks if email already exists as a lead and links the records. If DOB makes them under 18, a parent/guardian field is required.</div>
+      <div class="card-trigger"><strong>Click:</strong> [+ Add Member] button top right</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Membership Changes</div>
+      <div class="card-title">Plan Change Flow</div>
+      <div class="card-desc">Clicking [Change Plan] opens a modal. Shows current plan and all other options. User selects new plan, chooses effective date (today, or next billing cycle). System calculates any prorated difference. On confirm: Lightspeed webhook triggered to update direct debit amount. Member receives automated SMS and email confirmation.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Change Plan] on member profile</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Pause Membership</div>
+      <div class="card-title">Pause / Hold Flow</div>
+      <div class="card-desc">Opens modal. Staff enters start date and expected return date (or open-ended). System calculates the $0.71/day hold fee. Staff can override the hold fee amount (Owner only). On confirm: Lightspeed updated, member status changes to "Paused" (orange dot). Member gets SMS/email explaining hold fee and return date. Auto-alert fires 7 days before expected return.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Pause Membership] on member profile</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Trial Members</div>
+      <div class="card-title">7-Day Trial Management</div>
+      <div class="card-desc">Trial members are created when a walk-in or lead books a trial. Trial runs for 7 days, ends on Monday. They can book any class during the trial period. Their profile shows "Trial ends: Mon 15 Apr" in orange. When trial ends, system creates a conversion task for Con (salesperson) and HERMES agent sends a "How was your trial?" email. If they sign up, trial converts to active membership.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Trial expiry tasks created automatically<br><strong>Manual:</strong> Staff can extend trial from profile</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Kids Members</div>
+      <div class="card-title">Parent-Child Account Link</div>
+      <div class="card-desc">Kids (under 18) have their own member profile but are linked to a parent/guardian account. The parent account holds the billing and signed waivers. Searching a parent account shows their linked children. Family discount is applied at billing level: 4th+ child at 50% off. Age categories: Ninjas 4-6 (checked at DOB), Kids 6-13, Teens 13-15. Age categories are enforced at class booking (under-age flagged if booking adult class).</div>
+      <div class="card-trigger"><strong>Parent account:</strong> Shows "Family" badge and linked kids list</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Makeup Classes</div>
+      <div class="card-title">Makeup / Catch-Up Booking</div>
+      <div class="card-desc">Members who missed a class or are returning from a holiday can book a makeup class. Staff creates a makeup booking from the member profile — selects any available class in the current week. This is tracked separately (doesn't count toward their weekly class allocation). Makeup bookings are marked with a "M" indicator in class rosters so coaches can see who is on a makeup.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Book Makeup Class] on member profile → class picker</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Fighter Members</div>
+      <div class="card-title">Fighter Account Type</div>
+      <div class="card-desc">Fighters are standard members but with an "invite" flag. They can attend one extra class per week beyond their plan. Their profile shows: competition history (wins/losses/draws), amateur/pro status, weight class, fight team. Coaches can log fight results here. Fighters are enrolled in specific "Fighters" classes on the timetable which are hidden from non-fighter members in the member app.</div>
+      <div class="card-trigger"><strong>Toggle:</strong> Fighter flag set by Owner/GM on member profile</div>
+    </div>
+  </div>
+
+  <h3>Member — Additional Sub-Screens</h3>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Add New Member — Step 2: Select Membership Plan</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────────────────┐
+ │  NEW MEMBER  ·  Step 2 of 5: Membership                         │
+ │  ● Personal  ● Membership  ○ Waiver  ○ Classes  ○ Confirm       │
+ ├──────────────────────────────────────────────────────────────────┤
+ │                                                                  │
+ │  SELECT A PLAN:                                                  │
+ │                                                                  │
+ │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+ │  │ 1 CLASS/WK  │  │ 2 CLASS/WK  │  │ UNLIMITED ⭐│             │
+ │  │  $29.50/wk  │  │  $49.50/wk  │  │  $59.50/wk  │             │
+ │  │             │  │             │  │  POPULAR    │             │
+ │  │  Ideal for  │  │  Build real │  │  Best value │             │
+ │  │  beginners  │  │  progress   │  │  for serious│             │
+ │  │             │  │             │  │  students   │             │
+ │  │  [SELECT]   │  │  [SELECT]   │  │ [SELECTED ✓]│             │
+ │  └─────────────┘  └─────────────┘  └─────────────┘             │
+ │                                                                  │
+ │  OTHER OPTIONS:                                                  │
+ │  [ ] Casual Class (per-class, no membership)                     │
+ │  [ ] Fighter Class (invitation only — toggle fighter flag)       │
+ │                                                                  │
+ │  ─────────────────────────────────────────────────────────────  │
+ │  ONCE-OFF REGISTRATION FEE                                       │
+ │  [✓] Apply $60.00 registration fee  (insurance + gradings)      │
+ │      (uncheck only if member has paid before and is re-joining)  │
+ │                                                                  │
+ │  PAYMENT METHOD:                                                 │
+ │  [◉] Direct Debit  (weekly, via Lightspeed)                     │
+ │  [ ] Upfront payment (enter number of weeks: _____)              │
+ │  [ ] Cash (not available for ongoing memberships)                │
+ │                                                                  │
+ │  START DATE:  [13/04/2026 📅]    DISCOUNTS: [Apply code...]      │
+ │                                                                  │
+ │  SPECIAL DISCOUNTS:                                              │
+ │  [ ] Roar Active member (20% off)                               │
+ │  [ ] FIFO worker / Emergency Services                            │
+ │  [ ] Family (4th+ child – 50% off)                              │
+ │                                                                  │
+ │  ──────────────────────────────────────────────────────────────  │
+ │  TOTAL FIRST WEEK:  $59.50 + $60.00 reg = $119.50               │
+ │  ONGOING WEEKLY:    $59.50                                       │
+ │                                                                  │
+ │  [← Back]                              [Continue to Waiver →]   │
+ └──────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Cancellation Flow Modal</div>
+    <pre>
+ ┌───────────────────────────────────────────┐
+ │  CANCEL MEMBERSHIP                    [✕] │
+ │  Member: Jordan Smith                     │
+ ├───────────────────────────────────────────┤
+ │  ⚠ This will cancel Jordan's membership. │
+ │  Per our no lock-in policy, they can      │
+ │  cancel at any time. 30 days notice       │
+ │  required (email best practice).          │
+ │                                           │
+ │  LAST BILLING DATE:                       │
+ │  [◉] Today — final debit today $59.50    │
+ │  [ ] End of current week (19 Apr 2026)    │
+ │  [ ] Custom date: [___________]           │
+ │                                           │
+ │  REASON (for churn reporting):            │
+ │  [Dropdown: Moving / Too expensive /      │
+ │   Injury / Switched gym / Life changes /  │
+ │   Dissatisfied / No reason given / Other] │
+ │                                           │
+ │  ○ Send cancellation confirmation email   │
+ │  ○ Add to "Win Back" leads pipeline       │
+ │  ○ Apply final prorated charge            │
+ │                                           │
+ │  [Cancel Membership — Confirm]  [Abort]   │
+ └───────────────────────────────────────────┘
+    </pre>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 03: TIMETABLE & CLASSES
+════════════════════════════════════════════ -->
+<section class="section" id="timetable">
+  <div class="section-tag">Module 03</div>
+  <h2>TIMETABLE & CLASS MANAGEMENT</h2>
+  <p>The fixed weekly timetable engine. Classes are templated — the timetable repeats weekly. Changes to a template propagate to all future instances. Staff can cancel individual instances. Coaches see only their own classes. All class bookings, attendance, and capacity are tracked here.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Weekly Timetable View — Rockingham</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  TIMETABLE         📍 Rockingham      Week of 13 Apr 2026   [◀]  [▶]       │
+ │  View: [Week ▼]    [+ Add Class]  [Edit Template]  [Print Timetable]        │
+ ├──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┤
+ │  TIME    │  MON     │  TUE     │  WED     │  THU     │  FRI     │  SAT/SUN │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  06:00   │ ░ Muay   │          │ ░ Muay   │          │          │          │
+ │          │ Thai(MT) │          │ Thai(MT) │          │          │          │
+ │          │ 8/20 ░   │          │  8/20 ░  │          │          │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  09:00   │▓ Kids MMA│ ▓ Kids   │ ▓ Kids   │          │ ▓ Kids   │▓ Ninjas  │
+ │          │  12/20 ▓ │  BJJ     │  Boxing  │          │  MMA     │  4/10 ░  │
+ │          │ [Kane]   │  9/20    │   7/15   │          │  14/20   │  [Kyle]  │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  10:00   │ ▓▓Adlt   │▓▓ Adults │ ▓ Adult  │ ▓▓ Adlt  │          │          │
+ │          │  Boxing  │  BJJ Fnd │  MT      │  Wrestle │          │          │
+ │          │  18/25 ▓▓│  19/25 ▓▓│  11/20   │  7/15    │          │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  11:00   │          │          │ ▓▓ Adv   │          │          │          │
+ │          │          │          │  BJJ     │          │          │          │
+ │          │          │          │  8/15    │          │          │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  17:30   │ ▓ Teens  │ ▓▓ Teens │ ▓ Teens  │ ▓ Teens  │ ▓ Teens  │          │
+ │          │  BJJ     │  Boxing  │  MT      │  BJJ     │  MMA     │          │
+ │          │  6/15    │  12/15 ▓▓│  4/15    │  8/15    │  5/15    │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  18:00   │ ▓▓ Adult │ ▓ Adult  │ ▓▓ Adult │ ▓ Adult  │ ▓ Adult  │          │
+ │          │  BJJ Int │  MT      │  Boxing  │  BJJ Fnd │  MT      │          │
+ │          │  22/25 ▓▓│  15/20   │  24/25⚠ │  18/25   │  9/20    │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  19:30   │ ▓ Fight  │ ▓▓ Fight │          │ ▓▓ Fight │          │          │
+ │          │  Grapple │  Stand-up│          │  MMA     │          │          │
+ │          │  8/12 ▓  │  10/12 ▓▓│          │  11/12 ▓▓│          │          │
+ └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+  ▓ = 50%+ full   ▓▓ = 80%+ full   ⚠ = 90%+ (near cap)   Classes shown: 24
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Class Detail Panel (opens on click of any class cell)</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────┐
+ │  Adult BJJ Intermediate                         [✕]  │
+ │  Mon 13 Apr · 18:00–19:30 · Rockingham Grapple Mat   │
+ │  Coach: Kane  ·  Level: Intermediate (Blue Belt+)    │
+ ├──────────────────────────────────────────────────────┤
+ │  CAPACITY  ▓▓▓▓▓▓▓▓▓░  22 / 25                      │
+ │  [⚠ Near cap — 3 spots left]                        │
+ ├──────────────────────────────────────────────────────┤
+ │  ATTENDEES                         [Mark All Present]│
+ │  ✅ Jordan Smith        (Member · Unlimited)          │
+ │  ✅ Sarah Nguyen        (Member · 2x/wk)              │
+ │  ⏳ Tyler Mason         (Trial · 7-day)               │
+ │  ⏳ Marcus Webb         (Fighter ★)                   │
+ │  [M] Emily Davis        (Makeup class)                │
+ │  ... (+17 more)         [See All]                    │
+ ├──────────────────────────────────────────────────────┤
+ │  ACTIONS                                             │
+ │  [Mark Attendance]  [Add Walk-in]  [Message Group]   │
+ │  [Cancel Class]     [Edit Class]   [Print List]      │
+ ├──────────────────────────────────────────────────────┤
+ │  CLASS NOTES (coach visible only)                    │
+ │  "Focus: guard passing. Bring out the pads."         │
+ │  [Add / Edit Note]                                   │
+ └──────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Timetable & Classes — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Timetable View</div>
+      <div class="card-title">Calendar Navigation & Filters</div>
+      <div class="card-desc">Default view is the current week. [◀] / [▶] arrows navigate weeks. Location dropdown switches between Rockingham, Bibra Lake, or both (split-screen mode). Filter by martial art, age group, or coach. Each class cell colour codes by fill level: grey (empty/low), amber (50%+), orange (80%+), red (90%+/waitlist). Clicking a cell opens the class detail panel as a right-side drawer.</div>
+      <div class="card-trigger"><strong>Click cell:</strong> Class detail drawer opens<br><strong>Right click cell:</strong> Quick menu (Cancel / Duplicate)</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Add / Edit Class</div>
+      <div class="card-title">Class Template Creation</div>
+      <div class="card-desc">Adding a class creates a template that repeats weekly. Fields: Location, Room (dropdown from configured rooms), Class Name, Martial Art, Level (Fundamentals / Intermediate / Advanced / Kids / Fighter), Age Group, Coach (dropdown), Start Time, Duration, Max Capacity (default 20-30), Recurrence (Weekly, specific days). Setting a minimum belt level locks out under-qualified members from booking in the member app.</div>
+      <div class="card-trigger"><strong>Click:</strong> [+ Add Class] → modal form</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Cancel Class</div>
+      <div class="card-title">Class Cancellation Flow</div>
+      <div class="card-desc">When coach or admin cancels a class: system immediately asks "Notify all booked members?" (default YES). If YES: AI agent HERMES queues SMS and email to all attendees with cancellation notice and an offer to book another class this week. The cancelled class slot shows as grey with a strikethrough on the timetable. Cancellation reason is required (Coach sick / Room unavailable / Low enrollment / Event / Other). Logged for reporting.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Cancel Class] in class detail panel</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Mark Attendance</div>
+      <div class="card-title">Attendance / Roll Call</div>
+      <div class="card-desc">Coach or front desk opens the class, sees all booked members. Each member row has a checkbox. [Mark All Present] pre-checks everyone — coach can then uncheck no-shows. Individual check-in can also be done as members walk in (front desk scans or searches). Attendance is recorded with timestamp. Late check-ins (after class start) are noted. System auto-flags chronic no-shows after 3 missed without cancellation.</div>
+      <div class="card-trigger"><strong>Click:</strong> Checkbox next to member name in class panel</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Capacity Management</div>
+      <div class="card-title">Class Cap & Waitlist</div>
+      <div class="card-desc">When a class hits its cap, new bookings go to a waitlist (ordered by booking time). If a spot opens (cancellation), the first waitlisted member gets an automated SMS/email notification and 2 hours to confirm. After 2 hours, the spot cascades to the next. Staff can also bypass the cap for their location (within reason — recorded as an override). Classes can have a "split room" flag at Bibra Lake to effectively double capacity by using both sides of the mat.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Waitlist managed automatically by HERMES agent</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Edit Template</div>
+      <div class="card-title">Bulk Timetable Editing</div>
+      <div class="card-desc">Owner and GM can open "Edit Template" mode which shows the master weekly template. Changes here propagate to all future weeks. If a class has been edited (e.g. coach swap), a warning shows "This changes all future instances — are you sure?". One-off changes for a specific week (e.g. holiday schedule) use instance-level editing which does NOT affect the template. A visual diff shows what changed before confirming.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Edit Template] → template mode overlay</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Level Requirements</div>
+      <div class="card-title">Belt / Skill Gate Enforcement</div>
+      <div class="card-desc">Classes can have a minimum belt/level requirement: e.g., "BJJ Advanced" requires Blue Belt or above. When a below-level member tries to book via the app, they are blocked with a message. Staff can manually override if the coach has given permission. The system also alerts coaches before class if any unverified or trial members are on the roster for a class with level requirements.</div>
+      <div class="card-trigger"><strong>Config:</strong> Set on class template — [Minimum Level] field</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Fighter Classes</div>
+      <div class="card-title">Invite-Only Class Access Control</div>
+      <div class="card-desc">Fighter classes are hidden from regular members in the app. Only members with the "Fighter" flag on their profile can see and book them. Fighter classes have a minimum attendance requirement — the timetable view for Owner/GM shows a "Fighter Attendance Compliance" badge showing how many fighters attended their required classes this week. Coaches can see who is consistently under-attending and can flag it.</div>
+      <div class="card-trigger"><strong>Config:</strong> Toggle "Fighters Only" on class template</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 04: LEADS & CRM
+════════════════════════════════════════════ -->
+<section class="section" id="leads">
+  <div class="section-tag">Module 04</div>
+  <h2>LEADS & CRM SALES PIPELINE</h2>
+  <p>The lead management system tracks every prospective member from first contact to signed-up paying member. Owned primarily by Con (Salesperson) but visible to Owner and GM. AI agents handle initial follow-ups and qualifying messages. Human in the loop for all direct conversations and conversion closes.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Leads Kanban Pipeline View</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  LEADS & PIPELINE    [+ Add Lead]  [Import]  [Filter: All Sources ▼]        │
+ │  Total: 87 leads  ·  This month: 23 new  ·  Conversion rate: 41%           │
+ ├──────────────┬──────────────┬──────────────┬──────────────┬─────────────────┤
+ │  NEW LEAD    │  CONTACTED   │  TRIAL BOOKED│  TRIAL DONE  │  CONVERTED ✓   │
+ │   [18]       │    [14]      │    [12]      │    [8]       │    [35 mtd]     │
+ ├──────────────┼──────────────┼──────────────┼──────────────┼─────────────────┤
+ │ ┌──────────┐ │ ┌──────────┐ │ ┌──────────┐ │ ┌──────────┐ │ ┌─────────────┐ │
+ │ │Sarah M.  │ │ │Tom B.    │ │ │Jess L.   │ │ │Matt K.   │ │ │Jordan S. ✅│ │
+ │ │Instagram │ │ │Walk-in   │ │ │Wed 6pm   │ │ │Trial done│ │ │Unlimited   │ │
+ │ │🔥 Hot    │ │ │2d ago    │ │ │BJJ Fund  │ │ │Yesterday │ │ │13 Jan 25   │ │
+ │ │Con →     │ │ │Con: called│ │ │Rocko     │ │ │📞 Call   │ │ └─────────────┘ │
+ │ └──────────┘ │ └──────────┘ │ └──────────┘ │ └──────────┘ │                 │
+ │ ┌──────────┐ │ ┌──────────┐ │ ┌──────────┐ │ ┌──────────┐ │ ┌─────────────┐ │
+ │ │Dave R.   │ │ │Amy C.    │ │ │Chris P.  │ │ │Lily W.   │ │ │Sarah N. ✅ │ │
+ │ │Referral  │ │ │FB Ad     │ │ │Sat 9am   │ │ │No show ⚠│ │ │2x/wk       │ │
+ │ │Kids BJJ  │ │ │DM sent   │ │ │Kids MMA  │ │ │Follow up │ │ │28 Mar 26   │ │
+ │ └──────────┘ │ └──────────┘ │ └──────────┘ │ └──────────┘ │ └─────────────┘ │
+ │   [+ more]   │   [+ more]   │   [+ more]   │   [+ more]   │   [+ more]      │
+ └──────────────┴──────────────┴──────────────┴──────────────┴─────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Lead Profile / Detail Card (click any lead card)</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────┐
+ │  LEAD: Sarah Mitchell                           [✕]  │
+ │  🔥 Hot Lead  ·  Source: Instagram Ad  ·  4 hrs ago  │
+ ├──────────────────────────────────────────────────────┤
+ │  📧 sarah.m@gmail.com   📞 0421 987 654             │
+ │  Interest: Adult BJJ, Muay Thai                      │
+ │  Location pref: Bibra Lake                           │
+ │  Assigned to: Con                                    │
+ ├──────────────────────────────────────────────────────┤
+ │  INTERACTION LOG                                     │
+ │  13 Apr 14:20  🤖 AI: Welcome DM sent (Instagram)   │
+ │  13 Apr 14:22  📱 Sarah replied: "Interested in BJJ" │
+ │  13 Apr 14:22  🤖 AI: Asked preferred day/time       │
+ │  13 Apr 15:10  👤 Con: Called, went to voicemail     │
+ │  13 Apr 15:10  🤖 AI: SMS sent with trial booking link│
+ │  [Add Interaction]                                   │
+ ├──────────────────────────────────────────────────────┤
+ │  NEXT ACTION                                         │
+ │  ⚠ Call back by: Tomorrow 10am (overdue alert set)  │
+ │  [Log Call]  [Send Email]  [Book Trial]  [Mark Lost] │
+ ├──────────────────────────────────────────────────────┤
+ │  MOVE TO STAGE:                                      │
+ │  [New] [Contacted] [Trial Booked ✓] [Done] [Convert]│
+ └──────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Lead Analytics Dashboard (below pipeline)</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────────────────────┐
+ │  LEAD ANALYTICS  ·  April 2026                                       │
+ ├───────────────────────────┬──────────────────────────────────────────┤
+ │  LEADS BY SOURCE          │  CONVERSION FUNNEL                       │
+ │                           │                                          │
+ │  Instagram     ██████ 38% │  New Leads:      87  ████████████████   │
+ │  Facebook      ████   21% │  Contacted:      71  █████████████░░░   │
+ │  Walk-in       ████   19% │  Trial Booked:   48  ████████░░░░░░░░   │
+ │  Referral      ███    16% │  Trial Completed:35  ██████░░░░░░░░░░   │
+ │  Google        ░       6% │  Converted:      29  ████░░░░░░░░░░░░   │
+ │                           │  Conversion Rate: 33%                    │
+ │  [+ Add Source]           │  Avg Days to Close: 4.2 days            │
+ └───────────────────────────┴──────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Leads & CRM — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Add Lead</div>
+      <div class="card-title">New Lead Entry</div>
+      <div class="card-desc">Form fields: Name, Email, Phone, Interest (multi-select: BJJ, Boxing, MT, Kids, Fitness, etc.), Preferred Location, Source (Instagram, Facebook, Walk-in, Referral, Google, TikTok, Website, Event, Other), Referred by (if referral), Assigned to (defaults to Con), Notes. On save: ZEUS agent is notified, HERMES queues a welcome SMS/email, and Con gets a notification. Lead appears in the "New Lead" column.</div>
+      <div class="card-trigger"><strong>Click:</strong> [+ Add Lead]<br><strong>Auto:</strong> Web form submissions create leads via API webhook</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Kanban Drag & Drop</div>
+      <div class="card-title">Pipeline Stage Movement</div>
+      <div class="card-desc">Lead cards can be dragged between columns. On drop into a new column: if dropped to "Trial Booked" → triggers a booking flow modal (pick class, date, time). If dropped to "Converted" → triggers new member creation flow. Each stage change is timestamped in the interaction log. Cards show urgency: red border = overdue follow-up, green border = recently active, grey = cold (7+ days no contact).</div>
+      <div class="card-trigger"><strong>Drag:</strong> Card between columns<br><strong>Click card:</strong> Opens lead detail panel</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Follow-Up Reminders</div>
+      <div class="card-title">Automatic Overdue Alerts</div>
+      <div class="card-desc">If a lead in "New" or "Contacted" stage has not been contacted in 3+ days, a red overdue badge appears on the card and Con gets a notification. ZEUS agent can be configured to auto-send a follow-up SMS after 2 days of no response (human-in-loop: Con approves the message before it sends). Overdue leads also appear in the daily morning briefing email sent to Con and the GM.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Alert triggers 3 days after last contact event<br><strong>Config:</strong> Overdue threshold editable in Settings</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Source Tracking</div>
+      <div class="card-title">Lead Source Attribution</div>
+      <div class="card-desc">Every lead has a source field. The analytics panel shows breakdown by source, conversion rate per source, and cost per conversion (if ad spend is tracked). This allows identifying which social post or ad campaign is generating the best leads. Web form submissions automatically tag the lead with UTM source parameter if present. Staff can manually re-attribute if needed.</div>
+      <div class="card-trigger"><strong>View:</strong> Lead Analytics section (bottom of Leads page)</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Convert Lead</div>
+      <div class="card-title">Lead to Member Conversion</div>
+      <div class="card-desc">Clicking [Convert to Member] on a lead in "Trial Done" stage opens the new member wizard pre-filled with the lead's details. Con confirms the plan selection, staff processes payment, and the lead record is linked to the new member profile. The lead record is marked "Converted" with timestamp and appears in the conversion count. Referred member triggers a voucher for the referrer.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Convert to Member] on lead card</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Referral System</div>
+      <div class="card-title">Member Referral Tracking</div>
+      <div class="card-desc">When a lead selects "Referral" as source, they pick the referring member from a searchable dropdown. On conversion, the referrer is automatically issued a voucher (dollar value configurable in Settings — default suggested: one week free membership). Vouchers are tracked on the member's profile. Reports show total referrals per member and conversion rate of referral leads vs other sources.</div>
+      <div class="card-trigger"><strong>On lead source = Referral:</strong> Referrer selector field appears</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Win-Back Pipeline</div>
+      <div class="card-title">Cancelled Member Re-engagement</div>
+      <div class="card-desc">When a membership is cancelled, the member is optionally added to a "Win Back" sub-pipeline (separate from new leads). They appear in a dedicated "Win Back" column. HERMES agent sends a re-engagement email 2 weeks after cancellation, and another 6 weeks after. Staff can see when the member left, why, and their previous attendance history to personalise outreach.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Cancellation flow offers "Add to Win Back" checkbox</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Lead Import</div>
+      <div class="card-title">CSV / Bulk Import</div>
+      <div class="card-desc">Import up to 500 leads from a CSV file. Column mapping tool lets staff match CSV columns to system fields. Duplicate detection by email and phone prevents creating duplicate records. Import preview shows all records before confirming. Failed rows (missing required fields) are highlighted and can be fixed inline or skipped. All imported leads default to "New" stage.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Import] → file upload + column mapper</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 05: SOCIAL MEDIA
+════════════════════════════════════════════ -->
+<section class="section" id="social">
+  <div class="section-tag">Module 05</div>
+  <h2>SOCIAL MEDIA TRACKING & CONTENT CALENDAR</h2>
+  <p>Managed primarily by Min (Social Media Manager). Tracks Instagram and Facebook (with TikTok planned). Links posts to lead sources. Includes a content calendar, post scheduling, engagement tracking, and campaign ROI dashboard. Ad spend tracking for paid campaigns.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Social Media Dashboard View</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  SOCIAL MEDIA         [Instagram ▼]  [Facebook]  [TikTok 🔜]               │
+ ├───────────────────────────────────────┬─────────────────────────────────────┤
+ │  THIS WEEK                            │  LEADS FROM SOCIAL (this month)     │
+ │  ┌────────┐ ┌────────┐ ┌────────┐    │                                     │
+ │  │Followers│ │ Reach  │ │Engage% │    │  Instagram → 33 leads               │
+ │  │ 8,412  │ │ 42,800 │ │  3.8%  │    │  Facebook  → 18 leads               │
+ │  │ ▲ +124 │ │ ▲ +12% │ │  avg   │    │  TikTok    →  0 (not set up)       │
+ │  └────────┘ └────────┘ └────────┘    │                                     │
+ │                                       │  Top Converting Post this month:    │
+ │  [Post Analytics →]                   │  "Kids BJJ promo 8 Apr" → 7 leads  │
+ ├───────────────────────────────────────┴─────────────────────────────────────┤
+ │  CONTENT CALENDAR  ·  Week of 13 Apr 2026      [+ Schedule Post]            │
+ ├──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┤
+ │  MON     │  TUE     │  WED     │  THU     │  FRI     │  SAT     │  SUN     │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │ IG 9am   │          │ FB 7pm   │          │ IG 12pm  │ IG 10am  │          │
+ │ "Muay   │          │ "Kids    │          │ "Fighter │ "Weekly  │          │
+ │  Thai    │          │  BJJ     │          │  Spotlight│  Promo  │          │
+ │  tips"   │          │  promo"  │          │  Matt K" │  post"  │          │
+ │ 📸 Reel  │          │ 🖼 Image │          │ 📸 Reel  │ 🖼 Image │          │
+ │ ✅Posted │          │ 📅Sched  │          │ 📅Sched  │ 📝Draft  │          │
+ └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+ │  RECENT POST PERFORMANCE                                                    │
+ │  Date      Platform  Post                  Reach   Likes  Comments  Shares │
+ │  12 Apr    IG        "Weekend warrior..."  3,240   189    24        12      │
+ │  10 Apr    FB        "Kids class promo"    8,120   312    67        89      │
+ │  08 Apr    IG        "Fighter spotlight"   5,660   441    103       44      │
+ └─────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Social Media — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Post Scheduling</div>
+      <div class="card-title">Schedule a Post</div>
+      <div class="card-desc">Min can schedule posts via a modal: upload image/video, write caption, add hashtags (saved hashtag groups per category), select platform(s) (Instagram / Facebook / both), set date and time. AI Social Agent (PIXEL) can suggest caption variations and optimal posting times based on historical engagement data. Scheduled posts appear on the content calendar. Requires Instagram/Facebook API connection (Meta Business Suite API).</div>
+      <div class="card-trigger"><strong>Click:</strong> [+ Schedule Post] or a blank calendar cell</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Post Analytics</div>
+      <div class="card-title">Per-Post Performance Tracking</div>
+      <div class="card-desc">Clicking any posted content shows its stats: reach, impressions, likes, comments, shares, saves, profile visits, new follows. Posts tagged as "promotional" are further tracked: how many leads arrived in the system within 48hrs of the post (correlation tracking, not causal). Manual tagging allows linking a post to a specific campaign or promo offer.</div>
+      <div class="card-trigger"><strong>Click:</strong> Any post row in Recent Post Performance table</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Ad Campaign Tracking</div>
+      <div class="card-title">Paid Ad Spend & ROI</div>
+      <div class="card-desc">Staff can manually log paid campaigns (until Meta API integration allows auto-import): campaign name, platform, dates, spend amount, targeted audience notes. System calculates: cost per lead (spend ÷ leads tagged to campaign), cost per conversion, ROAS (Revenue over Ad Spend: new member revenue ÷ ad spend). Dashboard shows all active campaigns with live ROI estimates.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Ad Campaigns] tab on social module</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Content Calendar</div>
+      <div class="card-title">Weekly Planning View</div>
+      <div class="card-desc">Calendar view shows all planned and published posts for the week. Drag posts between days to reschedule. Colour coded by platform (orange = IG, blue = FB, black = TikTok). Each cell shows post type icon (📸 reel, 🖼 image, 📹 video, 📝 story), time, and status (Draft / Scheduled / Posted / Failed). "Failed" posts (API error) trigger a notification to Min.</div>
+      <div class="card-trigger"><strong>Drag:</strong> Post card to new date to reschedule</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Platform Connection</div>
+      <div class="card-title">Meta API Setup</div>
+      <div class="card-desc">In Settings → Social Media, Owner/GM can connect Instagram Business and Facebook Page via Meta's OAuth. Once connected, stats are auto-pulled daily. Disconnect button available. Connection status shown in header. TikTok connection is placeholder — shows "Coming Soon" with a note that the TikTok Business API requires separate application process.</div>
+      <div class="card-trigger"><strong>Location:</strong> Settings → Integrations → Social Media</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Social Agent</div>
+      <div class="card-title">PIXEL AI Social Assistant</div>
+      <div class="card-desc">PIXEL agent can: suggest caption text for a given topic, generate hashtag sets, analyse best posting time based on past data, draft post ideas from a content brief, and weekly compile a "social performance digest" email sent to Min. All PIXEL outputs are drafts — Min reviews and approves before anything is published. Min can talk to PIXEL via the AI Chat interface in the sidebar.</div>
+      <div class="card-trigger"><strong>Human in loop:</strong> PIXEL suggests, Min approves/edits/publishes</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 06: BILLING & PAYMENTS
+════════════════════════════════════════════ -->
+<section class="section" id="billing">
+  <div class="section-tag">Module 06</div>
+  <h2>BILLING & PAYMENTS</h2>
+  <p>Lightspeed is the payment processor. This module provides a full view of all financial data pulled from Lightspeed webhooks and our own database. Manages memberships, direct debits, failed payments, PT session packs, merch transactions, and hold fees. MIDAS AI agent handles routine billing communications.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Billing Dashboard View</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  BILLING & PAYMENTS        [All Locations ▼]  [April 2026 ▼]               │
+ ├──────────────┬──────────────┬──────────────┬──────────────┬─────────────────┤
+ │  MRR         │  THIS WEEK   │  OVERDUE     │  PAUSED      │  CANCELLATIONS  │
+ │  $36,420     │  $8,420      │  ⚠ 4 members │  6 members   │  3 this month   │
+ │  /mo est     │              │  $312 total  │  $4.26/day   │  Churn: 0.9%    │
+ ├──────────────┴──────────────┴──────────────┴──────────────┴─────────────────┤
+ │  TRANSACTIONS                                                               │
+ │  [Search member name or amount...]   [Status ▼]  [Type ▼]  [Export CSV]    │
+ │  ──────────────────────────────────────────────────────────────────────────│
+ │  DATE       MEMBER          TYPE             AMOUNT   STATUS               │
+ │  13 Apr     Jordan Smith    Weekly DD        $59.50   ✅ Paid              │
+ │  13 Apr     Sarah Nguyen    Weekly DD        $49.50   ✅ Paid              │
+ │  13 Apr     Tyler Mason     Trial (free)     $0.00    ✅ Trial             │
+ │  13 Apr     Dave Briggs     Hold Fee         $4.97    ✅ Paid              │
+ │  12 Apr     Marcus Webb     PT Pack (5x)     $250.00  ✅ Paid              │
+ │  12 Apr     Amy Chen        Weekly DD        $29.50   ❌ FAILED            │
+ │  12 Apr     Rosa Park       Merch: Gloves    $45.00   ✅ Cash              │
+ │  ──────────────────────────────────────────────────────────────────────────│
+ │  FAILED PAYMENTS (4)                    [🤖 MIDAS: chase all failed]       │
+ │  Amy Chen      $29.50  Failed 12 Apr  [View] [Retry] [Message] [Write Off] │
+ │  Tom B.        $49.50  Failed 10 Apr  [View] [Retry] [Message] [Write Off] │
+ │  ...                                                                        │
+ └─────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Billing — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Failed Payments</div>
+      <div class="card-title">Payment Failure Handling</div>
+      <div class="card-desc">When Lightspeed webhook fires a payment failure: member status changes to "Overdue" (red). MIDAS agent is triggered to send a payment failure SMS and email with a payment link. After 3 days of no resolution, MIDAS sends a second reminder. After 7 days, a notification goes to front desk staff. Staff can: Retry the payment (Lightspeed API), message the member, write off the amount, or process cash. Member's class access is NOT automatically suspended — front desk decides.</div>
+      <div class="card-trigger"><strong>Webhook:</strong> Lightspeed payment.failed event<br><strong>Click:</strong> [Retry] to retry via Lightspeed API</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">PT Session Billing</div>
+      <div class="card-title">Private Training Pack Purchase</div>
+      <div class="card-desc">Staff creates a PT pack for a member: select coach, select number of sessions (1, 5, 10, or custom), set price per session or bundle price. Payment method: card (via Lightspeed), cash (recorded manually). Pack is added to member profile. Each PT session attended reduces the pack count by 1. Coach can see their active PT client list and remaining session counts. Revenue split between coach and gym is tracked (split % configured per coach in Staff settings).</div>
+      <div class="card-trigger"><strong>Click:</strong> [Book PT Pack] on member profile or billing module</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Hold Fee</div>
+      <div class="card-title">Membership Pause Billing</div>
+      <div class="card-desc">When a membership is paused, the hold fee of $0.71/day is calculated and charged weekly (rounded). Lightspeed is updated with the new reduced amount. The member's profile shows "PAUSED — Hold fee $4.97/wk" in orange. An auto-return reminder fires 7 days before expected return. If return date is not set, hold continues indefinitely at the daily rate. Maximum hold per year is 12 weeks (84 days = $59.64 maximum hold).</div>
+      <div class="card-trigger"><strong>Auto:</strong> Calculated when pause is set on member profile</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Revenue Reports</div>
+      <div class="card-title">Revenue Analytics</div>
+      <div class="card-desc">Detailed revenue breakdown by: plan type (1x/2x/Unlimited), location, discipline, PT sessions, merch, registration fees. Shows MRR trend, weekly revenue chart, ARPU (Average Revenue Per User), and revenue forecast (current active memberships × weekly rate × 4.33). Churn impact report shows revenue lost to cancellations this month vs gained from new members. Exportable as CSV or PDF.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Revenue Analytics] tab in Billing module</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Invoicing</div>
+      <div class="card-title">Email Bill / Receipt</div>
+      <div class="card-desc">Each transaction has an [Email Bill] button that sends a formatted receipt to the member's email. For upfront payment members, a formal invoice is generated with line items. For direct debit members, a weekly receipt is automatically sent by Lightspeed (we display the same data here). For PT packs, a pack invoice is generated when purchased. All invoices are stored on the member's profile under Documents.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Email Bill] on any transaction row</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Revenue Forecast</div>
+      <div class="card-title">MRR Forecast Widget</div>
+      <div class="card-desc">Shown as a widget on the billing dashboard. Calculates projected monthly revenue based on: current active memberships × their rates, minus members in pause (reduced rate), minus any known upcoming cancellations. Shows as a bar chart: "Confirmed MRR" vs "At Risk" (overdue members). Also shows how many new sign-ups needed this month to hit revenue growth targets.</div>
+      <div class="card-trigger"><strong>Auto-calculated:</strong> Updates in real time as membership status changes</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 07: GRADINGS
+════════════════════════════════════════════ -->
+<section class="section" id="gradings">
+  <div class="section-tag">Module 07</div>
+  <h2>GRADINGS & PROGRESSION</h2>
+  <p>Tracks belt/grade progression for BJJ, Judo, Muay Thai (Kids), and MMA (Kids). Gradings happen quarterly, approved by head coaches. Members are notified when they become eligible. The $60 registration fee covers all gradings throughout their membership.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Gradings Module View</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  GRADINGS        [+ Schedule Grading Event]  [Discipline: BJJ ▼]            │
+ ├───────────────────────────────────────┬─────────────────────────────────────┤
+ │  NEXT GRADING EVENT                   │  ELIGIBLE MEMBERS                   │
+ │  Date: Saturday 21 Jun 2026           │  [Filter by discipline / coach]     │
+ │  Location: Rockingham                 │                                     │
+ │  Discipline: BJJ                      │  Jordan Smith    Blue → Purple  ✅  │
+ │  Head Coach: Kane                     │  Amy Chen        White → Yellow  ✅ │
+ │  Registered: 8 members               │  Dave Briggs     Purple → Brown  ✅  │
+ │  [Edit Event]  [Notify Eligible]      │  Mike T.         Not eligible yet   │
+ │                                       │  [Notify All Eligible]              │
+ ├───────────────────────────────────────┴─────────────────────────────────────┤
+ │  BELT REGISTRY — BJJ                                                        │
+ │  NAME           CURRENT BELT   LAST GRADED   CLASSES SINCE   ELIGIBLE      │
+ │  Jordan Smith   Purple         Nov 2025       42              ✅ Yes        │
+ │  Amy Chen       Yellow         Mar 2026       12              ✅ Yes        │
+ │  Sarah Nguyen   White          Jan 2026        9              ○ 11 to go    │
+ │  Marcus Webb    Brown          Jun 2025       88              ✅ Yes        │
+ └─────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Gradings — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Eligibility Calculation</div>
+      <div class="card-title">Auto-Eligibility Engine</div>
+      <div class="card-desc">Each discipline has configurable minimum classes attended between grades (set by Owner/head coach in Settings). System counts attendance records for the specific discipline since last grading. When a member hits the minimum, they are auto-marked as "Eligible" on the belt registry. Their coach is notified. An alert is also sent to the member ("You may be eligible for your next grade — speak to your coach!"). Head coach makes the final call.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Eligibility recalculated on each new attendance record</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Record Grade Result</div>
+      <div class="card-title">Post-Grading Update</div>
+      <div class="card-desc">After a grading event, head coach or staff opens the event and marks each participant's result: Pass (selects new grade) or Hold (stays at current). On save: member's profile is updated with new belt/grade, date of grading is recorded, attendance count resets for the new level, and a congratulations message is queued by HERMES agent. Belt history is stored (full progression log visible on member profile).</div>
+      <div class="card-trigger"><strong>Click:</strong> Grading event → [Record Results] → per-member grade dropdowns</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Grading Disciplines</div>
+      <div class="card-title">Per-Discipline Configuration</div>
+      <div class="card-desc">Owner can configure grade levels per discipline: BJJ (White/Blue/Purple/Brown/Black), Judo (Mon/Kyu levels), Kids Muay Thai (custom colour levels), Kids MMA (custom levels). For each level: minimum classes required, minimum age (if applicable), and any notes. Adults Boxing does not have a formal grading system — attendance milestones can be tracked informally.</div>
+      <div class="card-trigger"><strong>Location:</strong> Settings → Gradings → Discipline Config</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Fighter Competitions</div>
+      <div class="card-title">Competition Result Logging</div>
+      <div class="card-desc">For fighters, competition results can be logged on their profile: event name, date, opponent, weight class, discipline (MMA/Boxing/BJJ/MT/Wrestling), result (Win/Loss/Draw/NC), method (KO/TKO/Sub/Decision/DQ), round. Results are visible on the fighter's profile to coaches. A fighter leaderboard view shows all active fighters and their record. Records are for internal tracking only — not publicly shown.</div>
+      <div class="card-trigger"><strong>Click:</strong> Fighter profile → [Log Competition Result]</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 08: MERCHANDISE / POS
+════════════════════════════════════════════ -->
+<section class="section" id="pos">
+  <div class="section-tag">Module 08</div>
+  <h2>MERCHANDISE & POS</h2>
+  <p>Point-of-sale for cash gear sales at the front desk. Products include gloves, shin guards, rashguards, mouth guards, gym branded apparel, etc. Cash only for merch (no ongoing billing). Simple inventory tracking.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">POS Screen</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────────────────┐
+ │  POINT OF SALE         📍 Rockingham  ·  Staff: Mel             │
+ ├──────────────────────────────────────────┬───────────────────────┤
+ │  PRODUCTS                                │  CURRENT SALE         │
+ │  🔍 Search product...                    │                       │
+ │                                          │  Muay Thai Gloves     │
+ │  [Gloves 16oz $85]  [Gloves 14oz $80]   │  $85.00    qty: 1    │
+ │  [Shin Guards $75]  [Hand Wraps $15]     │                       │
+ │  [Rashguard $65]    [Shorts MT $70]      │  ROAR T-Shirt (L)    │
+ │  [Mouthguard $25]   [BJJ Gi $180]       │  $45.00    qty: 1    │
+ │  [ROAR Cap $35]     [ROAR Tee S $45]    │  ─────────────────── │
+ │  [ROAR Tee M $45]   [ROAR Tee L $45]   │  SUBTOTAL   $130.00  │
+ │  [Boxing Boots $180][Ankle Supp $20]     │  TAX         $0.00   │
+ │                                          │  ─────────────────── │
+ │  [View Full Inventory]                   │  TOTAL      $130.00  │
+ │                                          │                       │
+ │                                          │  PAYMENT: CASH        │
+ │                                          │  Tendered:  $150.00  │
+ │                                          │  Change:    $20.00   │
+ │                                          │                       │
+ │                                          │  [Clear Sale]         │
+ │                                          │  [Process & Print ✓] │
+ └──────────────────────────────────────────┴───────────────────────┘
+    </pre>
+  </div>
+
+  <h4>POS — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">POS Sale Flow</div>
+      <div class="card-title">Processing a Sale</div>
+      <div class="card-desc">Staff clicks product buttons to add items to cart. Quantity can be incremented. Items can be removed with × button. Total updates live. Payment method: Cash (requires tendered amount entry, change calculated). All merch is cash-only per specification. Process button records sale, reduces inventory, and offers to print a simple receipt. Sale is logged against the staff member who processed it and the location.</div>
+      <div class="card-trigger"><strong>Click product:</strong> Adds to cart<br><strong>Click [Process ✓]:</strong> Completes sale and records transaction</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Inventory Management</div>
+      <div class="card-title">Stock Tracking</div>
+      <div class="card-desc">Each product has stock count per location. When a sale is processed, stock is decremented. When stock hits a low threshold (configurable per product, default 3), a low stock alert appears on the dashboard. Inventory can be manually updated (stock deliveries, stock takes). Simple list view with: product name, SKU, size variants, price, stock at Rocko, stock at Bibra, total sold MTD.</div>
+      <div class="card-trigger"><strong>Click:</strong> [View Full Inventory] from POS or Products menu</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Member Discount</div>
+      <div class="card-title">Apply Member Discount</div>
+      <div class="card-desc">Staff can search a member before or during a sale (optional). If a member is tagged to the sale, applicable discounts can be applied (e.g., fighter members may get a gear discount — configurable). The sale is also recorded on the member's transaction history. Useful for tracking member merchandise spend and for loyalty tracking in future.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Tag Member] in sale panel → member search</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Product Management</div>
+      <div class="card-title">Add / Edit Products</div>
+      <div class="card-desc">Admin can add new products: name, category (Gloves / Protective Gear / Clothing / Accessories), price, SKU, description, photo, available sizes, initial stock per location. Products can be made "inactive" to hide from POS without deleting their sales history. Bulk price update available. Barcode field for future barcode scanner support.</div>
+      <div class="card-trigger"><strong>Location:</strong> Merchandise → Products → [+ Add Product]</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 09: COMMUNICATIONS
+════════════════════════════════════════════ -->
+<section class="section" id="comms">
+  <div class="section-tag">Module 09</div>
+  <h2>COMMUNICATIONS (EMAIL & SMS)</h2>
+  <p>Centralized communications system for sending emails and SMS to members, leads, or groups. HERMES AI agent handles all automated messages. Human-composed messages are sent through this module. All sent communications are logged.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Communications Hub</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  COMMUNICATIONS        [Compose →]  [Templates]  [Automation Rules]        │
+ ├──────────────────────────────────────────┬──────────────────────────────────┤
+ │  SENT LOG                                │  SCHEDULED / QUEUED              │
+ │  [Filter: All ▼] [Channel: All ▼]        │                                  │
+ │                                          │  📧 Trial end reminder           │
+ │  📧 12 Apr · 3 members · Class cancel   │     To: 12 trial members         │
+ │  📱 11 Apr · 1 member  · Payment fail   │     Sends: Mon 14 Apr 09:00      │
+ │  📧 10 Apr · All Rocko · Timetable upd  │     [Edit] [Cancel]              │
+ │  📱 09 Apr · 5 members · Grading elig.  │                                  │
+ │  📧 08 Apr · All Bibra · Fighter event  │  📱 Payment failure chase        │
+ │  📱 07 Apr · 1 lead    · Trial reminder │     To: Amy Chen                 │
+ │                                          │     Sends: Tomorrow 10:00        │
+ │  [Load More...]                          │     [Edit] [Send Now] [Cancel]   │
+ └──────────────────────────────────────────┴──────────────────────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Compose Message Form</div>
+    <pre>
+ ┌────────────────────────────────────────────────────────────┐
+ │  COMPOSE MESSAGE                                      [✕]  │
+ ├────────────────────────────────────────────────────────────┤
+ │  TO:   [◉] Specific members  [ ] Group  [ ] All Location   │
+ │        🔍 Search members... (multi-select tags appear)      │
+ │        📌 Jordan Smith ×  Sarah Nguyen ×  Tyler Mason ×   │
+ │                                                            │
+ │  VIA:  [✓] Email    [✓] SMS   [ ] Both                    │
+ │                                                            │
+ │  TEMPLATE: [None ▼] (or type from scratch)                │
+ │                                                            │
+ │  SUBJECT (email):  _________________________________       │
+ │                                                            │
+ │  MESSAGE:                                                  │
+ │  ┌──────────────────────────────────────────────────────┐  │
+ │  │ Hi {first_name},                                     │  │
+ │  │                                                      │  │
+ │  │ Just a reminder...                                   │  │
+ │  │                                                      │  │
+ │  │ See you on the mat!                                  │  │
+ │  │ ROAR MMA Team                                        │  │
+ │  └──────────────────────────────────────────────────────┘  │
+ │  Variables: {first_name} {class_name} {date} {amount}      │
+ │                                                            │
+ │  SEND:  [◉] Now  [ ] Schedule: [___date___] [___time___]   │
+ │                                                            │
+ │  PREVIEW  →  Jordan: "Hi Jordan, Just a reminder..."       │
+ │                                                            │
+ │  [Cancel]                  [Save Template]  [Send Now →]   │
+ └────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Automated Communications Map</h4>
+  <table>
+    <thead>
+      <tr>
+        <th>Trigger</th>
+        <th>Channel</th>
+        <th>Recipient</th>
+        <th>Agent</th>
+        <th>Human Approval?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>New member created</td><td>Email</td><td>New member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Trial period starts</td><td>SMS + Email</td><td>Trial member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Trial ends (Monday)</td><td>Email</td><td>Trial member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Payment failure</td><td>SMS + Email</td><td>Member</td><td>MIDAS</td><td>No — auto</td></tr>
+      <tr><td>Payment failure (day 3)</td><td>SMS</td><td>Member</td><td>MIDAS</td><td>No — auto</td></tr>
+      <tr><td>Class cancelled</td><td>SMS + Email</td><td>Booked members</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Waitlist spot opens</td><td>SMS</td><td>Next in waitlist</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Grading eligibility</td><td>Email</td><td>Member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Membership renewal reminder</td><td>Email</td><td>Member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Membership paused confirmation</td><td>Email</td><td>Member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>New lead follow-up (day 2)</td><td>SMS</td><td>Lead</td><td>HERMES</td><td><strong>YES — Con reviews</strong></td></tr>
+      <tr><td>Birthday message</td><td>Email</td><td>Member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>1-year anniversary</td><td>Email</td><td>Member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Win-back (2 weeks post cancel)</td><td>Email</td><td>Ex-member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>Class booking confirmation</td><td>Email</td><td>Member</td><td>HERMES</td><td>No — auto</td></tr>
+      <tr><td>End-of-day report</td><td>Email</td><td>Owner + GM</td><td>ORACLE</td><td>No — auto</td></tr>
+      <tr><td>Low class fill alert</td><td>Internal notif</td><td>GM / Owner</td><td>ORACLE</td><td>No — auto</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout human-loop">
+    <span class="callout-label">⚠ Human In The Loop</span>
+    All external-facing AI-generated messages to LEADS (not existing members) require human review before sending. Con sees a "pending approval" queue for any AI-drafted lead follow-up SMS or emails. One-click approve or edit-then-approve. This prevents AI sending poorly calibrated sales messages to prospects.
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 10: STAFF & COACHES
+════════════════════════════════════════════ -->
+<section class="section" id="staff">
+  <div class="section-tag">Module 10</div>
+  <h2>STAFF & COACH MANAGEMENT</h2>
+  <p>Manages all 29+ coaches plus front desk and admin staff. Coaches see a restricted view of only their classes and clients. This module is for Owner/GM to manage staff accounts, schedules, and track coach performance metrics.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Staff List View</div>
+    <pre>
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │  STAFF & COACHES  (34 total)       [+ Add Staff Member]                │
+ ├───────────────────┬────────────────┬──────────────┬────────────────────┤
+ │  NAME             │  ROLE          │  DISCIPLINES │  STATUS            │
+ ├───────────────────┼────────────────┼──────────────┼────────────────────┤
+ │  Kane             │  Coach         │  BJJ, Wrestle│  ● Active (Rocko)  │
+ │  Kyle             │  Coach         │  BJJ         │  ● Active (Bibra)  │
+ │  Mikal            │  Coach         │  Boxing      │  ● Active (Both)   │
+ │  Con              │  Sales         │  —           │  ● Active          │
+ │  Min              │  Social Media  │  —           │  ● Active          │
+ │  Mel              │  Front Desk    │  —           │  ● Active (Rocko)  │
+ │  Jordan (staff)   │  Front Desk    │  —           │  ● Active (Bibra)  │
+ └───────────────────┴────────────────┴──────────────┴────────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Coach Profile View</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────────┐
+ │  KANE                            [Edit]  [⋯ More]        │
+ │  Head BJJ Coach  ·  Rockingham                           │
+ │  📧 kane@roarmma.com.au  ·  📞 0400 000 000             │
+ ├──────────────────────────────────────────────────────────┤
+ │  DISCIPLINES: BJJ (Head Coach), Wrestling                │
+ │  LOCATION: Rockingham (primary)                          │
+ │  PT SESSIONS: ✅ Available for private training          │
+ │  PT RATE: $85/session  ·  Revenue split: 60% coach      │
+ ├──────────────────────────────────────────────────────────┤
+ │  THIS WEEK'S CLASSES                                     │
+ │  Mon 18:00  Adult BJJ Int    22/25  ✅ Ran               │
+ │  Tue 19:30  Fighters Grapple  8/12  ✅ Ran               │
+ │  Wed 10:00  Kids BJJ          9/20  📅 Upcoming          │
+ │  Thu 18:00  Adult BJJ Fnd    18/25  📅 Upcoming          │
+ ├──────────────────────────────────────────────────────────┤
+ │  PERFORMANCE (this month)                                │
+ │  Classes taught:  8  ·  Avg fill rate:  74%             │
+ │  PT sessions:     6  ·  PT revenue:     $510            │
+ │  Students graded: 3  ·  Attendance rate: 91%            │
+ ├──────────────────────────────────────────────────────────┤
+ │  DOCUMENTS                                               │
+ │  First Aid Cert: ✅ Expires Dec 2026  [View]             │
+ │  Working with Children: ✅ Expires Jun 2027  [View]      │
+ │  Police Clearance: ✅ Apr 2024  [View] ⚠ Renew 2025     │
+ └──────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Staff — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Add Staff</div>
+      <div class="card-title">Create Staff Account</div>
+      <div class="card-desc">Form: Name, email, phone, role (Owner/GM/Front Desk/Coach/Sales/Social), primary location, disciplines (coaches only), PT availability toggle, PT session rate, revenue split %. System sends a setup email with temporary password. Staff member completes profile setup and uploads required documents (First Aid, WWC, Police Check). Document expiry dates are tracked and alerts fire 60 days before expiry.</div>
+      <div class="card-trigger"><strong>Click:</strong> [+ Add Staff Member]</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Coach Performance</div>
+      <div class="card-title">Coach Metrics Dashboard</div>
+      <div class="card-desc">For each coach: classes taught per month, average class fill rate, PT sessions delivered, PT revenue generated, PT revenue share earned, member retention rate for their classes (members who attend a coach's class consistently). If a coach's class is consistently below 50% fill for 4+ weeks, an alert is sent to the GM. ORACLE agent compiles these stats into the weekly owner report.</div>
+      <div class="card-trigger"><strong>Click:</strong> Coach profile → Performance tab</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Document Compliance</div>
+      <div class="card-title">Staff Certification Tracking</div>
+      <div class="card-desc">First Aid Certificate, Working With Children Check, and Police Clearance are mandatory for coaches working with kids. Expiry dates are tracked per document. 60 days before expiry: orange warning on staff list. 14 days before expiry: red badge + notification to GM. On expiry: red badge + daily alert. ORACLE agent includes compliance summary in weekly owner report.</div>
+      <div class="card-trigger"><strong>Auto:</strong> ORACLE checks expiry dates daily</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">PT Revenue Split</div>
+      <div class="card-title">Coach PT Earnings Tracking</div>
+      <div class="card-desc">Each coach has a configured revenue split % (e.g. 60% coach / 40% gym). The system tracks all PT sessions delivered per coach with the revenue generated. A "Coach Earnings" report shows each coach's total PT earnings for the period. This data is used by the GM for payroll calculations. Coaches can see their own earnings in their profile. They cannot see other coaches' earnings.</div>
+      <div class="card-trigger"><strong>View:</strong> Coach profile → PT Revenue tab</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 11: REPORTS & ANALYTICS
+════════════════════════════════════════════ -->
+<section class="section" id="reports">
+  <div class="section-tag">Module 11</div>
+  <h2>REPORTS & ANALYTICS</h2>
+  <p>Comprehensive reporting across all modules. ORACLE AI agent compiles the end-of-day email report and a weekly owner summary. Covers revenue, membership growth, attendance, leads, social media, and staff performance.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Reports Dashboard</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  REPORTS & ANALYTICS   [Date Range: Apr 2026 ▼]  [Location: All ▼] [Export]│
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │  REPORT CATEGORIES:                                                         │
+ │  [📊 Overview] [💰 Revenue] [👥 Members] [🎯 Leads] [📅 Classes] [👨 Staff]│
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │  OVERVIEW — April 2026                                                      │
+ │                                                                             │
+ │  Revenue           Members              Classes              Leads          │
+ │  $36,420 est MRR   347 active           +3 cancelled        87 total        │
+ │  ▲ +4.2% vs Mar    +8 new this mth      avg 74% fill rate   33% conv rate   │
+ │  ████████████░     ████████████░░       ████████░░░░░        ███████░░░░░   │
+ │                                                                             │
+ │  MEMBERSHIP GROWTH                        CHURN ANALYSIS                   │
+ │  ┌────────────────────────────────────┐   ┌───────────────────────────────┐ │
+ │  │    +8 new │                        │   │ Cancellations: 3              │ │
+ │  │  30       │         ░░             │   │ Reasons: Moving 1, Expense 1, │ │
+ │  │           │     ░░░░  ░            │   │ Injury 1                      │ │
+ │  │  20       │  ░░░        ░░░        │   │ Win-Back pipeline: 2 active   │ │
+ │  │           │░              ░░       │   │ Net member change: +5         │ │
+ │  │  10       │                        │   │ Churn rate: 0.9%              │ │
+ │  │   Jan Feb Mar Apr May (est)         │   └───────────────────────────────┘ │
+ │  └────────────────────────────────────┘                                    │
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │  END-OF-DAY REPORT HISTORY                 [Preview Tomorrow's Template]   │
+ │  Date     Delivered  Revenue  Members  Classes  Leads                      │
+ │  12 Apr   ✅ 21:03  $1,240    +2       8/9     5 contacted                 │
+ │  11 Apr   ✅ 21:01  $1,180    0        9/9     3 contacted                 │
+ │  10 Apr   ✅ 21:00  $1,390   +1        9/9     7 contacted                 │
+ └─────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Reports — Full Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">End-of-Day Email</div>
+      <div class="card-title">Automated Daily Report</div>
+      <div class="card-desc">ORACLE agent compiles and emails a structured EOD report at 21:00 AWST every day to: Owner, GM (always), and optionally Con. Report includes: today's revenue, classes run vs scheduled, total check-ins, new members/leads, failed payments, AI agent activity summary, churn events. Formatted as clean HTML email. Owner can view past reports in the Reports module. Can configure recipients and delivery time in Settings.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Fires daily at 21:00 AWST via ORACLE agent cron</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Revenue Report</div>
+      <div class="card-title">Detailed Financial Breakdown</div>
+      <div class="card-desc">Breakdowns by: location, membership plan type, martial art, week/month. Charts: weekly revenue trend (bar), plan mix pie chart, MRR trend line. Key metrics: ARPU, total collected, deferred (paid upfront), failed/at-risk, hold fees. Forecast section: if current trajectory continues, projected month-end revenue. All exportable as CSV for accountant.</div>
+      <div class="card-trigger"><strong>Click:</strong> [💰 Revenue] tab in Reports</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Class Fill Report</div>
+      <div class="card-title">Class Capacity Analytics</div>
+      <div class="card-desc">Shows every class in the timetable with average fill rate over selected period. Highlights classes chronically below 50% fill (candidates for schedule review). Shows which time slots are most popular per location. Compares this month vs last month per class. Coach attendance rate (did the coach show up?) is also tracked here. ORACLE includes low-fill alerts in the weekly report to the owner.</div>
+      <div class="card-trigger"><strong>Click:</strong> [📅 Classes] tab in Reports</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Leads Conversion Report</div>
+      <div class="card-title">Sales Funnel Analytics</div>
+      <div class="card-desc">Funnel chart: New → Contacted → Trial → Converted. Per source breakdown (Instagram leads convert at X%, walk-ins at Y%). Average days-to-close per source. Con's performance: leads assigned, leads contacted, conversion rate. Monthly targets vs actuals. ORACLE includes a leads summary in the weekly report and flags if the monthly conversion target is at risk.</div>
+      <div class="card-trigger"><strong>Click:</strong> [🎯 Leads] tab in Reports</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Member Report</div>
+      <div class="card-title">Membership Health Dashboard</div>
+      <div class="card-desc">New members this month (target: 30), plan distribution pie chart, location distribution, age group breakdown (Ninja/Kids/Teen/Adult/Fighter). Churn rate, cancellation reasons chart, average membership tenure, top referring members (by referrals generated). Attendance frequency distribution: how many members attend 1x, 2x, 3x+ per week (identifies upsell opportunities).</div>
+      <div class="card-trigger"><strong>Click:</strong> [👥 Members] tab in Reports</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Weekly Owner Report</div>
+      <div class="card-title">Monday Morning Email Digest</div>
+      <div class="card-desc">Every Monday morning, ORACLE sends the Owner and GM a comprehensive week-in-review email: revenue vs same week last month, membership net change, top-performing classes, worst-performing classes, staff compliance alerts, lead pipeline status, social media highlights, AI agent activity summary. Designed to be read in 3 minutes. Links to relevant screens for drill-down.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Sends Monday 07:00 AWST</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MODULE 12: WAIVERS & DOCUMENTS
+════════════════════════════════════════════ -->
+<section class="section" id="waivers">
+  <div class="section-tag">Module 12</div>
+  <h2>WAIVERS & DOCUMENTS</h2>
+  <p>All member and guest waivers are digital. New members sign via the onboarding flow. Walk-in guests sign before their trial class via a tablet at the front desk (public-facing kiosk mode). Staff certifications are tracked here too.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Waivers Module</div>
+    <pre>
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  WAIVERS & DOCUMENTS         [View Templates] [Kiosk Mode 📱]               │
+ ├───────────────────────────────────────────────────────────────────────────── │
+ │  SIGNED WAIVERS                    [Search name...]  [Status ▼] [Export]    │
+ │                                                                             │
+ │  NAME               TYPE        SIGNED         STATUS    DOCS              │
+ │  Jordan Smith       Member      12 Jan 2025    ✅ Valid  Waiver + Health   │
+ │  Sarah Nguyen       Member      28 Mar 2026    ✅ Valid  Waiver + Health   │
+ │  Tyler Mason        Trial       12 Apr 2026    ✅ Valid  Waiver            │
+ │  Anonymous Guest    Walk-in     12 Apr 14:32   ✅ Valid  Waiver            │
+ │                                                                             │
+ │  WAIVER TEMPLATES                                                           │
+ │  [✓] Adult Membership Waiver (incl. Health Declaration)                    │
+ │  [✓] Kids Membership Waiver (parent signs)                                 │
+ │  [✓] Trial / Guest Waiver (simplified)                                     │
+ │  [✓] Fighter Event Waiver                                                  │
+ │  [+ Create Template]                                                        │
+ └─────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Kiosk Mode — Tablet Front Desk View (Guest waiver)</div>
+    <pre>
+ ┌──────────────────────────────────────────────┐
+ │                                              │
+ │         ███ ROAR MMA                         │
+ │                                              │
+ │    Welcome! Before your trial class,         │
+ │    please sign our guest waiver.             │
+ │                                              │
+ │    Full Name: _________________________      │
+ │    Email:     _________________________      │
+ │    Phone:     _________________________      │
+ │    DOB:       _________________________      │
+ │                                              │
+ │    ┌──────────────────────────────────────┐  │
+ │    │ WAIVER TEXT (scrollable)             │  │
+ │    │ I acknowledge that martial arts...   │  │
+ │    │ ...risk of injury... understand...   │  │
+ │    │ [scroll to read all]                 │  │
+ │    └──────────────────────────────────────┘  │
+ │                                              │
+ │    SIGNATURE: ╭──────────────────────────╮  │
+ │               │  (finger/stylus sign here)│  │
+ │               ╰──────────────────────────╯  │
+ │                                              │
+ │    [Clear Signature]                         │
+ │                                              │
+ │    [ ✓ I agree to the terms above ]          │
+ │                                              │
+ │         [SUBMIT & ENTER GYM →]              │
+ │                                              │
+ └──────────────────────────────────────────────┘
+ Front desk staff unlock from kiosk mode via PIN
+    </pre>
+  </div>
+
+  <h4>Waivers — Full Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Member Waiver</div>
+      <div class="card-title">Waiver in Onboarding Flow</div>
+      <div class="card-desc">Step 3 of the new member creation flow. Staff displays the waiver on a tablet (or the system can email a signing link). Member reads the full text (forced scroll or checkbox acknowledgement), provides a digital signature (canvas signature pad), and submits. Waiver is stored as a PDF with: member name, DOB, date/time of signing, IP address, and signature image embedded. Retrievable from member profile at any time.</div>
+      <div class="card-trigger"><strong>Step 3:</strong> During new member creation flow</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Kiosk Mode</div>
+      <div class="card-title">Walk-in Guest Signing</div>
+      <div class="card-desc">Front desk staff taps [Kiosk Mode] to lock the browser into a full-screen guest waiver form (hides all staff-facing data). Guest fills in their details and signs. On submit: a guest record is created with name, email, phone, DOB, waiver, and timestamp. Walk-in guest is auto-added to the leads pipeline (Source: Walk-in). Kiosk mode is exited by entering a staff PIN.</div>
+      <div class="card-trigger"><strong>Click:</strong> [Kiosk Mode] → tablet placed at front desk for guest</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Kids Waiver</div>
+      <div class="card-title">Parent / Guardian Sign-Off</div>
+      <div class="card-desc">When creating a member under 18, the waiver requires a parent/guardian to sign. The system emails a signing link to the parent's email. Parent fills in their details, reads the waiver, and signs digitally from their own device. The signed waiver is then linked to the child's profile. Until the parent waiver is received, the child's account shows a yellow "Waiver Pending" flag. They can still attend classes but it is flagged in the system.</div>
+      <div class="card-trigger"><strong>Auto:</strong> Parent signing link emailed when child under-18 is created</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Document Storage</div>
+      <div class="card-title">Insurance & Member Documents</div>
+      <div class="card-desc">Member profiles have a Documents section. Files can be uploaded by staff (insurance docs, medical certificates, etc.). The $60 registration fee generates an insurance confirmation record automatically. All documents are stored in local file storage (encrypted). Documents can be downloaded by Admin/Owner. Members cannot see their documents through this portal (staff-facing only). Retention period configurable (default: 7 years per privacy law).</div>
+      <div class="card-trigger"><strong>Click:</strong> Member profile → Documents → [+ Upload Document]</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Privacy Compliance</div>
+      <div class="card-title">Australian Privacy Act Compliance</div>
+      <div class="card-desc">Members can request a data export (all data held about them). Export is generated as JSON/PDF and emailed within 30 days. Members can request account deletion (cancels membership and removes personal data — aggregate statistical data retained). All data access is logged. Privacy policy link shown on waiver form. GDPR-adjacent compliance included for any international members. Accessible via Settings → Privacy & Compliance.</div>
+      <div class="card-trigger"><strong>Location:</strong> Settings → Privacy & Compliance → Data Requests</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     AI AGENT SYSTEM
+════════════════════════════════════════════ -->
+<section class="section" id="ai-overview">
+  <div class="section-tag">AI System — Overview</div>
+  <h2>AI AGENT ARCHITECTURE</h2>
+  <p>ROAR MMA Command System deploys a fleet of AI agents built on OpenClaw with OpenRouter/Free for inference. A master orchestrator (ZEUS) directs sub-agents who each own a domain. All agents communicate via structured message-passing through the OpenClaw Gateway. The Mission Control dashboard (builderz-labs/mission-control) provides a GUI for non-technical staff to manage the fleet.</p>
+
+  <div class="callout ai">
+    <span class="callout-label">🤖 AI Stack</span>
+    <strong>Inference:</strong> OpenRouter using <code>openrouter/free</code> router — automatically routes to best available free model (currently includes DeepSeek R1, Gemini 2.0 Flash Exp, Llama 3.3 70B, Qwen3, etc.). No API cost.<br><br>
+    <strong>Orchestration:</strong> OpenClaw Gateway (self-hosted, port 18789) — handles agent sessions, message routing, memory, scheduling, tool execution.<br><br>
+    <strong>Mission Control:</strong> builderz-labs/mission-control — web dashboard for managing agents, viewing logs, approving human-in-loop tasks, scheduling recurring jobs. Runs at localhost:3000.<br><br>
+    <strong>Sub-agent pattern:</strong> ZEUS spawns specialist agents as background workers. Workers complete their task and report back. Parallel execution up to OpenClaw's <code>maxConcurrent</code> setting (set to 8).
+  </div>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Agent Communication Flow Diagram</div>
+    <pre>
+                        ┌──────────────────────────────────┐
+                        │          ZEUS (MASTER)           │
+                        │  Orchestrator / Triage Agent     │
+                        │  Runs 24/7 on heartbeat loop     │
+                        │  Reads: DB events, webhook queue │
+                        │  Routes: tasks to sub-agents     │
+                        └──────────────┬───────────────────┘
+                                       │
+            ┌──────────────────────────┼──────────────────────────────┐
+            │                          │                              │
+   ┌────────▼───────┐       ┌──────────▼──────┐           ┌──────────▼──────┐
+   │   HERMES       │       │    MIDAS        │           │    ORACLE       │
+   │  Comms Agent   │       │  Billing Agent  │           │  Reports Agent  │
+   │                │       │                 │           │                 │
+   │ • Send SMS/Email│      │ • Chase overdue │           │ • EOD report    │
+   │ • Class cancels│       │ • Lightspeed API│           │ • Weekly digest │
+   │ • Trial reminders│     │ • Revenue calcs │           │ • Anomaly detect│
+   │ • Grading alerts│      │ • Flag failures │           │ • Staff compliance│
+   │ • Birthday msgs│       │ • Hold fee calc │           │ • Class fill     │
+   └────────────────┘       └─────────────────┘           └─────────────────┘
+
+   ┌────────────────┐       ┌─────────────────┐           ┌─────────────────┐
+   │   PIXEL        │       │    SCOUT        │           │   HEALER        │
+   │  Social Agent  │       │  Research Agent │           │  Self-Heal Agent│
+   │                │       │                 │           │                 │
+   │ • Caption drafts│      │ • Web research  │           │ • Monitor API   │
+   │ • Hashtag sets  │      │ • Competitor    │           │ • Retry failures│
+   │ • Post timing  │       │   intel         │           │ • Alert on errors│
+   │ • Analytics    │       │ • Industry news │           │ • System health │
+   │ • Weekly digest│       │ • Lead enrichmt │           │ • Log analysis  │
+   └────────────────┘       └─────────────────┘           └─────────────────┘
+
+                        ┌──────────────────────────────────┐
+                        │        OpenRouter/Free            │
+                        │  Model: openrouter/free          │
+                        │  Auto-selects: DeepSeek R1 free  │
+                        │  Gemini 2.0 Flash exp:free       │
+                        │  Llama 3.3 70B :free             │
+                        └──────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>OpenRouter Integration Spec</h4>
+  <div class="wireframe">
+    <div class="wireframe-title">OpenRouter API Call — ZEUS Orchestrator System Prompt Template</div>
+    <pre>
+// All agents call OpenRouter with this base pattern:
+
+const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    "HTTP-Referer": "https://roarmma.internal",
+    "X-Title": "ROAR MMA Command System",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    model: "openrouter/free",   // ← Free model auto-router
+    messages: [
+      {
+        role: "system",
+        content: AGENT_SYSTEM_PROMPT  // per-agent specialised prompt
+      },
+      ...conversationHistory  // preserved per OpenClaw session
+    ],
+    tools: AGENT_TOOLS,       // per-agent tool definitions
+    tool_choice: "auto"
+  })
+});
+
+// ZEUS SYSTEM PROMPT (condensed):
+// "You are ZEUS, master orchestrator for ROAR MMA gym management system.
+// Your job is to read the event queue, triage tasks, and dispatch sub-agents.
+// You NEVER take external actions directly. You spawn sub-agents for all actions.
+// You always check: 1) Is this safe to automate? 2) Does it need human approval?
+// External-facing lead messages ALWAYS require human approval before sending."
+    </pre>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     AGENT ROSTER
+════════════════════════════════════════════ -->
+<section class="section" id="agents">
+  <div class="section-tag">AI System — Agents</div>
+  <h2>AGENT ROSTER</h2>
+
+  <div class="agent-grid">
+    <div class="agent-card orchestrator">
+      <div class="agent-name">ZEUS</div>
+      <div class="agent-role">Master Orchestrator — Always Running</div>
+      <ul>
+        <li>Reads system event queue every 5 minutes</li>
+        <li>Triages: routes tasks to correct sub-agent</li>
+        <li>Maintains task priority queue</li>
+        <li>Never takes external actions directly</li>
+        <li>Logs all agent dispatches for audit trail</li>
+        <li>Sends daily system health summary to Owner</li>
+        <li>Self-heals by restarting failed sub-agents</li>
+        <li>Enforces human-in-loop rules for leads</li>
+      </ul>
+    </div>
+
+    <div class="agent-card comms">
+      <div class="agent-name">HERMES</div>
+      <div class="agent-role">Communications Agent</div>
+      <ul>
+        <li>Sends automated SMS via Twilio/free tier</li>
+        <li>Sends automated emails via SMTP (free)</li>
+        <li>Handles all member-facing communications</li>
+        <li>Class cancellation notifications</li>
+        <li>Trial welcome and follow-up sequences</li>
+        <li>Birthday and anniversary messages</li>
+        <li>Grading eligibility notifications</li>
+        <li>Waitlist spot opening alerts</li>
+        <li>Win-back email sequences</li>
+        <li>HUMAN LOOP: Lead follow-ups queued for Con approval</li>
+      </ul>
+    </div>
+
+    <div class="agent-card billing">
+      <div class="agent-name">MIDAS</div>
+      <div class="agent-role">Billing & Payments Agent</div>
+      <ul>
+        <li>Monitors Lightspeed payment webhooks</li>
+        <li>Triggers payment failure chase sequence</li>
+        <li>Calculates hold fees for paused memberships</li>
+        <li>Flags overdue accounts to front desk</li>
+        <li>Generates weekly revenue summary for ORACLE</li>
+        <li>Alerts on MRR anomalies (sudden drop &gt;5%)</li>
+        <li>HUMAN LOOP: Write-off decisions require staff</li>
+      </ul>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-name">ORACLE</div>
+      <div class="agent-role">Reports & Analytics Agent</div>
+      <ul>
+        <li>Compiles end-of-day report at 21:00 daily</li>
+        <li>Sends Monday morning owner digest</li>
+        <li>Monitors class fill rates, alerts low fill</li>
+        <li>Checks staff certification expiry daily</li>
+        <li>Tracks monthly goal progress vs 30/mo target</li>
+        <li>Detects anomalies: churn spike, revenue drop</li>
+        <li>Generates social media weekly digest for Min</li>
+        <li>Sends Con a morning lead pipeline briefing</li>
+      </ul>
+    </div>
+
+    <div class="agent-card social">
+      <div class="agent-name">PIXEL</div>
+      <div class="agent-role">Social Media Agent</div>
+      <ul>
+        <li>Drafts Instagram/Facebook captions on request</li>
+        <li>Generates hashtag sets by content category</li>
+        <li>Analyses optimal post time from historical data</li>
+        <li>Suggests content ideas from content brief</li>
+        <li>Compiles weekly social performance digest</li>
+        <li>HUMAN LOOP: All posts reviewed by Min before publish</li>
+        <li>Tracks which posts correlate with lead spikes</li>
+      </ul>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-name">SCOUT</div>
+      <div class="agent-role">Research Agent</div>
+      <ul>
+        <li>Uses web search to enrich lead records</li>
+        <li>Researches competitor gyms on request</li>
+        <li>Looks up industry news relevant to the gym</li>
+        <li>Can research best-practice for any topic</li>
+        <li>Runs on-demand only (not heartbeat)</li>
+        <li>Results appear in Mission Control task queue</li>
+        <li>HUMAN LOOP: All research outputs reviewed</li>
+      </ul>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-name">HEALER</div>
+      <div class="agent-role">Self-Healing & Monitoring Agent</div>
+      <ul>
+        <li>Monitors all other agents for errors/crashes</li>
+        <li>Auto-restarts failed agents</li>
+        <li>Monitors API response times and failure rates</li>
+        <li>Checks Lightspeed webhook health</li>
+        <li>Alerts Owner if any critical agent is down &gt;5min</li>
+        <li>Logs all system errors to error.log</li>
+        <li>Weekly system health report in owner digest</li>
+        <li>Self-improves: analyses failed tasks, proposes prompt fixes</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Agent Intercommunication Rules</h3>
+  <p>Agents communicate only when it adds clear value. Rules to prevent junk intercommunication:</p>
+  <table>
+    <thead><tr><th>From</th><th>To</th><th>When</th><th>What</th></tr></thead>
+    <tbody>
+      <tr><td>MIDAS</td><td>HERMES</td><td>Payment failure detected</td><td>"Send payment failure SMS to [member_id]"</td></tr>
+      <tr><td>MIDAS</td><td>ORACLE</td><td>End of day</td><td>Revenue summary data payload</td></tr>
+      <tr><td>ZEUS</td><td>Any agent</td><td>Event queue item matches agent domain</td><td>Structured task dispatch JSON</td></tr>
+      <tr><td>HEALER</td><td>ZEUS</td><td>Agent crash detected</td><td>"Agent [name] down. Restarting. Pending tasks: [list]"</td></tr>
+      <tr><td>ORACLE</td><td>HERMES</td><td>EOD report ready</td><td>"Send EOD email to [owner_email, gm_email]"</td></tr>
+      <tr><td>Any agent</td><td>SCOUT</td><td>Research needed</td><td>On-demand only — structured research request</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <span class="callout-label">⚡ No Junk Intercommunication</span>
+    Agents do NOT ping each other for status checks, confirmations, or progress updates. ZEUS monitors agent health via heartbeat — agents do not self-report unless they have a meaningful result or an error. Token efficiency is critical on the free tier.
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MISSION CONTROL GUI
+════════════════════════════════════════════ -->
+<section class="section" id="mission-control">
+  <div class="section-tag">AI System — Mission Control</div>
+  <h2>MISSION CONTROL GUI</h2>
+  <p>The Mission Control dashboard (builderz-labs/mission-control, self-hosted at localhost:3000) provides a layman-friendly GUI for staff to see and manage AI agents without touching code. Accessible from the main app via the "[⚡AI Status]" topbar button or the "[🤖 AI]" sidebar nav item.</p>
+
+  <div class="wireframe">
+    <div class="wireframe-title">Mission Control — Main View (embedded in ROAR MMA app as iframe or linked tab)</div>
+    <pre>
+ ┌──────────────────────────────────────────────────────────────────────────────┐
+ │  ⚡ MISSION CONTROL — ROAR MMA AI FLEET                   [Full Screen]     │
+ ├──────────────────────────────────────────────────────────────────────────────┤
+ │  AGENT STATUS                                                               │
+ │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+ │  │ ZEUS ● RUNNING  │ │ HERMES ● RUNNING│ │ MIDAS ● RUNNING │               │
+ │  │ 3 tasks queued  │ │ Sent 4 msgs today│ │ 2 tasks done    │               │
+ │  │ Last: 2m ago    │ │ Last: 12m ago   │ │ Last: 1h ago    │               │
+ │  └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+ │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+ │  │ ORACLE ● IDLE   │ │ PIXEL ● IDLE    │ │ HEALER ● RUNNING│               │
+ │  │ EOD in 6h 28m   │ │ Awaiting task   │ │ All systems OK  │               │
+ │  │ Last: 3h ago    │ │ Last: 2d ago    │ │ Last: 30s ago   │               │
+ │  └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+ ├──────────────────────────────────────────────────────────────────────────────┤
+ │  HUMAN APPROVAL QUEUE                      [3 awaiting your review]         │
+ │  ┌──────────────────────────────────────────────────────────────────────┐   │
+ │  │ ⚠ HERMES — Lead Follow-up SMS — Sarah Mitchell                      │   │
+ │  │ Draft: "Hi Sarah! Just checking in — did you get a chance to book    │   │
+ │  │ your free trial? Reply YES and we'll sort it out. — ROAR MMA"       │   │
+ │  │ [✅ Approve & Send]  [✏ Edit then Send]  [❌ Reject]                 │   │
+ │  ├──────────────────────────────────────────────────────────────────────┤   │
+ │  │ ⚠ MIDAS — Write-Off Request — Dave Briggs $49.50 (90 days overdue) │   │
+ │  │ Recommendation: Write off — 90 days no contact, membership cancelled │   │
+ │  │ [✅ Approve Write-Off]  [📞 Contact Member]  [❌ Keep Chasing]       │   │
+ │  └──────────────────────────────────────────────────────────────────────┘   │
+ ├──────────────────────────────────────────────────────────────────────────────┤
+ │  TASK QUEUE (completed)                                                     │
+ │  14:28 · HERMES: Class cancel SMS sent (8 members) ✅                       │
+ │  13:45 · MIDAS: Payment chase email sent to Amy Chen ✅                     │
+ │  11:00 · ORACLE: Monday digest sent to owner ✅                             │
+ │  09:30 · HERMES: Trial reminder email sent (12 members) ✅                  │
+ │                                                                             │
+ │  [⚙ Agent Settings]  [📊 Token Usage]  [📜 Full Logs]  [🔄 Restart All]  │
+ └──────────────────────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h4>Mission Control — Interaction Spec</h4>
+  <div class="interaction-grid">
+    <div class="interaction-card">
+      <div class="card-label">Human Approval Queue</div>
+      <div class="card-title">Reviewing AI-Drafted Actions</div>
+      <div class="card-desc">The approval queue is the most important feature for Con (Salesperson) and front desk staff. When an agent drafts a message or proposes an action requiring human sign-off, it appears here. Staff can: Approve (executes immediately), Edit then Send (opens the draft in a text editor, then sends on save), or Reject (logs rejection with optional reason, task cancelled). Approved/rejected decisions are logged for HEALER to learn from patterns.</div>
+      <div class="card-trigger"><strong>Notification:</strong> Badge on "⚡ AI Status" topbar pill shows pending count</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Agent Settings</div>
+      <div class="card-title">Configure Agent Behaviour</div>
+      <div class="card-desc">Each agent has a settings panel: enable/disable toggle, run frequency (for heartbeat agents), system prompt view (Owner only can edit), tool permissions (which tools the agent can use), human-approval threshold configuration (e.g. "always require human approval for messages to leads"). Non-technical staff can adjust high-level settings without touching code. Advanced editing requires developer access.</div>
+      <div class="card-trigger"><strong>Click:</strong> [⚙ Agent Settings] → per-agent config panels</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Token Usage</div>
+      <div class="card-title">Free Tier Monitoring</div>
+      <div class="card-desc">Shows per-agent token consumption per day/week/month. OpenRouter free tier has rate limits — if approaching limits, HEALER alerts Owner and ZEUS throttles non-critical tasks (e.g., PIXEL caption drafting) while keeping critical agents (HERMES, MIDAS, ORACLE) running. Token usage chart over time. Mission Control's built-in cost dashboard is used for this (powered by Recharts).</div>
+      <div class="card-trigger"><strong>Click:</strong> [📊 Token Usage] in Mission Control</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">SCOUT — On-Demand Research</div>
+      <div class="card-title">Ask SCOUT to Research Something</div>
+      <div class="card-desc">Staff can type a natural language research request (e.g. "What are other Perth MMA gyms charging for unlimited memberships?" or "What's the best practice for reducing trial-to-membership no-shows?"). SCOUT runs a web search via OpenClaw's web search tool, compiles findings, and posts the result back in Mission Control as a completed task card. Results can be copied out for use by the team.</div>
+      <div class="card-trigger"><strong>Type:</strong> Research request into SCOUT input box in Mission Control</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Natural Language Scheduling</div>
+      <div class="card-title">Create Agent Tasks in Plain English</div>
+      <div class="card-desc">Using Mission Control's natural language scheduling feature: Owner or GM can type "Every Monday morning at 7am, have ORACLE send me a membership count update" and the system creates a cron job linked to ORACLE. No code required. Existing scheduled tasks are listed and can be edited or deleted. Recurring task descriptions shown in plain English (no cron syntax shown to layman users).</div>
+      <div class="card-trigger"><strong>Click:</strong> [+ Add Scheduled Task] in Mission Control</div>
+    </div>
+    <div class="interaction-card">
+      <div class="card-label">Full Logs</div>
+      <div class="card-title">Audit Trail</div>
+      <div class="card-desc">Every AI agent action is logged: timestamp, agent name, action type, inputs, outputs, whether it was approved/auto-executed. Searchable and filterable by agent, date, action type. Logs are exportable for compliance purposes. Owner can see exactly what every agent did and when. Logs are retained for 90 days in the system (older logs archived or deleted based on settings).</div>
+      <div class="card-trigger"><strong>Click:</strong> [📜 Full Logs] in Mission Control</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SELF-HEALING
+════════════════════════════════════════════ -->
+<section class="section" id="healing">
+  <div class="section-tag">AI System — Self-Healing</div>
+  <h2>SELF-HEALING & SELF-IMPROVING SYSTEM</h2>
+
+  <div class="wireframe">
+    <div class="wireframe-title">HEALER Agent — Self-Healing Loop</div>
+    <pre>
+  Every 30 seconds, HEALER runs:
+
+  1. CHECK AGENT HEALTH
+     For each agent: is last heartbeat &lt; 2 min?
+       → NO: restart agent, log incident, alert Owner if critical
+       → YES: continue
+
+  2. CHECK API HEALTH
+     Test OpenRouter /v1/models endpoint
+       → Timeout/Error: switch model to backup (openrouter/free fallback)
+       → Log degradation window
+
+  3. REVIEW FAILED TASKS (from last hour)
+     For each failed task in logs:
+       → Retry up to 3 times with exponential backoff
+       → If all retries fail: escalate to human (notification)
+
+  4. ANALYSE REJECTION PATTERNS (daily)
+     Review human-rejected AI messages from last 7 days
+       → If same type of message rejected 3+ times:
+         Generate a prompt improvement suggestion
+         Surface to Owner: "HEALER suggests: modify HERMES prompt
+         for lead follow-ups to be less sales-y"
+         Owner approves → system prompt updated
+
+  5. SELF-IMPROVEMENT (weekly)
+     Generate report: "These agent tasks failed most often this week"
+     Propose 3 specific prompt or workflow improvements
+     Surface in Mission Control for Owner review
+    </pre>
+  </div>
+
+  <div class="callout ai">
+    <span class="callout-label">🔬 Self-Improving Loop</span>
+    HEALER analyses rejection patterns and failure logs weekly, then proposes concrete system prompt edits. These proposals appear in Mission Control for the Owner to approve or reject. Approved changes are applied to the relevant agent's system prompt immediately. This creates a feedback loop where the AI agents gradually get better calibrated to ROAR MMA's specific tone and member base over time.
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     TECH STACK
+════════════════════════════════════════════ -->
+<section class="section" id="techstack">
+  <div class="section-tag">Section — Technical</div>
+  <h2>TECH STACK (100% FREE)</h2>
+
+  <table>
+    <thead>
+      <tr><th>Layer</th><th>Technology</th><th>Why / Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Frontend</td><td>React + Vite</td><td>Fast HMR, free, Claude Code friendly</td></tr>
+      <tr><td>Styling</td><td>Tailwind CSS</td><td>Utility-first, no design system cost</td></tr>
+      <tr><td>Backend</td><td>Node.js + Express</td><td>Simple REST API, free</td></tr>
+      <tr><td>Database</td><td>SQLite (via better-sqlite3)</td><td>Zero-cost, zero-ops, single file, fast</td></tr>
+      <tr><td>Auth</td><td>JWT + bcrypt</td><td>Simple session auth, no third-party cost</td></tr>
+      <tr><td>Email</td><td>Nodemailer + Gmail SMTP / Brevo free tier</td><td>500 free emails/day on Brevo</td></tr>
+      <tr><td>SMS</td><td>Twilio free trial / Textbelt free</td><td>Free tier for low volume alerts</td></tr>
+      <tr><td>Payments</td><td>Lightspeed (existing) via webhook listener</td><td>Gym already uses this</td></tr>
+      <tr><td>File storage</td><td>Local filesystem + multer</td><td>Self-hosted, zero cost</td></tr>
+      <tr><td>WebSocket</td><td>ws (Node.js library)</td><td>Real-time dashboard updates</td></tr>
+      <tr><td>AI Inference</td><td>OpenRouter / Free (openrouter/free)</td><td>Zero cost — routes to best available free model</td></tr>
+      <tr><td>Agent Framework</td><td>OpenClaw (self-hosted)</td><td>Free, open source, multi-agent</td></tr>
+      <tr><td>Agent Dashboard</td><td>builderz-labs/mission-control</td><td>Free, open source, Docker deploy</td></tr>
+      <tr><td>PDF generation</td><td>Puppeteer (free)</td><td>Waiver PDFs, invoices</td></tr>
+      <tr><td>Charts</td><td>Recharts (free)</td><td>React-native charts library</td></tr>
+      <tr><td>Signatures</td><td>react-signature-canvas (free)</td><td>Digital waiver signing</td></tr>
+      <tr><td>Hosting</td><td>Self-hosted (gym's server or local machine)</td><td>Zero ongoing hosting cost</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Lightspeed Integration Pattern</h4>
+  <div class="wireframe">
+    <div class="wireframe-title">Lightspeed Webhook Handler</div>
+    <pre>
+// Lightspeed sends webhooks for payment events
+// Our API listens at POST /webhooks/lightspeed
+
+app.post('/webhooks/lightspeed', (req, res) => {
+  const event = req.body;
+
+  switch(event.type) {
+    case 'payment.succeeded':
+      updateMemberPaymentStatus(event.customerId, 'paid');
+      logTransaction(event);
+      break;
+
+    case 'payment.failed':
+      updateMemberPaymentStatus(event.customerId, 'overdue');
+      // Put in event queue for ZEUS → MIDAS to pick up
+      addToEventQueue('PAYMENT_FAILED', {
+        memberId: event.customerId,
+        amount: event.amount,
+        date: new Date()
+      });
+      break;
+
+    case 'subscription.cancelled':
+      updateMemberStatus(event.customerId, 'cancelled');
+      addToEventQueue('MEMBERSHIP_CANCELLED', { ... });
+      break;
+  }
+
+  res.json({ received: true });
+});
+    </pre>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     DATA MODELS
+════════════════════════════════════════════ -->
+<section class="section" id="datamodel">
+  <div class="section-tag">Section — Technical</div>
+  <h2>CORE DATA MODELS</h2>
+
+  <div class="wireframe">
+    <div class="wireframe-title">SQLite Schema (simplified)</div>
+    <pre>
+-- MEMBERS
+CREATE TABLE members (
+  id          INTEGER PRIMARY KEY,
+  first_name  TEXT NOT NULL,
+  last_name   TEXT NOT NULL,
+  email       TEXT UNIQUE,
+  phone       TEXT,
+  dob         DATE,
+  type        TEXT, -- 'ninja'|'kids'|'teen'|'adult'|'fighter'|'casual'
+  status      TEXT, -- 'active'|'trial'|'paused'|'cancelled'|'overdue'
+  location    TEXT, -- 'rockingham'|'bibra_lake'|'both'
+  plan        TEXT, -- '1x'|'2x'|'unlimited'|'casual'
+  plan_weekly_amount REAL,
+  reg_fee_paid       INTEGER DEFAULT 0,
+  trial_end_date     DATE,
+  parent_id          INTEGER REFERENCES members(id),  -- for kids
+  is_fighter         INTEGER DEFAULT 0,
+  referred_by        INTEGER REFERENCES members(id),
+  lightspeed_id      TEXT,  -- their ID in Lightspeed
+  created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CLASSES
+CREATE TABLE classes (
+  id          INTEGER PRIMARY KEY,
+  name        TEXT NOT NULL,
+  location    TEXT,
+  room        TEXT,
+  discipline  TEXT,  -- 'bjj'|'boxing'|'muay_thai'|'wrestling'|'judo'|'mma'|'kids_mma'
+  level       TEXT,  -- 'fundamentals'|'intermediate'|'advanced'|'fighters'|'kids'
+  age_group   TEXT,  -- 'ninja'|'kids'|'teen'|'adult'|'fighter'
+  coach_id    INTEGER REFERENCES staff(id),
+  day_of_week TEXT,  -- 'mon','tue',...
+  start_time  TEXT,  -- '18:00'
+  duration_mins INTEGER DEFAULT 90,
+  capacity    INTEGER DEFAULT 20,
+  min_belt    TEXT,  -- minimum required belt (nullable)
+  fighter_only INTEGER DEFAULT 0,
+  is_active   INTEGER DEFAULT 1
+);
+
+-- CLASS INSTANCES (each occurrence of a class)
+CREATE TABLE class_instances (
+  id         INTEGER PRIMARY KEY,
+  class_id   INTEGER REFERENCES classes(id),
+  date       DATE NOT NULL,
+  status     TEXT DEFAULT 'scheduled', -- 'scheduled'|'ran'|'cancelled'
+  cancel_reason TEXT
+);
+
+-- BOOKINGS
+CREATE TABLE bookings (
+  id              INTEGER PRIMARY KEY,
+  instance_id     INTEGER REFERENCES class_instances(id),
+  member_id       INTEGER REFERENCES members(id),
+  status          TEXT, -- 'booked'|'attended'|'no_show'|'waitlist'|'makeup'
+  checked_in_at   DATETIME
+);
+
+-- LEADS
+CREATE TABLE leads (
+  id          INTEGER PRIMARY KEY,
+  first_name  TEXT,
+  last_name   TEXT,
+  email       TEXT,
+  phone       TEXT,
+  source      TEXT,  -- 'instagram'|'facebook'|'walk_in'|'referral'|'google'|'tiktok'
+  stage       TEXT DEFAULT 'new', -- 'new'|'contacted'|'trial_booked'|'trial_done'|'converted'|'lost'
+  interest    TEXT, -- JSON array of disciplines
+  location_pref TEXT,
+  assigned_to INTEGER REFERENCES staff(id),
+  referred_by INTEGER REFERENCES members(id),
+  member_id   INTEGER REFERENCES members(id), -- set on conversion
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- TRANSACTIONS
+CREATE TABLE transactions (
+  id          INTEGER PRIMARY KEY,
+  member_id   INTEGER REFERENCES members(id),
+  type        TEXT, -- 'membership'|'pt_pack'|'merch'|'reg_fee'|'hold_fee'
+  amount      REAL,
+  status      TEXT, -- 'paid'|'failed'|'refunded'|'written_off'
+  method      TEXT, -- 'direct_debit'|'upfront'|'cash'
+  lightspeed_ref TEXT,
+  created_at  DATETIME
+);
+
+-- STAFF
+CREATE TABLE staff (
+  id          INTEGER PRIMARY KEY,
+  name        TEXT,
+  email       TEXT UNIQUE,
+  role        TEXT, -- 'owner'|'gm'|'front_desk'|'coach'|'sales'|'social'
+  location    TEXT,
+  disciplines TEXT, -- JSON array
+  pt_available INTEGER DEFAULT 0,
+  pt_rate     REAL,
+  pt_split_pct REAL DEFAULT 60,
+  pw_hash     TEXT,
+  is_active   INTEGER DEFAULT 1
+);
+
+-- BELT RECORDS
+CREATE TABLE belt_records (
+  id          INTEGER PRIMARY KEY,
+  member_id   INTEGER REFERENCES members(id),
+  discipline  TEXT,
+  grade       TEXT,
+  graded_at   DATE,
+  graded_by   INTEGER REFERENCES staff(id)
+);
+
+-- EVENT QUEUE (for AI agents)
+CREATE TABLE event_queue (
+  id          INTEGER PRIMARY KEY,
+  type        TEXT, -- 'PAYMENT_FAILED'|'CLASS_CANCELLED'|'NEW_LEAD'|...
+  payload     TEXT, -- JSON
+  status      TEXT DEFAULT 'pending', -- 'pending'|'processing'|'done'|'failed'
+  agent       TEXT, -- which agent handled it
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  processed_at DATETIME
+);
+    </pre>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     V1 SCOPE
+════════════════════════════════════════════ -->
+<section class="section" id="v1scope">
+  <div class="section-tag">Section — Delivery</div>
+  <h2>V1 SCOPE (1 WEEK BUILD)</h2>
+  <p>Claude Code builds the V1. The following priority tiers determine what's in scope for the first working version shipped within one week.</p>
+
+  <table>
+    <thead>
+      <tr><th>Priority</th><th>Feature</th><th>Reason</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="badge badge-red">P0 — Day 1</span></td><td>Member CRUD, login/auth, member list, member profile</td><td>Core data foundation — everything else depends on this</td></tr>
+      <tr><td><span class="badge badge-red">P0 — Day 1</span></td><td>Class timetable view + class detail panel</td><td>Daily operations core function</td></tr>
+      <tr><td><span class="badge badge-red">P0 — Day 1</span></td><td>Leads Kanban (basic)</td><td>Con needs this from day 1</td></tr>
+      <tr><td><span class="badge badge-red">P0 — Day 1</span></td><td>Dashboard (KPI cards + today's classes)</td><td>First screen seen — must work</td></tr>
+      <tr><td><span class="badge badge-orange">P1 — Day 2-3</span></td><td>Booking system + attendance marking</td><td>Used every class</td></tr>
+      <tr><td><span class="badge badge-orange">P1 — Day 2-3</span></td><td>Lightspeed webhook listener + transaction log</td><td>Financial data flow critical</td></tr>
+      <tr><td><span class="badge badge-orange">P1 — Day 2-3</span></td><td>HERMES agent (automated emails/SMS)</td><td>High-value automation, replaces manual work immediately</td></tr>
+      <tr><td><span class="badge badge-orange">P1 — Day 2-3</span></td><td>MIDAS agent (payment failure handling)</td><td>Revenue protection</td></tr>
+      <tr><td><span class="badge badge-orange">P1 — Day 2-3</span></td><td>Digital waiver + kiosk mode</td><td>Legal requirement for walk-ins</td></tr>
+      <tr><td><span class="badge badge-yellow">P2 — Day 4-5</span></td><td>Grading module + belt registry</td><td>Quarterly cycle — less urgent but needed</td></tr>
+      <tr><td><span class="badge badge-yellow">P2 — Day 4-5</span></td><td>POS / merch module</td><td>Daily but simple</td></tr>
+      <tr><td><span class="badge badge-yellow">P2 — Day 4-5</span></td><td>ORACLE agent + EOD reports</td><td>Owner gets daily email from day 5</td></tr>
+      <tr><td><span class="badge badge-yellow">P2 — Day 4-5</span></td><td>Staff management module</td><td>Needed to manage 29+ coaches</td></tr>
+      <tr><td><span class="badge badge-green">P3 — Day 6-7</span></td><td>Social media tracking + content calendar</td><td>Min needs this — less critical than ops modules</td></tr>
+      <tr><td><span class="badge badge-green">P3 — Day 6-7</span></td><td>PIXEL + SCOUT + HEALER agents</td><td>Value-add once core is stable</td></tr>
+      <tr><td><span class="badge badge-green">P3 — Day 6-7</span></td><td>Mission Control integration + full AI dashboard</td><td>Final layer — needs core agents running first</td></tr>
+      <tr><td><span class="badge badge-dim">Post V1</span></td><td>Full analytics / reporting suite</td><td>Data needs to accumulate first</td></tr>
+      <tr><td><span class="badge badge-dim">Post V1</span></td><td>Meta API for social posting/scheduling</td><td>Requires API approval process</td></tr>
+      <tr><td><span class="badge badge-dim">Post V1</span></td><td>TikTok integration</td><td>Not set up yet — post V1</td></tr>
+      <tr><td><span class="badge badge-dim">Post V1</span></td><td>Fighter competition history full module</td><td>Nice to have — not blocking</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout human-loop">
+    <span class="callout-label">🚀 Claude Code Build Notes</span>
+    Build in this order: DB schema → Auth → Members → Classes → Dashboard → Leads → Billing webhooks → HERMES agent → remaining modules. Use SQLite for zero setup friction. All environment variables in a single .env file. Free tier SMS fallback: if Twilio credits run out, degrade gracefully to email-only (logged in HEALER alerts). The OpenRouter <code>openrouter/free</code> model string is the only AI call needed — no model selection logic required in V1.
+  </div>
+
+  <h4>Sample .env Configuration</h4>
+  <div class="wireframe">
+    <div class="wireframe-title">.env file structure</div>
+    <pre>
+# App
+NODE_ENV=development
+PORT=3001
+FRONTEND_URL=http://localhost:5173
+JWT_SECRET=your_jwt_secret_here
+
+# Database
+DB_PATH=./data/roarmma.db
+
+# AI
+OPENROUTER_API_KEY=your_openrouter_key_here
+OPENROUTER_MODEL=openrouter/free
+
+# Email (Brevo free tier — 500/day)
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your@email.com
+SMTP_PASS=your_brevo_api_key
+FROM_EMAIL=noreply@roarmma.com.au
+FROM_NAME=ROAR MMA
+
+# SMS (Twilio — free trial)
+TWILIO_ACCOUNT_SID=your_sid
+TWILIO_AUTH_TOKEN=your_token
+TWILIO_FROM_NUMBER=+61xxxxxxxxx
+
+# Lightspeed
+LIGHTSPEED_WEBHOOK_SECRET=your_webhook_secret
+
+# OpenClaw Gateway
+OPENCLAW_GATEWAY_URL=ws://localhost:18789
+OPENCLAW_API_TOKEN=your_openclaw_token
+
+# Social (Meta — post V1)
+INSTAGRAM_ACCESS_TOKEN=
+FACEBOOK_PAGE_TOKEN=
+    </pre>
+  </div>
+
+  <br>
+  <p style="text-align:center; color: var(--text-dim); font-family: var(--mono); font-size: 11px; letter-spacing: 2px; padding: 24px 0;">
+    PRD v1.0 — ROAR MMA COMMAND SYSTEM — APRIL 2026<br>
+    BUILT FOR CLAUDE CODE · 100% FREE STACK · SHIP IN 1 WEEK
+  </p>
+</section>
+
+</main>
+
+<script>
+  // Active nav item on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navItems = document.querySelectorAll('.nav-item');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.getAttribute('id');
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  sections.forEach(section => observer.observe(section));
+</script>
+</body>
+</html>

@@ -58,12 +58,17 @@ token.json
 *.pem
 *.key
 
-# Root-level documentation and planning files
-/*.md
-/*.html
-/*.csv
-
-# Email automation scripts
-gym_email_automation.py
-EMAIL_SETUP_INSTRUCTIONS.md
-README_EMAIL_AUTOMATION.md
+# Root-level planning docs only (keep PRD, email docs, and data)
+/00-EXECUTIVE-SUMMARY.md
+/01-atomic-requirements.md
+/02-acceptance-test-matrix.md
+/03-dependency-graph.md
+/04-risk-register.md
+/05-build-order.md
+/06-prd-sections-21-26-coverage.md
+/07-orchestration-deployment-plan.md
+/08-test-architecture.md
+/09-qa-verification-plan.md
+/10-backend-implementation-plan.md
+/11-frontend-implementation-plan.md
+/12-prd-gap-analysis.md
