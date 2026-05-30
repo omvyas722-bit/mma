@@ -1,4 +1,6 @@
 // Main server file
+// Suppress url.parse() deprecation warning from dependencies
+process.noDeprecation = true;
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -63,6 +65,15 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// WebSocket keepalive — ping all clients every 30s
+const wsKeepalive = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    }
+  });
+}, 30000);
+
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || 'localhost';
 
@@ -82,7 +93,7 @@ app.use(helmet({
   }
 }));
 
-// Rate limiting
+// General rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500,
@@ -140,8 +151,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check rate limiter — 60 requests per minute
+const healthLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many health check requests, please try again later' }
+});
+
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', healthLimiter, (req, res) => {
   try {
     const db = getDatabase();
 
@@ -197,12 +217,17 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Error handler
+// Error handler — never leak stack traces in responses
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  const isDev = process.env.NODE_ENV === 'development';
+  if (isDev) {
+    console.error('Error:', err);
+  } else {
+    console.error('Error:', err.message);
+  }
 
   if (err.name === 'ValidationError' || err.status === 400) {
-    return res.status(400).json({ error: err.message || 'Bad request' });
+    return res.status(400).json({ error: 'Bad request' });
   }
   if (err.status === 401 || err.name === 'UnauthorizedError') {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -211,10 +236,10 @@ app.use((err, req, res, next) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
   if (err.status === 404) {
-    return res.status(404).json({ error: err.message || 'Not found' });
+    return res.status(404).json({ error: 'Not found' });
   }
   if (err.status === 422) {
-    return res.status(422).json({ error: err.message || 'Unprocessable entity' });
+    return res.status(422).json({ error: 'Unprocessable entity' });
   }
 
   res.status(500).json({ error: 'Internal server error' });
@@ -351,9 +376,14 @@ function broadcast(message) {
   });
 }
 
+// Make broadcast accessible to AI daemon
+global.wsBroadcast = broadcast;
+
 // Graceful shutdown
 function shutdownServer(signal) {
   console.log(`${signal} received, shutting down...`);
+
+  clearInterval(wsKeepalive);
 
   if (messageScheduler && typeof messageScheduler.stop === 'function') messageScheduler.stop();
   if (aiDaemon && typeof aiDaemon.stop === 'function') aiDaemon.stop();

@@ -71,7 +71,7 @@ export default function MemberProfile() {
         <div className="p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+               <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                 {(member.first_name || '?')[0]}{(member.last_name || '?')[0]}
               </div>
               <div>
@@ -83,13 +83,13 @@ export default function MemberProfile() {
               </div>
             </div>
             <div className="flex gap-3">
-              <button
+              <button type="button"
                 onClick={() => setShowEditModal(true)}
                 className="btn btn-secondary"
               >
                 Edit
               </button>
-              <button
+              <button type="button"
                 onClick={() => setShowDeleteDialog(true)}
                 className="btn bg-red-600 text-white hover:bg-red-700"
               >
@@ -115,31 +115,31 @@ export default function MemberProfile() {
         {/* Tabs */}
         <div className="border-t border-gray-200">
           <nav className="flex">
-            <button
+            <button type="button"
               onClick={() => setActiveTab('overview')}
               className={`px-6 py-3 text-sm font-medium ${
                 activeTab === 'overview'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  ? 'border-b-2 border-red-500 text-red-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Overview
             </button>
-            <button
+            <button type="button"
               onClick={() => setActiveTab('attendance')}
               className={`px-6 py-3 text-sm font-medium ${
                 activeTab === 'attendance'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  ? 'border-b-2 border-red-500 text-red-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Attendance
             </button>
-            <button
+            <button type="button"
               onClick={() => setActiveTab('payments')}
               className={`px-6 py-3 text-sm font-medium ${
                 activeTab === 'payments'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  ? 'border-b-2 border-red-500 text-red-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >

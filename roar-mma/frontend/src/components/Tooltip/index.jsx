@@ -201,7 +201,7 @@ export function TooltipButton({
 }) {
   return (
     <Tooltip content={tooltip} placement={placement} disabled={disabled}>
-      <button
+      <button type="button"
         onClick={onClick}
         disabled={disabled}
         className={className}
@@ -232,7 +232,7 @@ export function TooltipIconButton({
 
   return (
     <Tooltip content={tooltip} placement={placement} disabled={disabled}>
-      <button
+      <button type="button"
         onClick={onClick}
         disabled={disabled}
         className={`
@@ -321,29 +321,29 @@ import {
 
 // Basic tooltip
 <Tooltip content="This is a helpful tooltip">
-  <button>Hover me</button>
+  <button type="button">Hover me</button>
 </Tooltip>
 
 // Different placements
 <Tooltip content="Top tooltip" placement="top">
-  <button>Top</button>
+  <button type="button">Top</button>
 </Tooltip>
 
 <Tooltip content="Bottom tooltip" placement="bottom">
-  <button>Bottom</button>
+  <button type="button">Bottom</button>
 </Tooltip>
 
 <Tooltip content="Left tooltip" placement="left">
-  <button>Left</button>
+  <button type="button">Left</button>
 </Tooltip>
 
 <Tooltip content="Right tooltip" placement="right">
-  <button>Right</button>
+  <button type="button">Right</button>
 </Tooltip>
 
 // Custom delay
 <Tooltip content="Appears after 500ms" delay={500}>
-  <button>Slow tooltip</button>
+  <button type="button">Slow tooltip</button>
 </Tooltip>
 
 // Tooltip icon (help icon)
@@ -382,7 +382,7 @@ import {
   description="Upgrade to access advanced analytics and reporting"
   placement="right"
 >
-  <button className="opacity-50 cursor-not-allowed">
+  <button type="button" className="opacity-50 cursor-not-allowed">
     Advanced Reports
   </button>
 </RichTooltip>
@@ -392,7 +392,7 @@ import {
   shortcut="⌘K"
   description="Open command palette"
 >
-  <button>Search</button>
+  <button type="button">Search</button>
 </KeyboardShortcutTooltip>
 
 // In a table
@@ -445,7 +445,7 @@ import {
 
 // Disabled state
 <Tooltip content="This feature is coming soon" disabled={false}>
-  <button disabled>Coming Soon</button>
+  <button type="button" disabled>Coming Soon</button>
 </Tooltip>
 
 // Long content
@@ -453,7 +453,7 @@ import {
   content="This is a longer tooltip with more detailed information that might span multiple lines"
   placement="top"
 >
-  <button>Detailed Info</button>
+  <button type="button">Detailed Info</button>
 </Tooltip>
 
 // With custom styling
@@ -461,7 +461,7 @@ import {
   content="Custom styled tooltip"
   className="bg-blue-600 text-white"
 >
-  <button>Custom Style</button>
+  <button type="button">Custom Style</button>
 </Tooltip>
 
 // Status indicator with tooltip

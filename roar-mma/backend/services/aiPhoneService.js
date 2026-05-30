@@ -97,7 +97,7 @@ class AIPhoneService {
     const endHour = this.settings.business_hours_end
       ? parseInt(this.settings.business_hours_end.split(':')[0], 10)
       : 21;
-    const businessDays = this.settings.business_days.split(',').map(d => parseInt(d));
+    const businessDays = (this.settings.business_days || '1,2,3,4,5,6').split(',').map(d => parseInt(d, 10));
 
     const isBusinessHours = hour >= startHour && hour < endHour && businessDays.includes(day);
 
@@ -236,7 +236,7 @@ class AIPhoneService {
     }
 
     // Name provided
-    if (lower.match(/my name is|i'm|i am|this is/) || lower.match(/^[a-z]+ [a-z]+$/i)) {
+    if (lower.match(/my name is|i'm|i am|this is/)) {
       return { type: 'provide_name', confidence: 0.7 };
     }
 
@@ -295,7 +295,7 @@ class AIPhoneService {
       if (info.name && info.phone) {
         // Deduplication: check if lead with this phone already exists
         const db = getDatabase();
-        const existingLead = db.prepare('SELECT id FROM leads WHERE phone = ?').get(info.phone);
+        const existingLead = db.prepare('SELECT id, ? as source FROM leads WHERE phone = ? UNION ALL SELECT id, \'member\' as source FROM members WHERE phone = ? LIMIT 1').get(info.phone, info.phone);
         if (existingLead) {
           phoneCallsData.updatePhoneCall(callId, {
             lead_id: existingLead.id,

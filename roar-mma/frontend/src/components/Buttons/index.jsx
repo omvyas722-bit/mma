@@ -41,6 +41,7 @@ export const Button = forwardRef(({
   return (
     <button
       ref={ref}
+      type="button"
       disabled={disabled || loading}
       className={`
         ${baseStyles}
@@ -116,6 +117,7 @@ export const IconButton = forwardRef(({
   return (
     <button
       ref={ref}
+      type="button"
       disabled={disabled || loading}
       aria-label={ariaLabel}
       className={`
@@ -189,7 +191,7 @@ export function CloseButton({ onClick, size = 'md', className = '' }) {
   };
 
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className={`text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${className}`}
       aria-label="Close"
@@ -312,8 +314,8 @@ export function DropdownButton({
         <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
           <div className="py-1">
             {items.map((item, index) => (
-              <button
-                key={index}
+              <button type="button"
+                key={item.label || `item-${index}`}
                 onClick={() => {
                   item.onClick?.();
                   setIsOpen(false);
@@ -388,7 +390,7 @@ export function SocialButton({ provider, onClick, className = '' }) {
   const config = providers[provider];
 
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className={`
         w-full inline-flex items-center justify-center px-4 py-2 rounded-lg

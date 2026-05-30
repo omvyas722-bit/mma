@@ -15,7 +15,7 @@ RUN npm ci --only=production
 
 # Copy source code selectively (not node_modules, .env, etc.)
 COPY server.js ./
-COPY .eslintrc.json ./
+# COPY .eslintrc.json ./
 COPY src/ ./src/
 COPY routes/ ./routes/
 COPY services/ ./services/

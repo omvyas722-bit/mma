@@ -3,7 +3,7 @@ const membersData = require('../../../data/members');
 const beltGradingData = require('../../../data/beltGrading');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[BELT-GRADING-AGENT] Starting eligibility check...');
 
@@ -89,6 +89,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `${eligibleCandidates.length} members eligible for next belt grading. ${stripeCandidates.length} members eligible for stripe award.`;
 
     await aiState.logActivity({
+      agentName: agentName || 'grading',
       actionType: 'belt_grading_check',
       details: {
         grading_candidates: eligibleCandidates,
@@ -108,6 +109,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     console.error('[BELT-GRADING-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'grading',
         actionType: 'belt_grading_error',
         details: { error: err.message },
         summary: `Belt grading agent failed: ${err.message}`

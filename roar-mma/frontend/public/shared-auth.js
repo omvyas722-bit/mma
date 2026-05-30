@@ -3,7 +3,7 @@
   'use strict';
   
   const AUTH_TOKEN_KEY = 'roar_mma_token';
-  const API_BASE = 'http://localhost:3001/api';
+  const API_BASE = window.API_BASE || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : '/api');
   
   // Expose API_BASE globally for pages that reference ROAR_API_BASE
   window.ROAR_API_BASE = API_BASE;
@@ -38,12 +38,14 @@
   
   function logout() {
     clearToken();
-    window.location.href = '/login.html';
+    window.location.href = '/login';
   }
   
   function requireAuth() {
     if (!isAuthenticated()) {
-      window.location.href = '/login.html';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
       return false;
     }
     return true;
@@ -59,7 +61,7 @@
     const res = await fetch(API_BASE + path, { ...options, headers });
     if (res.status === 401) {
       clearToken();
-      window.location.href = '/login.html';
+      window.location.href = '/login';
       throw new Error('Unauthorized');
     }
     return res;

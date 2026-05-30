@@ -153,7 +153,7 @@ export function DotsLoader({
     <div className={`flex items-center gap-1 ${className}`}>
       {[0, 1, 2].map((i) => (
         <div
-          key={i}
+          key={`dot-${i}`}
           className={`
             ${sizeStyles[size]} ${variantStyles[variant]}
             rounded-full animate-bounce
@@ -258,7 +258,7 @@ export function TextSkeleton({
     <div className={`space-y-2 ${className}`}>
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
-          key={i}
+          key={`skeleton-line-${i}`}
           height="1rem"
           width={i === lines - 1 ? '60%' : '100%'}
         />
@@ -294,14 +294,14 @@ export function TableSkeleton({
       {/* Header */}
       <div className="flex gap-4">
         {Array.from({ length: columns }).map((_, i) => (
-          <Skeleton key={i} height="1rem" className="flex-1" />
+          <Skeleton key={`skel-col-${i}`} height="1rem" className="flex-1" />
         ))}
       </div>
       {/* Rows */}
       {Array.from({ length: rows }).map((_, rowIndex) => (
-        <div key={rowIndex} className="flex gap-4">
+        <div key={`row-${rowIndex}`} className="flex gap-4">
           {Array.from({ length: columns }).map((_, colIndex) => (
-            <Skeleton key={colIndex} height="2rem" className="flex-1" />
+            <Skeleton key={`skel-cell-${colIndex}`} height="2rem" className="flex-1" />
           ))}
         </div>
       ))}
@@ -342,7 +342,7 @@ export function StepProgress({
           const isPending = index > currentStep;
 
           return (
-            <React.Fragment key={index}>
+            <React.Fragment key={`step-${index}`}>
               <div className="flex flex-col items-center">
                 <div
                   className={`
@@ -444,7 +444,7 @@ import {
 <LoadingOverlay isLoading={isLoading} message="Saving changes...">
   <form>
     <input type="text" />
-    <button>Submit</button>
+    <button type="button">Submit</button>
   </form>
 </LoadingOverlay>
 
@@ -469,7 +469,7 @@ import {
 />
 
 // In a button
-<button disabled={isLoading}>
+<button type="button" disabled={isLoading}>
   {isLoading ? (
     <span className="flex items-center gap-2">
       <Spinner size="sm" variant="white" />

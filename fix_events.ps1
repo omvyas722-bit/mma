@@ -1,5 +1,5 @@
 param(
-    [string]$FrontendPath = "D:\gym software\mma\roar-mma\frontend"
+    [string]$FrontendPath = (Join-Path $PSScriptRoot "roar-mma\frontend")
 )
 
 $fileFixes = @{

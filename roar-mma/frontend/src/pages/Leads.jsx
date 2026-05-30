@@ -16,13 +16,15 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState(null);
   const [trackingTrialLead, setTrackingTrialLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
-  const { data: leads = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['leads'],
     queryFn: async () => {
       const response = await api.get('/api/leads');
       return response.data;
     },
   });
+
+  const leads = data?.leads || [];
 
   const deleteLead = useMutation({
     mutationFn: async (leadId) => {
@@ -53,6 +55,15 @@ export default function Leads() {
     { id: 'converted', label: 'Converted', color: 'bg-green-100' },
   ];
 
+  // Group leads by stage
+  const leadsByStage = useMemo(() => {
+    const grouped = {};
+    stages.forEach((stage) => {
+      grouped[stage.id] = leads.filter((lead) => lead.stage === stage.id);
+    });
+    return grouped;
+  }, [leads, stages]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -61,20 +72,11 @@ export default function Leads() {
     );
   }
 
-  // Group leads by stage
-  const leadsByStage = useMemo(() => {
-    const grouped = {};
-    stages.forEach((stage) => {
-      grouped[stage.id] = leads.filter((lead) => lead.stage === stage.id);
-    });
-    return grouped;
-  }, [leads]);
-
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Leads</h1>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+        <button type="button" onClick={() => setShowAddModal(true)} className="btn btn-primary">
           Add Lead
         </button>
       </div>
@@ -169,6 +171,7 @@ function LeadCard({ lead, stage, onClick, onTrackTrial, onDelete }) {
       className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer relative"
     >
       <button
+        type="button"
         onClick={onDelete}
         className="absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors"
         title="Delete lead"
@@ -200,8 +203,9 @@ function LeadCard({ lead, stage, onClick, onTrackTrial, onDelete }) {
       {/* Trial tracking button for trial_booked stage */}
       {stage === 'trial_booked' && (
         <button
+          type="button"
           onClick={onTrackTrial}
-          className="w-full mt-2 py-2 px-3 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+          className="w-full mt-2 py-2 px-3 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
         >
           📝 Track Trial Session
         </button>

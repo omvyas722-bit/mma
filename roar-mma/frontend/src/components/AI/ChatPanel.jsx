@@ -39,8 +39,8 @@ function SuggestionChips({ suggestions, onSelect }) {
   return (
     <div className="flex flex-wrap gap-2 px-4 py-2">
       {suggestions.map((suggestion, i) => (
-        <button
-          key={i}
+        <button type="button"
+          key={`suggestion-${i}`}
           onClick={() => onSelect(suggestion)}
           className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
         >
@@ -61,7 +61,7 @@ export default function ChatPanel({ messages, onSend, isLoading, placeholder, su
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const msgIdCounter = useRef(0);
+
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,10 +83,9 @@ export default function ChatPanel({ messages, onSend, isLoading, placeholder, su
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow">
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
-        {messages.map((msg) => {
-          if (!msg._key) msg._key = `msg-${++msgIdCounter.current}`;
-          return <MessageBubble key={msg._key} message={msg} />;
-        })}
+        {messages.map((msg, index) => (
+          <MessageBubble key={msg.id || `msg-${index}`} message={msg} />
+        ))}
         {isLoading && <TypingIndicator />}
         <div ref={messagesEndRef} />
       </div>
@@ -105,7 +104,7 @@ export default function ChatPanel({ messages, onSend, isLoading, placeholder, su
             disabled={isLoading}
             className="flex-1 input rounded-full"
           />
-          <button
+          <button type="button"
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             className="btn btn-primary rounded-full px-5 py-2 disabled:opacity-50"

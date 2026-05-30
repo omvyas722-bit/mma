@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -181,7 +180,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let currentWeekStart = new Date();
         currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
@@ -244,12 +248,12 @@
 
                         html += `
                             <div class="class-cell">
-                                <div class="class-card ${cls.type}" >
-                                    <div class="class-name">${cls.name}</div>
-                                    <div class="class-time">${cls.time} • ${cls.duration}min</div>
+                                <div class="class-card ${escapeHtml(cls.type)}" >
+                                    <div class="class-name">${escapeHtml(cls.name)}</div>
+                                    <div class="class-time">${escapeHtml(cls.time)} • ${escapeHtml(cls.duration)}min</div>
                                     <div class="class-info">
-                                        <span>${cls.instructor}</span>
-                                        <span class="class-spots ${spotsClass}">${spotsLeft}/${cls.capacity}</span>
+                                        <span>${escapeHtml(cls.instructor)}</span>
+                                        <span class="class-spots ${escapeHtml(spotsClass)}">${escapeHtml(spotsLeft)}/${escapeHtml(cls.capacity)}</span>
                                     </div>
                                 </div>
                             </div>

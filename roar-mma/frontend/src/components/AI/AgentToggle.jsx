@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../../lib/api';
 import logger from '../../lib/logger';
 
@@ -16,19 +16,14 @@ const AGENT_ICONS = {
 };
 
 export default function AgentToggle({ agentName, enabled, description, lastAction, onChange }) {
-  const [isEnabled, setIsEnabled] = useState(enabled);
   const [isUpdating, setIsUpdating] = useState(false);
-
-  useEffect(() => {
-    setIsEnabled(enabled);
-  }, [enabled]);
+  const isEnabled = enabled;
 
   const handleToggle = async () => {
     setIsUpdating(true);
     try {
       const response = await api.post(`/api/ai/agents/${agentName}/toggle`);
       const newState = response.data.enabled;
-      setIsEnabled(newState);
       if (onChange) onChange(agentName, newState);
     } catch (error) {
       logger.error('Failed to toggle agent:', error);

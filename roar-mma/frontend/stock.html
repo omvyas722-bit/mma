@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -122,7 +121,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
 
         async function init() {
@@ -148,19 +152,19 @@
                 document.getElementById('inventory-stats').innerHTML = `
                     <div class="stat-card">
                         <div class="stat-label">Total Products</div>
-                        <div class="stat-value">${products.length}</div>
+                        <div class="stat-value">${escapeHtml(products.length)}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Inventory Value</div>
-                        <div class="stat-value" style="color: #00ff00;">$${Math.round(totalValue)}</div>
+                        <div class="stat-value" style="color: #00ff00;">$${escapeHtml(Math.round(totalValue))}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Low Stock Items</div>
-                        <div class="stat-value" style="color: #ff8800;">${lowStock}</div>
+                        <div class="stat-value" style="color: #ff8800;">${escapeHtml(lowStock)}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Out of Stock</div>
-                        <div class="stat-value" style="color: #ff4444;">${outOfStock}</div>
+                        <div class="stat-value" style="color: #ff4444;">${escapeHtml(outOfStock)}</div>
                     </div>
                 `;
             } catch (error) {
@@ -182,7 +186,7 @@
                         <div class="alerts-banner">
                             <div class="alerts-icon">⚠️</div>
                             <div class="alerts-content">
-                                <div class="alerts-title">${activeAlerts.length} Stock Alert${activeAlerts.length > 1 ? 's' : ''}</div>
+                                <div class="alerts-title">${escapeHtml(activeAlerts.length)} Stock Alert${activeAlerts.length > 1 ? 's' : ''}</div>
                                 <div class="alerts-text">Some products need restocking. Check items marked below.</div>
                             </div>
                             <button class="btn btn-secondary" >View All</button>
@@ -223,31 +227,31 @@
                                     product.stock_quantity <= product.min_stock_level ? 'LOW STOCK' : 'IN STOCK';
 
                     html += `
-                        <div class="product-card ${stockStatus}">
+                        <div class="product-card ${escapeHtml(stockStatus)}">
                             <div class="product-header">
                                 <div>
-                                    <div class="product-name">${product.name}</div>
-                                    <div class="product-sku">SKU: ${product.sku}</div>
+                                    <div class="product-name">${escapeHtml(product.name)}</div>
+                                    <div class="product-sku">SKU: ${escapeHtml(product.sku)}</div>
                                 </div>
-                                <span class="stock-badge ${stockBadge}">${stockText}</span>
+                                <span class="stock-badge ${escapeHtml(stockBadge)}">${escapeHtml(stockText)}</span>
                             </div>
 
                             <div class="product-details">
                                 <div class="detail-item">
                                     <div class="detail-label">Stock Level</div>
-                                    <div class="detail-value">${product.stock_quantity} units</div>
+                                    <div class="detail-value">${escapeHtml(product.stock_quantity)} units</div>
                                 </div>
                                 <div class="detail-item">
                                     <div class="detail-label">Min Level</div>
-                                    <div class="detail-value">${product.min_stock_level} units</div>
+                                    <div class="detail-value">${escapeHtml(product.min_stock_level)} units</div>
                                 </div>
                                 <div class="detail-item">
                                     <div class="detail-label">Sell Price</div>
-                                    <div class="detail-value">$${product.sell_price}</div>
+                                    <div class="detail-value">$${escapeHtml(product.sell_price)}</div>
                                 </div>
                                 <div class="detail-item">
                                     <div class="detail-label">Cost Price</div>
-                                    <div class="detail-value">$${product.cost_price}</div>
+                                    <div class="detail-value">$${escapeHtml(product.cost_price)}</div>
                                 </div>
                             </div>
 

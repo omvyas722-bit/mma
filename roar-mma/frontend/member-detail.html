@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -156,7 +155,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let memberId = null;
         let memberData = null;
@@ -206,31 +210,31 @@
                 document.getElementById('profile-header').innerHTML = `
                     <div class="profile-top">
                         <div class="profile-info">
-                            <div class="profile-name">${memberData.first_name} ${memberData.last_name}</div>
+                            <div class="profile-name">${escapeHtml(memberData.first_name)} ${escapeHtml(memberData.last_name)}</div>
                             <div class="profile-meta">
-                                <span>📧 ${memberData.email}</span>
-                                <span>📱 ${memberData.phone}</span>
-                                <span>📅 Joined ${joinedDate}</span>
-                                <span>⏱️ ${memberSince} days</span>
+                                <span>📧 ${escapeHtml(memberData.email)}</span>
+                                <span>📱 ${escapeHtml(memberData.phone)}</span>
+                                <span>📅 Joined ${escapeHtml(joinedDate)}</span>
+                                <span>⏱️ ${escapeHtml(memberSince)} days</span>
                             </div>
                         </div>
-                        <span class="status-badge ${statusClass}">${memberData.status.toUpperCase()}</span>
+                        <span class="status-badge ${escapeHtml(statusClass)}">${escapeHtml(memberData.status.toUpperCase())}</span>
                     </div>
                     <div class="quick-stats">
                         <div class="quick-stat">
-                            <div class="quick-stat-value">${memberData.total_checkins}</div>
+                            <div class="quick-stat-value">${escapeHtml(memberData.total_checkins)}</div>
                             <div class="quick-stat-label">Total Check-ins</div>
                         </div>
                         <div class="quick-stat">
-                            <div class="quick-stat-value">${memberData.pt_sessions}</div>
+                            <div class="quick-stat-value">${escapeHtml(memberData.pt_sessions)}</div>
                             <div class="quick-stat-label">PT Sessions</div>
                         </div>
                         <div class="quick-stat">
-                            <div class="quick-stat-value">${memberData.belt_rank}</div>
+                            <div class="quick-stat-value">${escapeHtml(memberData.belt_rank)}</div>
                             <div class="quick-stat-label">Current Belt</div>
                         </div>
                         <div class="quick-stat">
-                            <div class="quick-stat-value">${memberData.plan}</div>
+                            <div class="quick-stat-value">${escapeHtml(memberData.plan)}</div>
                             <div class="quick-stat-label">Membership Plan</div>
                         </div>
                     </div>
@@ -245,27 +249,27 @@
                 document.getElementById('member-info').innerHTML = `
                     <div class="info-field">
                         <div class="info-label">Email Address</div>
-                        <div class="info-value">${memberData.email}</div>
+                        <div class="info-value">${escapeHtml(memberData.email)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Phone Number</div>
-                        <div class="info-value">${memberData.phone}</div>
+                        <div class="info-value">${escapeHtml(memberData.phone)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Membership Status</div>
-                        <div class="info-value">${memberData.status}</div>
+                        <div class="info-value">${escapeHtml(memberData.status)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Current Plan</div>
-                        <div class="info-value">${memberData.plan}</div>
+                        <div class="info-value">${escapeHtml(memberData.plan)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Join Date</div>
-                        <div class="info-value">${new Date(memberData.joined_date).toLocaleDateString()}</div>
+                        <div class="info-value">${escapeHtml(new Date(memberData.joined_date).toLocaleDateString())}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Belt Rank</div>
-                        <div class="info-value">${memberData.belt_rank}</div>
+                        <div class="info-value">${escapeHtml(memberData.belt_rank)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Emergency Contact</div>
@@ -296,9 +300,9 @@
                 activities.forEach(activity => {
                     html += `
                         <div class="timeline-item">
-                            <div class="timeline-date">${new Date(activity.date).toLocaleDateString()}</div>
-                            <div class="timeline-title">${activity.title}</div>
-                            <div class="timeline-desc">${activity.desc}</div>
+                            <div class="timeline-date">${escapeHtml(new Date(activity.date).toLocaleDateString())}</div>
+                            <div class="timeline-title">${escapeHtml(activity.title)}</div>
+                            <div class="timeline-desc">${escapeHtml(activity.desc)}</div>
                         </div>
                     `;
                 });
@@ -334,10 +338,10 @@
                     html += `
                         <div class="session-item">
                             <div class="session-info">
-                                <div class="session-date">${date} at ${session.scheduled_time}</div>
-                                <div class="session-coach">Coach #${session.coach_id} - ${session.duration_minutes}min</div>
+                                <div class="session-date">${escapeHtml(date)} at ${escapeHtml(session.scheduled_time)}</div>
+                                <div class="session-coach">Coach #${escapeHtml(session.coach_id)} - ${escapeHtml(session.duration_minutes)}min</div>
                             </div>
-                            <div class="session-amount">$${session.amount}</div>
+                            <div class="session-amount">$${escapeHtml(session.amount)}</div>
                         </div>
                     `;
                 });
@@ -367,10 +371,10 @@
                     html += `
                         <div class="payment-item">
                             <div class="payment-info">
-                                <div class="payment-date">${new Date(payment.date).toLocaleDateString()}</div>
-                                <div class="payment-desc">${payment.desc}</div>
+                                <div class="payment-date">${escapeHtml(new Date(payment.date).toLocaleDateString())}</div>
+                                <div class="payment-desc">${escapeHtml(payment.desc)}</div>
                             </div>
-                            <div class="payment-amount">$${payment.amount}</div>
+                            <div class="payment-amount">$${escapeHtml(payment.amount)}</div>
                         </div>
                     `;
                 });

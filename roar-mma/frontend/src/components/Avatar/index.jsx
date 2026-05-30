@@ -15,10 +15,6 @@ export function Avatar({
 }) {
   const [imageError, setImageError] = React.useState(false);
 
-  React.useEffect(() => {
-    setImageError(false);
-  }, [src]);
-
   const sizeStyles = {
     xs: 'w-6 h-6 text-xs',
     sm: 'w-8 h-8 text-sm',
@@ -80,6 +76,7 @@ export function Avatar({
             alt={alt || (name ? `Photo of ${name}` : 'Avatar')}
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}
+            onLoad={() => setImageError(false)}
           />
         )}
       </div>
@@ -306,7 +303,7 @@ export function ClickableAvatar({
   className = '',
 }) {
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className={`
         relative inline-block transition-transform hover:scale-105

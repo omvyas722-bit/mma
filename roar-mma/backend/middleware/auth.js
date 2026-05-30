@@ -132,6 +132,5 @@ module.exports = {
   authenticateToken,
   requireRole,
   requirePermission,
-  hasPermission,
-  JWT_SECRET
+  hasPermission
 };

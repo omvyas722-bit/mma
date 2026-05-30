@@ -65,8 +65,8 @@ router.get('/history', authenticateToken, requirePermission('reports:read'), asy
   try {
     const history = await aiState.getActivityHistory({
       agentName: req.query.agent,
-      limit: parseInt(req.query.limit) || 50,
-      offset: parseInt(req.query.offset) || 0,
+      limit: parseInt(req.query.limit, 10) || 50,
+      offset: parseInt(req.query.offset, 10) || 0,
       status: req.query.status,
       actionType: req.query.action_type
     });

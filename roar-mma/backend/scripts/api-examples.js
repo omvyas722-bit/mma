@@ -25,6 +25,7 @@ function request(method, path, data = null) {
         try {
           resolve({ status: res.statusCode, data: body ? JSON.parse(body) : {} });
         } catch (e) {
+          console.error('[API-EXAMPLES] JSON parse error:', e.message);
           resolve({ status: res.statusCode, data: body });
         }
       });
@@ -249,8 +250,8 @@ async function runExamples() {
   // Login first
   console.log('Logging in...');
   const login = await request('POST', '/api/auth/login', {
-    email: 'admin@roarmma.com.au',
-    password: 'changeme123'
+    email: process.env.ADMIN_EMAIL || 'admin@roarmma.com.au',
+    password: process.env.ADMIN_PASSWORD || 'changeme123'
   });
 
   if (login.status !== 200) {

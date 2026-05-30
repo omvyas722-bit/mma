@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -239,7 +238,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let recentCheckins = [];
         let currentInGym = 0;
@@ -295,8 +299,8 @@
                 html += `
                     <div class="member-result">
                         <div class="member-result-info">
-                            <div class="member-result-name">${member.name}</div>
-                            <div class="member-result-meta">${member.email} • ${member.plan}</div>
+                            <div class="member-result-name">${escapeHtml(member.name)}</div>
+                            <div class="member-result-meta">${escapeHtml(member.email)} • ${escapeHtml(member.plan)}</div>
                         </div>
                         <button class="checkin-btn" >Check In</button>
                     </div>
@@ -345,10 +349,10 @@
             recentCheckins.forEach(checkin => {
                 html += `
                     <div class="checkin-item">
-                        <div class="checkin-time">${checkin.time}</div>
+                        <div class="checkin-time">${escapeHtml(checkin.time)}</div>
                         <div class="checkin-info">
-                            <div class="checkin-name">${checkin.name}</div>
-                            <div class="checkin-class">${checkin.class || 'Open gym'}</div>
+                            <div class="checkin-name">${escapeHtml(checkin.name)}</div>
+                            <div class="checkin-class">${escapeHtml(checkin.class || 'Open gym')}</div>
                         </div>
                         <span class="checkin-badge ${checkin.class ? 'badge-class' : 'badge-open'}">
                             ${checkin.class ? 'Class' : 'Open'}

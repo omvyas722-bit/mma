@@ -18,8 +18,15 @@ import re
 # CONFIGURATION - Override via environment variables
 # ============================================================================
 
-GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "your-email@gmail.com")
-GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "your-gmail-app-password")
+GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS")
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
+
+if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
+    print("FATAL: GMAIL_ADDRESS and GMAIL_APP_PASSWORD environment variables must be set.")
+    print("Set them before running, e.g.:")
+    print("  $env:GMAIL_ADDRESS='your-email@gmail.com'")
+    print("  $env:GMAIL_APP_PASSWORD='your-app-password'")
+    sys.exit(1)
 YOUR_NAME = os.environ.get("YOUR_NAME", "Your Name")
 YOUR_PHONE = os.environ.get("YOUR_PHONE", "")  # Optional
 
@@ -30,9 +37,10 @@ SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() == "true"
 
 # Email sending settings
 DELAY_BETWEEN_EMAILS = 30  # Seconds between emails (avoid spam filters)
-DRY_RUN = True  # Set to False to actually send emails
-TEST_MODE = True  # Set to True to send all emails to yourself for testing
-TEST_EMAIL = "your-email@gmail.com"  # Your email for testing
+import os
+DRY_RUN = os.environ.get('EMAIL_DRY_RUN', 'true').lower() == 'true'
+TEST_MODE = os.environ.get('EMAIL_TEST_MODE', 'true').lower() == 'true'
+TEST_EMAIL = os.environ.get('EMAIL_TEST_ADDRESS', 'your-email@gmail.com')
 
 # ============================================================================
 # PERSONALIZATION LOGIC
@@ -277,7 +285,11 @@ def main():
             return
 
     # Read CSV file (accept as command-line argument or use default)
-    csv_file = sys.argv[1] if len(sys.argv) > 1 else 'perth_martial_arts_gyms.csv'
+    csv_file = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('EMAIL_CSV_FILE', 'perth_martial_arts_gyms.csv')
+    csv_file = os.path.normpath(csv_file)
+    if not os.path.isfile(csv_file):
+        print(f"Error: File not found: {csv_file}")
+        return
 
     try:
         with open(csv_file, 'r', encoding='utf-8') as file:

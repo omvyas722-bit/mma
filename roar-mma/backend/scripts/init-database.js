@@ -19,7 +19,9 @@ const migrations = [
   '006_add_messaging_integration.sql',
   '007_add_stock_system.sql',
   '008_add_belt_grading_system.sql',
-  '009_add_ai_system.sql'
+  '009_add_ai_system.sql',
+  '010_expand_schema.sql',
+  '011_add_transaction_columns.sql'
 ];
 
 function initDatabase(seedDefaults = false) {
@@ -102,7 +104,9 @@ function initDatabase(seedDefaults = false) {
       try {
         db.prepare('INSERT INTO schema_version (version, name, checksum, duration_ms, success) VALUES (?, ?, ?, 0, 0)')
           .run(index + 1, filename, '', 0);
-      } catch {}
+      } catch (logErr) {
+        console.error(`❌ Failed to log migration failure:`, logErr.message);
+      }
       db.close();
       process.exit(1);
     }
@@ -213,8 +217,31 @@ function seedDefaultData(db) {
 
 // Run if called directly
 if (require.main === module) {
-  const db = initDatabase(true);
-  db.close();
+  let hasData = false;
+  try {
+    const checkDb = new Database(dbPath, { readonly: true });
+    hasData = checkDb.prepare("SELECT COUNT(*) as count FROM members").get().count > 0;
+    checkDb.close();
+  } catch { /* first run — no db yet */ }
+
+  if (hasData) {
+    const rl = require('readline').createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question('\n\u26a0\ufe0f  Database already has members. Re-initializing will re-run migrations and seed data. Continue? (y/N) ', (answer) => {
+      rl.close();
+      if (answer.toLowerCase() !== 'y') {
+        console.log('Aborted.');
+        process.exit(0);
+      }
+      const db2 = initDatabase(true);
+      db2.close();
+    });
+  } else {
+    const db2 = initDatabase(true);
+    db2.close();
+  }
 } else {
   module.exports = { initDatabase, seedDefaultData };
 }

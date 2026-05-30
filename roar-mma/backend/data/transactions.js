@@ -40,8 +40,8 @@ function getAllTransactions(filters = {}) {
     params.push(filters.date_to);
   }
 
-  const limit = parseInt(filters.limit) || 50;
-  const offset = parseInt(filters.offset) || 0;
+  const limit = parseInt(filters.limit, 10) || 50;
+  const offset = parseInt(filters.offset, 10) || 0;
 
   query += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);

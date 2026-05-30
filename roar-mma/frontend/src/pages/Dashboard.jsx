@@ -15,7 +15,7 @@ export default function Dashboard() {
   });
 
   // Fetch analytics data
-  const { data: analyticsData, isLoading: analyticsLoading } = useQuery({
+  const { data: analyticsData } = useQuery({
     queryKey: ['dashboard-analytics'],
     queryFn: async () => {
       const response = await api.get('/api/analytics/dashboard');
@@ -121,7 +121,7 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-3">
               {recentActivity.map((activity) => (
-                <ActivityItem key={activity.id || activity.timestamp || activity.description} activity={activity} />
+                <ActivityItem key={activity.id || `${activity.timestamp}-${activity.description}`} activity={activity} />
               ))}
             </div>
           )}

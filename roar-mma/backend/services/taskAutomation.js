@@ -44,7 +44,7 @@ class TaskAutomation {
 
   // Auto-generate task for no-show trial
   static createNoShowTask(lead) {
-    if (lead.stage === 'trial_booked') {
+    if (lead.stage === 'trial_booked' && lead.trial_date) {
       const trialDate = new Date(lead.trial_date);
       const now = new Date();
 

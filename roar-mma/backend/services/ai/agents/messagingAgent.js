@@ -2,7 +2,7 @@
 const scheduledMessagesData = require('../../../data/scheduledMessages');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[MESSAGING-AGENT] Starting messaging check...');
 
@@ -56,6 +56,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `${deliveryStats.sent || 0} messages sent, ${deliveryStats.failed || 0} failed, ${deliveryStats.pending || 0} pending. Success rate: ${successRate}%. ${overdueCount} overdue pending messages.`;
 
     await aiState.logActivity({
+      agentName: agentName || 'messaging',
       actionType: 'messaging_check',
       details: {
         monthly: {
@@ -76,13 +77,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[MESSAGING-AGENT] ${summary}`);
 
-    if (deliveryStats.failed > 0 && successRate < 80) {
+    if (deliveryStats.failed > 0 && successRate < 80 && broadcast) {
       broadcast({ type: 'messaging_agent_alert', summary, successRate, failed: deliveryStats.failed });
     }
   } catch (err) {
     console.error('[MESSAGING-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'messaging',
         actionType: 'messaging_check_error',
         details: { error: err.message },
         summary: `Messaging agent failed: ${err.message}`

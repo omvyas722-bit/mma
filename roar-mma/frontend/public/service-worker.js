@@ -1,5 +1,6 @@
 // Service Worker for PWA support
-const CACHE_NAME = 'roar-mma-v1';
+const CACHE_VERSION = 1;
+const CACHE_NAME = `roar-mma-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
   '/index.html',
@@ -10,7 +11,7 @@ const urlsToCache = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache).catch(() => {}))
+      .then((cache) => cache.addAll(urlsToCache).catch((e) => console.error('[SW] Cache addAll failed:', e)))
       .then(() => self.skipWaiting())
   );
 });

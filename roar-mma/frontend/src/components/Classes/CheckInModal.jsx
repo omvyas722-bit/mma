@@ -201,7 +201,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
                     className="badge badge-blue flex items-center gap-1"
                   >
                     {member.first_name} {member.last_name}
-                    <button
+                    <button type="button"
                       onClick={() => toggleMemberSelection(member)}
                       className="ml-1 hover:text-red-600"
                     >
@@ -210,7 +210,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
                   </span>
                 ))}
               </div>
-              <button
+              <button type="button"
                 onClick={handleCheckIn}
                 disabled={checkInMutation.isPending}
                 className="btn btn-primary mt-3 w-full"
@@ -241,7 +241,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
                         Checked in at {new Date(attendee.checked_in_at).toLocaleTimeString()}
                       </p>
                     </div>
-                    <button
+                    <button type="button"
                       onClick={() => handleRemoveAttendee(attendee.id)}
                       className="text-red-600 hover:text-red-900 text-sm"
                     >
@@ -256,7 +256,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
 
         {/* Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <button onClick={onClose} className="btn btn-secondary">
+          <button type="button" onClick={onClose} className="btn btn-secondary">
             Close
           </button>
         </div>

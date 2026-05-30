@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('token');
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchCurrentUser();
     } else {
       setLoading(false);
@@ -149,6 +149,7 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

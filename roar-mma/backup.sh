@@ -59,10 +59,7 @@ fi
 # Encryption option (pass ENCRYPT_PASSWORD env var to enable)
 if [ -n "${ENCRYPT_PASSWORD:-}" ]; then
     if command -v gpg &>/dev/null; then
-        PASS_FILE=$(mktemp)
-        echo -n "$ENCRYPT_PASSWORD" > "$PASS_FILE"
-        gpg --batch --yes --passphrase-file "$PASS_FILE" -c "$BACKUPS_DIR/$ARCHIVE_NAME"
-        rm -f "$PASS_FILE"
+        echo "$ENCRYPT_PASSWORD" | gpg --batch --yes --passphrase-fd 0 -c "$BACKUPS_DIR/$ARCHIVE_NAME"
         rm -f "$BACKUPS_DIR/$ARCHIVE_NAME"
         echo "✓ Backup encrypted: $BACKUPS_DIR/$ARCHIVE_NAME.gpg"
     else

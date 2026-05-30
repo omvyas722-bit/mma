@@ -2,14 +2,25 @@
 const leadsData = require('../../../data/leads');
 const leadScoringData = require('../../../data/leadScoring');
 const staffTasksData = require('../../../data/staffTasks');
+const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+function hasExistingTrialBooking(leadId) {
+  const dbConn = getDatabase();
+  const today = new Date().toISOString().split('T')[0];
+  const existing = dbConn.prepare(`
+    SELECT id FROM leads
+    WHERE id = ? AND trial_date = ? AND stage IN ('trial_booked', 'trial_completed', 'converted')
+  `).get(leadId, today);
+  return !!existing;
+}
+
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[LEAD-AGENT] Starting lead processing...');
 
     // 1. Check for new leads in last 60 min that haven't been contacted
     const sixtyMinAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const allLeads = (leadsData.getAllLeads({}) || []).slice(0, 500);
+    const allLeads = (leadsData.getAllLeads({}).leads || []).slice(0, 500);
     const newUncontactedLeads = allLeads.filter(l => {
       if (l.stage !== 'new') return false;
       const created = new Date(l.created_at);
@@ -74,7 +85,19 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       }
     }
 
-    // 3. Check leads not contacted in 3+ days with warm/hot interest
+    // 3. Check leads for trial booking readiness — prevent duplicate same-day bookings
+    const leadsReadyForTrial = allLeads.filter(l => {
+      if (l.stage === 'converted' || l.stage === 'lost') return false;
+      if (l.trial_interest_level !== 'hot' && l.trial_interest_level !== 'warm') return false;
+      return l.trial_date && new Date(l.trial_date).toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+    });
+    for (const lead of leadsReadyForTrial) {
+      if (hasExistingTrialBooking(lead.id)) {
+        console.log(`[LEAD-AGENT] Lead #${lead.id} already has a trial booking today, skipping duplicate`);
+      }
+    }
+
+    // 4. Check leads not contacted in 3+ days with warm/hot interest
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const staleWarmLeads = allLeads.filter(l => {
       if (l.stage === 'converted' || l.stage === 'lost') return false;
@@ -114,6 +137,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `Processed ${allLeads.length} leads. Created ${totalTasks} tasks (${tasksCreated} hot lead, ${flaggedCount} untouched flagged, ${checkinTasks} check-in).`;
 
     await aiState.logActivity({
+      agentName: agentName || 'leads',
       actionType: 'lead_check',
       details: {
         total_leads: allLeads.length,
@@ -127,13 +151,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[LEAD-AGENT] ${summary}`);
 
-    if (totalTasks > 0) {
+    if (totalTasks > 0 && broadcast) {
       broadcast({ type: 'lead_agent_update', summary, tasksCreated: totalTasks });
     }
   } catch (err) {
     console.error('[LEAD-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'leads',
         actionType: 'lead_check_error',
         details: { error: err.message },
         summary: `Lead agent failed: ${err.message}`

@@ -2,7 +2,7 @@
 const staffPerformanceData = require('../../../data/staffPerformance');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[STAFF-AGENT] Starting staff performance check...');
 
@@ -52,6 +52,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `Top performer: ${topPerformer ? `${topPerformer.staff_name} (${topPerformer.metrics.signups} signups)` : 'N/A'}. ${decliningStaff.length} staff with declining metrics.`;
 
     await aiState.logActivity({
+      agentName: agentName || 'staff',
       actionType: 'staff_performance_check',
       details: {
         top_performer: topPerformer || null,
@@ -70,13 +71,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       console.log(`[STAFF-AGENT] Declining: ${s.staff_name} - ${s.decline_reasons.join(', ')}`);
     }
 
-    if (decliningStaff.length > 0) {
+    if (decliningStaff.length > 0 && broadcast) {
       broadcast({ type: 'staff_agent_update', summary, decliningStaff });
     }
   } catch (err) {
     console.error('[STAFF-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'staff',
         actionType: 'staff_performance_error',
         details: { error: err.message },
         summary: `Staff agent failed: ${err.message}`

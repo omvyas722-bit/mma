@@ -25,8 +25,8 @@ function getAllMembers(filters = {}) {
   }
 
   // Pagination
-  const limit = parseInt(filters.limit) || 50;
-  const offset = parseInt(filters.offset) || 0;
+  const limit = parseInt(filters.limit, 10) || 50;
+  const offset = parseInt(filters.offset, 10) || 0;
 
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);

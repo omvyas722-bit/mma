@@ -32,6 +32,9 @@ function buildPayload(messages, options) {
 }
 
 function parseResponse(data, model) {
+  if (!data) {
+    return { error: 'null response', content: null, finishReason: 'error', usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }, model: model || 'none' };
+  }
   const choice = data.choices?.[0];
   const usage = data.usage || {};
   return {
@@ -64,6 +67,10 @@ async function callFallback(provider, messages, options) {
       timeout: options.timeout || 30000
     });
 
+    if (!response || !response.data) {
+      return { error: `${provider.name}: null response` };
+    }
+
     return parseResponse(response.data, provider.defaultModel);
   } catch (error) {
     const status = error.response?.status;
@@ -89,28 +96,27 @@ async function completeChat(messages, options = {}) {
     // Try all fallbacks in parallel with staggered start delays
     const results = await Promise.race(
       FALLBACKS.map((provider, i) =>
-        new Promise(async (resolve) => {
-          // Stagger start: each fallback starts 2s after the previous
-          await new Promise(r => setTimeout(r, i * 2000));
-          if (controller.signal.aborted) {
-            resolve({ error: 'aborted' });
-            return;
-          }
-          const result = await callFallback(provider, messages, { ...options, timeout: 15000 });
-          if (!result.error && result.content) {
-            console.log(`[PROVIDER-CHAIN] ✓ ${provider.name} responded (model: ${result.model})`);
-            resolve(result);
-          } else {
-            resolve({ error: `${provider.name} failed` });
-          }
+        new Promise((resolve) => {
+          setTimeout(async () => {
+            if (controller.signal.aborted) {
+              resolve({ error: 'aborted' });
+              return;
+            }
+            const result = await callFallback(provider, messages, { ...options, timeout: 15000 });
+            if (!result.error && result.content) {
+              console.log(`[PROVIDER-CHAIN] ✓ ${provider.name} responded (model: ${result.model})`);
+              resolve(result);
+            } else {
+              resolve({ error: `${provider.name} failed` });
+            }
+          }, i * 2000);
         })
       ).concat(
-        // Also race against the overall timeout
-        new Promise(resolve => setTimeout(() => resolve({ error: 'timeout' }), 20000))
+        new Promise(resolve => { setTimeout(() => resolve({ error: 'timeout' }), 20000); })
       )
     );
 
-    if (!results.error && results.content) {
+    if (results && !results.error && results.content) {
       return results;
     }
 

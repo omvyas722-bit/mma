@@ -101,7 +101,7 @@ export function DropdownTrigger({ children, asChild = false }) {
   }
 
   return (
-    <button
+    <button type="button"
       ref={triggerRef}
       onClick={toggle}
       className="inline-flex items-center justify-center"
@@ -185,7 +185,7 @@ export function DropdownItem({
   };
 
   return (
-    <button
+    <button type="button"
       onClick={handleClick}
       disabled={disabled}
       className={`
@@ -247,7 +247,7 @@ export function DropdownCheckboxItem({
   };
 
   return (
-    <button
+    <button type="button"
       onClick={handleClick}
       disabled={disabled}
       className={`
@@ -332,11 +332,11 @@ export function ContextMenu({ children, items, className = '' }) {
           >
             {items.map((item, index) => {
               if (item.separator) {
-                return <DropdownSeparator key={index} />;
+                return <DropdownSeparator key={`sep-${index}`} />;
               }
               return (
-                <button
-                  key={index}
+                <button type="button"
+                  key={item.label || `item-${index}`}
                   onClick={() => {
                     item.onClick?.();
                     setIsOpen(false);
@@ -378,14 +378,14 @@ export function SimpleDropdown({
       <DropdownContent align={align} className={className}>
         {items.map((item, index) => {
           if (item.separator) {
-            return <DropdownSeparator key={index} />;
+            return <DropdownSeparator key={`sep-${index}`} />;
           }
           if (item.label) {
-            return <DropdownLabel key={index}>{item.label}</DropdownLabel>;
+            return <DropdownLabel key={item.label || `label-${index}`}>{item.label}</DropdownLabel>;
           }
           return (
             <DropdownItem
-              key={index}
+              key={item.label || `item-${index}`}
               onClick={item.onClick}
               disabled={item.disabled}
               destructive={item.destructive}
@@ -428,7 +428,7 @@ import {
 // Basic dropdown
 <Dropdown>
   <DropdownTrigger>
-    <button>Open Menu</button>
+    <button type="button">Open Menu</button>
   </DropdownTrigger>
   <DropdownContent>
     <DropdownItem onClick={() => console.log('Edit')}>Edit</DropdownItem>
@@ -443,7 +443,7 @@ import {
 // With icons and shortcuts
 <Dropdown>
   <DropdownTrigger>
-    <button>Actions</button>
+    <button type="button">Actions</button>
   </DropdownTrigger>
   <DropdownContent>
     <DropdownItem icon="✏️" shortcut="⌘E" onClick={handleEdit}>
@@ -461,7 +461,7 @@ import {
 
 // Simple dropdown (quick implementation)
 <SimpleDropdown
-  trigger={<button>Menu</button>}
+  trigger={<button type="button">Menu</button>}
   items={[
     { text: 'Edit', icon: '✏️', onClick: handleEdit },
     { text: 'Duplicate', icon: '📋', onClick: handleDuplicate },
@@ -473,7 +473,7 @@ import {
 // User menu dropdown
 <Dropdown>
   <DropdownTrigger asChild>
-    <button className="flex items-center gap-2">
+    <button type="button" className="flex items-center gap-2">
       <img src={user.avatar} className="w-8 h-8 rounded-full" />
       <span>{user.name}</span>
     </button>
@@ -510,7 +510,7 @@ import {
 // Table row actions
 <Dropdown>
   <DropdownTrigger>
-    <button className="p-2 hover:bg-gray-100 rounded">
+    <button type="button" className="p-2 hover:bg-gray-100 rounded">
       <DotsVerticalIcon />
     </button>
   </DropdownTrigger>
@@ -528,7 +528,7 @@ import {
 // Checkbox items
 <Dropdown closeOnSelect={false}>
   <DropdownTrigger>
-    <button>Filter</button>
+    <button type="button">Filter</button>
   </DropdownTrigger>
   <DropdownContent>
     <DropdownLabel>Status</DropdownLabel>
@@ -554,7 +554,7 @@ function ControlledExample() {
   return (
     <Dropdown isOpen={isOpen} onOpenChange={setIsOpen}>
       <DropdownTrigger>
-        <button>Controlled Menu</button>
+        <button type="button">Controlled Menu</button>
       </DropdownTrigger>
       <DropdownContent>
         <DropdownItem onClick={() => console.log('Item clicked')}>

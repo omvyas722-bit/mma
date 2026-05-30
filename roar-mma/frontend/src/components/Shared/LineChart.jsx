@@ -1,5 +1,5 @@
 // Simple Line Chart Component
-export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' }) {
+export default function LineChart({ data, title, xLabel, color = 'blue' }) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
@@ -46,14 +46,13 @@ export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' 
       <div className="relative">
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="w-full"
-          style={{ height: '250px' }}
+          className="w-full h-[250px]"
         >
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
             const y = chartHeight - ratio * (chartHeight - padding * 2) - padding;
             return (
-              <g key={i}>
+              <g key={`grid-${i}`}>
                 <line
                   x1={padding}
                   y1={y}
@@ -66,8 +65,7 @@ export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' 
                   x={padding - 10}
                   y={y + 4}
                   textAnchor="end"
-                  className="text-xs fill-gray-500"
-                  style={{ fontSize: '10px' }}
+                  className="text-[10px] text-xs fill-gray-500"
                 >
                   {Math.round(minValue + ratio * range)}
                 </text>
@@ -92,7 +90,7 @@ export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' 
 
           {/* Data points */}
           {points.map((point, index) => (
-            <g key={index}>
+            <g key={point.label || `point-${index}`}>
               <circle
                 cx={point.x}
                 cy={point.y}
@@ -119,12 +117,11 @@ export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' 
 
             return (
               <text
-                key={index}
+                key={`xlabel-${point.label || index}`}
                 x={point.x}
                 y={chartHeight - padding + 20}
                 textAnchor="middle"
-                className="text-xs fill-gray-600"
-                style={{ fontSize: '10px' }}
+                className="text-[10px] text-xs fill-gray-600"
               >
                 {point.label}
               </text>

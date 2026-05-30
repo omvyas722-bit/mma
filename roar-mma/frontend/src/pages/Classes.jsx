@@ -91,7 +91,7 @@ export default function Classes() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Classes</h1>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+        <button type="button" onClick={() => setShowAddModal(true)} className="btn btn-primary">
           Add Class
         </button>
       </div>
@@ -120,18 +120,18 @@ export default function Classes() {
       {/* Week navigation */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex items-center justify-between">
-          <button onClick={previousWeek} className="btn btn-secondary">
+          <button type="button" onClick={previousWeek} className="btn btn-secondary">
             ◀ Previous
           </button>
           <div className="text-center">
             <p className="text-lg font-semibold">
               {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
             </p>
-            <button onClick={thisWeek} className="text-sm text-blue-600 hover:underline">
+            <button type="button" onClick={thisWeek} className="text-sm text-red-600 hover:underline">
               This Week
             </button>
           </div>
-          <button onClick={nextWeek} className="btn btn-secondary">
+          <button type="button" onClick={nextWeek} className="btn btn-secondary">
             Next ▶
           </button>
         </div>
@@ -199,11 +199,12 @@ function ClassInstanceCard({ instance, onEdit, onDelete, onCheckIn }) {
     <div className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative group">
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onEdit();
           }}
-          className="text-blue-600 hover:text-blue-900 p-1"
+          className="text-red-600 hover:text-red-900 p-1"
           title="Edit class"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,6 +212,7 @@ function ClassInstanceCard({ instance, onEdit, onDelete, onCheckIn }) {
           </svg>
         </button>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
@@ -256,6 +258,7 @@ function ClassInstanceCard({ instance, onEdit, onDelete, onCheckIn }) {
       )}
 
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onCheckIn();

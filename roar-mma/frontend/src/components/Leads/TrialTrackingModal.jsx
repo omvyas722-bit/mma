@@ -7,7 +7,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 
 export default function TrialTrackingModal({ isOpen, onClose, lead }) {
   const queryClient = useQueryClient();
-  const { success, error } = useNotifications();
+  const { success } = useNotifications();
   const [formData, setFormData] = useState({
     trial_date: '',
     trial_class_type: '',
@@ -23,6 +23,7 @@ export default function TrialTrackingModal({ isOpen, onClose, lead }) {
   useEffect(() => {
     if (lead) {
       const today = new Date().toISOString().split('T')[0];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         trial_date: lead.trial_date || today,
         trial_class_type: lead.trial_class_type || '',

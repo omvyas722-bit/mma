@@ -7,7 +7,6 @@ import Modal from '../components/Shared/Modal';
 import { PageLoader } from '../components/Shared/Spinner';
 
 export default function Communications() {
-  const queryClient = useQueryClient();
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [activeTab, setActiveTab] = useState('history');
 
@@ -23,7 +22,7 @@ export default function Communications() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Communications</h1>
-        <button
+        <button type="button"
           onClick={() => setShowComposeModal(true)}
           className="btn btn-primary"
         >
@@ -34,31 +33,31 @@ export default function Communications() {
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow mb-6">
         <nav className="flex border-b border-gray-200">
-          <button
+          <button type="button"
             onClick={() => setActiveTab('history')}
             className={`px-6 py-3 text-sm font-medium ${
               activeTab === 'history'
-                ? 'border-b-2 border-blue-500 text-blue-600'
+                ? 'border-b-2 border-red-500 text-red-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Message History
+            History
           </button>
-          <button
+          <button type="button"
             onClick={() => setActiveTab('templates')}
             className={`px-6 py-3 text-sm font-medium ${
               activeTab === 'templates'
-                ? 'border-b-2 border-blue-500 text-blue-600'
+                ? 'border-b-2 border-red-500 text-red-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Templates
           </button>
-          <button
+          <button type="button"
             onClick={() => setActiveTab('scheduled')}
             className={`px-6 py-3 text-sm font-medium ${
               activeTab === 'scheduled'
-                ? 'border-b-2 border-blue-500 text-blue-600'
+                ? 'border-b-2 border-red-500 text-red-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -131,7 +130,7 @@ function MessageHistoryItem({ message }) {
                 </div>
                 <div>
                   <span className="text-gray-500">Opened:</span>
-                  <span className="ml-2 font-medium text-blue-600">
+                  <span className="ml-2 font-medium text-red-600">
                     {message.opened_count}
                   </span>
                 </div>
@@ -145,9 +144,9 @@ function MessageHistoryItem({ message }) {
             </div>
           )}
         </div>
-        <button
+        <button type="button"
           onClick={() => setExpanded(!expanded)}
-          className="text-blue-600 hover:text-blue-900 text-sm"
+          className="text-red-600 hover:text-red-900 text-sm"
         >
           {expanded ? 'Hide Details' : 'View Details'}
         </button>
@@ -325,7 +324,11 @@ function ComposeMessageModal({ isOpen, onClose }) {
               type="checkbox"
               checked={!!formData.schedule_for}
               onChange={(e) => {
-                if (!e.target.checked) {
+                if (e.target.checked) {
+                  const now = new Date();
+                  now.setHours(now.getHours() + 1);
+                  setFormData(prev => ({ ...prev, schedule_for: now.toISOString().slice(0, 16) }));
+                } else {
                   setFormData(prev => ({ ...prev, schedule_for: '' }));
                 }
               }}
@@ -386,7 +389,7 @@ function MessageTemplates() {
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Message Templates</h2>
-          <button className="btn btn-primary">Create Template</button>
+          <button type="button" className="btn btn-primary">Create Template</button>
         </div>
       </div>
 
@@ -408,7 +411,7 @@ function MessageTemplates() {
                 <p className="text-sm text-gray-500 line-clamp-2">{template.content}</p>
               </div>
               <div className="flex gap-2">
-                <button type="button" className="text-blue-600 hover:text-blue-900 text-sm">
+                <button type="button" className="text-red-600 hover:text-red-900 text-sm">
                   Use Template
                 </button>
                 <button type="button" className="text-gray-600 hover:text-gray-900 text-sm">
@@ -452,7 +455,7 @@ function ScheduledMessages() {
                     Scheduled for {new Date(message.scheduled_for).toLocaleString()}
                   </p>
                 </div>
-                <button className="text-red-600 hover:text-red-900 text-sm">
+                <button type="button" className="text-red-600 hover:text-red-900 text-sm">
                   Cancel
                 </button>
               </div>

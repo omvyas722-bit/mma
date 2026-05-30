@@ -1,6 +1,6 @@
 // Modal Component System - Reusable modal dialogs
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useKeyPress, useClickOutside } from '../../hooks/useCustomHooks';
 
@@ -108,7 +108,7 @@ export function Modal({
                 </h3>
               )}
               {showCloseButton && (
-                <button
+                <button type="button"
                   onClick={onClose}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   aria-label="Close modal"
@@ -173,8 +173,9 @@ export function ConfirmDialog({
   const handleConfirm = async () => {
     try {
       await onConfirm();
-    } finally {
       onClose();
+    } catch (err) {
+      console.error('Confirm action failed:', err);
     }
   };
 
@@ -191,14 +192,14 @@ export function ConfirmDialog({
         <p className="text-gray-700 dark:text-gray-300">{message}</p>
 
         <div className="flex justify-end gap-3">
-          <button
+          <button type="button"
             onClick={onClose}
             disabled={isLoading}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             {cancelText}
           </button>
-          <button
+          <button type="button"
             onClick={handleConfirm}
             disabled={isLoading}
             className={`px-4 py-2 rounded-lg disabled:opacity-50 ${variantStyles[variant]}`}
@@ -268,7 +269,7 @@ export function AlertDialog({
         </div>
 
         <div className="flex justify-end">
-          <button
+          <button type="button"
             onClick={onClose}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
@@ -350,7 +351,7 @@ export function Drawer({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-          <button
+          <button type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             aria-label="Close drawer"
@@ -384,7 +385,7 @@ export function BottomSheet({
   closeOnBackdrop = true,
 }) {
   const sheetRef = useRef(null);
-  const [currentSnap, setCurrentSnap] = React.useState(0);
+  const [currentSnap] = React.useState(0);
 
   useClickOutside(sheetRef, () => {
     if (closeOnBackdrop && isOpen) {
@@ -453,7 +454,7 @@ function MyComponent() {
 
   return (
     <>
-      <button onClick={() => setIsOpen(true)}>Open Modal</button>
+      <button type="button" onClick={() => setIsOpen(true)}>Open Modal</button>
 
       <Modal
         isOpen={isOpen}
@@ -477,7 +478,7 @@ function DeleteButton() {
 
   return (
     <>
-      <button onClick={() => setShowConfirm(true)}>Delete</button>
+      <button type="button" onClick={() => setShowConfirm(true)}>Delete</button>
 
       <ConfirmDialog
         isOpen={showConfirm}

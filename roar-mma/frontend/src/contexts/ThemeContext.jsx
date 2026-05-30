@@ -35,9 +35,10 @@ export function ThemeProvider({ children }) {
       document.documentElement.classList.remove('dark');
     }
 
-    localStorage.setItem('theme-mode', mode);
-    setIsSystem(!localStorage.getItem('theme-mode'));
-  }, [mode, customTheme]);
+    if (!isSystem) {
+      localStorage.setItem('theme-mode', mode);
+    }
+  }, [mode, customTheme, isSystem]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -72,6 +73,7 @@ export function ThemeProvider({ children }) {
 
   const setSystemMode = useCallback(() => {
     localStorage.removeItem('theme-mode');
+    setIsSystem(true);
     const systemPreference = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     setMode(systemPreference);
   }, []);
@@ -104,6 +106,7 @@ export function ThemeProvider({ children }) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme() {
   const context = useContext(ThemeContext);
 
@@ -119,7 +122,7 @@ export function ThemeToggle({ className = '' }) {
   const { mode, toggleTheme } = useTheme();
 
   return (
-    <button
+    <button type="button"
       onClick={toggleTheme}
       className={`p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${className}`}
       aria-label="Toggle theme"
@@ -157,7 +160,7 @@ export function ThemeSelector() {
         Theme
       </label>
       <div className="flex gap-2" role="radiogroup" aria-label="Theme selection">
-        <button
+        <button type="button"
           onClick={setLightMode}
           aria-pressed={mode === 'light'}
           className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
@@ -177,7 +180,7 @@ export function ThemeSelector() {
           <span className="text-sm">Light</span>
         </button>
 
-        <button
+        <button type="button"
           onClick={setDarkMode}
           aria-pressed={mode === 'dark'}
           className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
@@ -197,7 +200,7 @@ export function ThemeSelector() {
           <span className="text-sm">Dark</span>
         </button>
 
-        <button
+        <button type="button"
           onClick={setSystemMode}
           aria-pressed={isSystem}
           className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
@@ -249,7 +252,7 @@ function Header() {
   return (
     <header>
       <h1>My App</h1>
-      <button onClick={toggleTheme}>
+      <button type="button" onClick={toggleTheme}>
         {isDark ? 'Switch to Light' : 'Switch to Dark'}
       </button>
     </header>

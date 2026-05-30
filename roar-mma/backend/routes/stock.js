@@ -10,7 +10,7 @@ router.get('/products', authenticateToken, requirePermission('stock:read'), (req
   try {
     const filters = {
       category: req.query.category,
-      active: req.query.active !== undefined ? parseInt(req.query.active) : undefined,
+      active: req.query.active !== undefined ? parseInt(req.query.active, 10) : undefined,
       low_stock: req.query.low_stock === 'true'
     };
 

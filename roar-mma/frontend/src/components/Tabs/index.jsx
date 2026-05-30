@@ -106,7 +106,7 @@ export function Tab({
   };
 
   return (
-    <button
+    <button type="button"
       role="tab"
       aria-selected={isActive}
       aria-controls={`panel-${value}`}
@@ -161,6 +161,7 @@ export function LazyTabPanel({ value, children, className = '' }) {
 
   React.useEffect(() => {
     if (isActive && !hasBeenActive) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasBeenActive(true);
     }
   }, [isActive, hasBeenActive]);

@@ -22,8 +22,10 @@ fi
 # Install Node.js if needed
 if ! command -v node &> /dev/null; then
     echo "Installing Node.js..."
-    # WARNING: curl-to-bash is a security risk. Verify checksum at https://github.com/nodesource/distributions
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    NODE_SETUP=$(mktemp)
+    curl -fsSL -o "$NODE_SETUP" https://deb.nodesource.com/setup_22.x
+    bash "$NODE_SETUP"
+    rm -f "$NODE_SETUP"
     apt-get install -y nodejs
 fi
 
@@ -49,12 +51,21 @@ cp -r frontend/. "$APP_DIR/frontend/"
 cd "$APP_DIR"
 npm install --production
 
+# Build frontend
+if [ -d "frontend" ]; then
+    cd frontend
+    npm install --production
+    npm run build
+    cd "$APP_DIR"
+fi
+
 # Setup environment
 if [ ! -f ".env" ]; then
     JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
     if [ -f ".env.example" ]; then
         cp .env.example .env
-        sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env
+        ESCAPED_SECRET=$(printf '%s\n' "$JWT_SECRET" | sed 's/[\/&]/\\&/g')
+        sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$ESCAPED_SECRET/" .env
     else
         echo "Warning: .env.example not found. Creating minimal .env."
         cat > ".env" << EOF
@@ -74,13 +85,21 @@ else
 fi
 
 # Configure Nginx
-while [ -z "${DOMAIN:-}" ]; do
-    read -p "Enter domain name: " DOMAIN
-    DOMAIN=$(echo "$DOMAIN" | sed 's/[^a-zA-Z0-9.-]//g' | xargs)
-    if [ -z "$DOMAIN" ]; then
-        echo "Error: Domain name cannot be empty."
+DOMAIN="${DOMAIN:-}"
+if [ -z "$DOMAIN" ]; then
+    if [ -t 0 ]; then
+        while [ -z "$DOMAIN" ]; do
+            read -p "Enter domain name (or set DOMAIN env var to skip): " DOMAIN
+            DOMAIN=$(echo "$DOMAIN" | sed 's/[^a-zA-Z0-9.-]//g' | xargs)
+            if [ -z "$DOMAIN" ]; then
+                echo "Error: Domain name cannot be empty."
+            fi
+        done
+    else
+        echo "Error: DOMAIN environment variable is required for non-interactive deployment"
+        exit 1
     fi
-done
+fi
 cat > /etc/nginx/sites-available/$APP_NAME << EOF
 server {
     listen 80;

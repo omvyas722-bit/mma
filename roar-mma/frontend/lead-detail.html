@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -197,7 +196,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let leadId = null;
         let leadData = null;
@@ -251,22 +255,22 @@
                 document.getElementById('profile-header').innerHTML = `
                     <div class="profile-top">
                         <div class="profile-info">
-                            <div class="profile-name">${leadData.first_name} ${leadData.last_name}</div>
+                            <div class="profile-name">${escapeHtml(leadData.first_name)} ${escapeHtml(leadData.last_name)}</div>
                             <div class="profile-meta">
-                                <span>📧 ${leadData.email || 'No email'}</span>
-                                <span>📱 ${leadData.phone}</span>
-                                <span>📅 Created ${createdDate}</span>
-                                <span>⏱️ ${daysSince} days ago</span>
-                                <span>🎯 ${leadData.source || 'Unknown source'}</span>
-                                ${leadData.interest_level ? `<span>🔥 ${leadData.interest_level} interest</span>` : ''}
+                                <span>📧 ${escapeHtml(leadData.email || 'No email')}</span>
+                                <span>📱 ${escapeHtml(leadData.phone)}</span>
+                                <span>📅 Created ${escapeHtml(createdDate)}</span>
+                                <span>⏱️ ${escapeHtml(daysSince)} days ago</span>
+                                <span>🎯 ${escapeHtml(leadData.source || 'Unknown source')}</span>
+                                ${leadData.interest_level ? `<span>🔥 ${escapeHtml(leadData.interest_level)} interest</span>` : ''}
                             </div>
                         </div>
                         <div class="score-display">
-                            <div class="score-circle ${scoreClass}">
-                                <div class="score-value">${leadData.score}</div>
-                                <div class="score-label">${leadData.priority.toUpperCase()}</div>
+                            <div class="score-circle ${escapeHtml(scoreClass)}">
+                                <div class="score-value">${escapeHtml(leadData.score)}</div>
+                                <div class="score-label">${escapeHtml(leadData.priority.toUpperCase())}</div>
                             </div>
-                            <span class="stage-badge ${stageClass}">${leadData.stage.replace('_', ' ').toUpperCase()}</span>
+                            <span class="stage-badge ${escapeHtml(stageClass)}">${escapeHtml(leadData.stage.replace('_', ' ').toUpperCase())}</span>
                         </div>
                     </div>
                 `;
@@ -280,35 +284,35 @@
                 document.getElementById('lead-info').innerHTML = `
                     <div class="info-field">
                         <div class="info-label">Full Name</div>
-                        <div class="info-value">${leadData.first_name} ${leadData.last_name}</div>
+                        <div class="info-value">${escapeHtml(leadData.first_name)} ${escapeHtml(leadData.last_name)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Email</div>
-                        <div class="info-value">${leadData.email || 'Not provided'}</div>
+                        <div class="info-value">${escapeHtml(leadData.email || 'Not provided')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Phone</div>
-                        <div class="info-value">${leadData.phone}</div>
+                        <div class="info-value">${escapeHtml(leadData.phone)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Source</div>
-                        <div class="info-value">${leadData.source || 'Unknown'}</div>
+                        <div class="info-value">${escapeHtml(leadData.source || 'Unknown')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Interest Level</div>
-                        <div class="info-value">${leadData.interest_level || 'Not set'}</div>
+                        <div class="info-value">${escapeHtml(leadData.interest_level || 'Not set')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Current Stage</div>
-                        <div class="info-value">${leadData.stage.replace('_', ' ')}</div>
+                        <div class="info-value">${escapeHtml(leadData.stage.replace('_', ' '))}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Created Date</div>
-                        <div class="info-value">${new Date(leadData.created_at).toLocaleDateString()}</div>
+                        <div class="info-value">${escapeHtml(new Date(leadData.created_at).toLocaleDateString())}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Last Updated</div>
-                        <div class="info-value">${new Date(leadData.updated_at).toLocaleDateString()}</div>
+                        <div class="info-value">${escapeHtml(new Date(leadData.updated_at).toLocaleDateString())}</div>
                     </div>
                 `;
             } catch (error) {
@@ -328,10 +332,10 @@
                     html += `
                         <div class="score-item">
                             <div class="score-item-header">
-                                <div class="score-item-title">${factor.factor_name}</div>
-                                <div class="score-item-value">+${factor.points}</div>
+                                <div class="score-item-title">${escapeHtml(factor.factor_name)}</div>
+                                <div class="score-item-value">+${escapeHtml(factor.points)}</div>
                             </div>
-                            <div class="score-item-desc">${factor.reason}</div>
+                            <div class="score-item-desc">${escapeHtml(factor.reason)}</div>
                         </div>
                     `;
                 });
@@ -340,9 +344,9 @@
                     <div class="score-item" style="border: 2px solid #ff4444;">
                         <div class="score-item-header">
                             <div class="score-item-title">Total Score</div>
-                            <div class="score-item-value" style="font-size: 20px;">${breakdown.total_score}</div>
+                            <div class="score-item-value" style="font-size: 20px;">${escapeHtml(breakdown.total_score)}</div>
                         </div>
-                        <div class="score-item-desc">Priority: ${breakdown.priority.toUpperCase()}</div>
+                        <div class="score-item-desc">Priority: ${escapeHtml(breakdown.priority.toUpperCase())}</div>
                     </div>
                 `;
 
@@ -371,12 +375,12 @@
                         <div class="timeline-item">
                             <div class="timeline-header">
                                 <div>
-                                    <div class="timeline-title">${interaction.title}</div>
-                                    <div class="timeline-date">${new Date(interaction.date).toLocaleDateString()}</div>
+                                    <div class="timeline-title">${escapeHtml(interaction.title)}</div>
+                                    <div class="timeline-date">${escapeHtml(new Date(interaction.date).toLocaleDateString())}</div>
                                 </div>
-                                <span class="timeline-type type-${interaction.type}">${interaction.type.toUpperCase()}</span>
+                                <span class="timeline-type type-${escapeHtml(interaction.type)}">${escapeHtml(interaction.type.toUpperCase())}</span>
                             </div>
-                            <div class="timeline-desc">${interaction.desc}</div>
+                            <div class="timeline-desc">${escapeHtml(interaction.desc)}</div>
                         </div>
                     `;
                 });
@@ -407,10 +411,10 @@
                     html += `
                         <div class="note-item">
                             <div class="note-header">
-                                <div class="note-author">${note.author}</div>
-                                <div class="note-date">${new Date(note.date).toLocaleDateString()}</div>
+                                <div class="note-author">${escapeHtml(note.author)}</div>
+                                <div class="note-date">${escapeHtml(new Date(note.date).toLocaleDateString())}</div>
                             </div>
-                            <div class="note-content">${note.content}</div>
+                            <div class="note-content">${escapeHtml(note.content)}</div>
                         </div>
                     `;
                 });

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
+import { Drawer } from '../components/Modal';
 
 const AGENT_LABELS = {
   sales_team: { name: 'Sales & Marketing', icon: '🎯', color: 'bg-blue-500', desc: 'Manages leads, drafts personalized outreach, moves leads through pipeline' },
@@ -47,7 +48,7 @@ function AgentCard({ name, info, stats, onRun, running }) {
           <p className="text-gray-400 text-sm mb-4 italic">No activity yet. Run the agent to see actions.</p>
         )}
 
-        <button
+        <button type="button"
           onClick={() => onRun(name)}
           disabled={isRunning}
           className={`w-full py-2.5 rounded-lg font-medium text-sm transition-all ${
@@ -63,20 +64,27 @@ function AgentCard({ name, info, stats, onRun, running }) {
   );
 }
 
-function ActionLog({ log }) {
+function ActionLog({ log, onSelect }) {
   const details = log.details;
   const hasDetails = details && typeof details === 'object';
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
+    <button type="button"
+      onClick={() => onSelect(log)}
+      className="w-full text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            <span className={[
+              'text-xs px-2 py-0.5 rounded-full font-medium',
               AGENT_LABELS[log.agent_name]
-                ? 'bg-' + AGENT_LABELS[log.agent_name].color.replace('bg-', '').replace('-500', '-100') + ' text-' + AGENT_LABELS[log.agent_name].color.replace('bg-', '').replace('-500', '-700')
+                ? (() => {
+                    const a = AGENT_LABELS[log.agent_name];
+                    return a.color.replace('bg-', 'bg-').replace('500', '100') + ' text-' + a.color.replace('bg-', '').replace('-500', '-700');
+                  })()
                 : 'bg-gray-100 text-gray-700'
-            }`}>
+            ].join(' ')}>
               {AGENT_LABELS[log.agent_name]?.name || log.agent_name}
             </span>
             <span className="text-xs text-gray-400">{formatLogDate(log.created_at)}</span>
@@ -87,22 +95,15 @@ function ActionLog({ log }) {
             }`}>{log.status}</span>
           </div>
           <p className="text-sm text-gray-800 mt-1.5">{log.summary}</p>
-          {hasDetails && details.actions_taken && details.actions_taken.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {details.actions_taken.slice(0, 5).map((action, i) => (
-                <div key={action.action + i} className="text-xs bg-gray-50 rounded px-2 py-1.5 text-gray-600 font-mono">
-                  <span className="font-medium text-gray-800">{action.action}</span>
-                  {action.status === 'ok' ? ' ✅' : action.error ? ` ❌ ${action.error}` : ''}
-                </div>
-              ))}
-            </div>
-          )}
           {hasDetails && details.actions_decided > 0 && (
             <p className="text-xs text-gray-400 mt-1">{details.actions_decided} actions decided, {details.actions_taken?.length || 0} executed</p>
           )}
         </div>
+        <svg className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -118,12 +119,102 @@ function formatLogDate(dateStr) {
   }
 }
 
+function LogDetailDrawer({ log, isOpen, onClose }) {
+  if (!log) return null;
+  const info = AGENT_LABELS[log.agent_name];
+  const details = log.details;
+  const hasDetails = details && typeof details === 'object';
+
+  return (
+    <Drawer isOpen={isOpen} onClose={onClose} title="Agent Run Details" size="lg">
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+          {info && <span className="text-2xl">{info.icon}</span>}
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-gray-900">{info?.name || log.agent_name}</h2>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                log.status === 'completed' ? 'bg-green-100 text-green-700' :
+                log.status === 'failed' ? 'bg-red-100 text-red-700' :
+                'bg-yellow-100 text-yellow-700'
+              }`}>{log.status}</span>
+            </div>
+            <p className="text-sm text-gray-500">{formatLogDate(log.created_at)}</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Summary</h3>
+          <p className="text-sm text-gray-800 bg-gray-50 rounded-lg p-3">{log.summary}</p>
+        </div>
+
+        {hasDetails && details.context_summary && (
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Context</h3>
+            <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap">{details.context_summary}</p>
+          </div>
+        )}
+
+        {hasDetails && details.actions_taken && details.actions_taken.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Actions ({details.actions_taken.length} of {details.actions_decided || details.actions_taken.length} decided)
+            </h3>
+            <div className="space-y-2">
+              {details.actions_taken.map((action, i) => (
+                <div key={i} className={`rounded-lg border p-3 text-sm ${
+                  action.status === 'ok'
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className={action.status === 'ok' ? 'text-green-600' : 'text-red-600'}>
+                      {action.status === 'ok' ? '✓' : '✗'}
+                    </span>
+                    <span className="font-mono font-medium text-gray-900">{action.action}</span>
+                  </div>
+                  {action.result && (
+                    <pre className="mt-2 text-xs text-gray-600 bg-white rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                      {typeof action.result === 'string' ? action.result : JSON.stringify(action.result, null, 2)}
+                    </pre>
+                  )}
+                  {action.error && (
+                    <p className="mt-1 text-xs text-red-600">{action.error}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {hasDetails && details.results && details.results.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Results</h3>
+            <div className="space-y-2">
+              {details.results.map((r, i) => (
+                <pre key={i} className="text-xs text-gray-700 bg-gray-50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+                  {typeof r === 'string' ? r : JSON.stringify(r, null, 2)}
+                </pre>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!hasDetails && (
+          <p className="text-sm text-gray-400 italic">No additional details available for this entry.</p>
+        )}
+      </div>
+    </Drawer>
+  );
+}
+
 export default function AgentTracking() {
   const queryClient = useQueryClient();
   const [running, setRunning] = useState(null);
   const [logFilter, setLogFilter] = useState('all');
+  const [selectedLog, setSelectedLog] = useState(null);
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['agent-stats'],
     queryFn: async () => {
       const res = await api.get('/api/agents/stats');
@@ -186,7 +277,7 @@ export default function AgentTracking() {
               <p className="text-xs text-gray-400">{stats.pendingTasks} pending tasks in queue</p>
             </div>
           )}
-          <button
+          <button type="button"
             onClick={runAll}
             disabled={running === 'all'}
             className="px-5 py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed active:scale-[0.98]"
@@ -212,7 +303,7 @@ export default function AgentTracking() {
               { value: 'all', label: 'All Agents' },
               ...Object.entries(AGENT_LABELS).map(([k, v]) => ({ value: k, label: v.icon + ' ' + v.name }))
             ].map(opt => (
-              <button
+              <button type="button"
                 key={opt.value}
                 onClick={() => setLogFilter(opt.value)}
                 className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
@@ -230,10 +321,17 @@ export default function AgentTracking() {
           ) : !logsData?.logs?.length ? (
             <p className="text-gray-400 text-center py-8">No activity yet. Click "Run All Agents" to see autonomous actions.</p>
           ) : (
-            logsData.logs.map((log) => <ActionLog key={log.id} log={log} />)
+            logsData.logs.map((log) => <ActionLog key={log.id} log={log} onSelect={setSelectedLog} />)
           )}
         </div>
       </div>
+
+      {/* Detail Drawer */}
+      <LogDetailDrawer
+        log={selectedLog}
+        isOpen={!!selectedLog}
+        onClose={() => setSelectedLog(null)}
+      />
     </div>
   );
 }

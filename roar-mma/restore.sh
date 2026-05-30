@@ -69,9 +69,11 @@ docker compose down
 
 # Check available space before extracting
 BACKUP_SIZE=$(stat -c%s "$BACKUP_FILE" 2>/dev/null || stat -f%z "$BACKUP_FILE" 2>/dev/null)
+# Convert backup size to KB for consistent comparison with df output
+BACKUP_SIZE_KB=$(( (BACKUP_SIZE + 1023) / 1024 ))
 AVAILABLE_SPACE=$(df --output=avail "$DATA_DIR" 2>/dev/null | tail -1 || df -k "$DATA_DIR" 2>/dev/null | tail -1 | awk '{print $4}')
-if [ -n "$AVAILABLE_SPACE" ] && [ "$AVAILABLE_SPACE" -lt "$BACKUP_SIZE" ] 2>/dev/null; then
-    echo "✗ Insufficient disk space. Available: ${AVAILABLE_SPACE}b, Required: ${BACKUP_SIZE}b"
+if [ -n "$AVAILABLE_SPACE" ] && [ "$AVAILABLE_SPACE" -lt "$BACKUP_SIZE_KB" ] 2>/dev/null; then
+    echo "✗ Insufficient disk space. Available: ${AVAILABLE_SPACE}KB, Required: ${BACKUP_SIZE_KB}KB"
     exit 1
 fi
 

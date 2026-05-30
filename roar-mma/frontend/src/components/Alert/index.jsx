@@ -110,7 +110,7 @@ export function Alert({
 
       {/* Dismiss Button */}
       {dismissible && (
-        <button
+        <button type="button"
           onClick={onDismiss}
           className={`flex-shrink-0 ${styles.icon} hover:opacity-70 transition-opacity`}
           aria-label="Dismiss alert"
@@ -150,7 +150,7 @@ export function AlertWithAction({
       <div className="space-y-3">
         <div>{children}</div>
         {actionLabel && onAction && (
-          <button
+          <button type="button"
             onClick={onAction}
             className={`
               text-sm font-medium underline hover:no-underline
@@ -196,7 +196,7 @@ export function BannerAlert({
         <div className="text-sm font-medium">{children}</div>
       </div>
       {dismissible && (
-        <button
+        <button type="button"
           onClick={onDismiss}
           className="flex-shrink-0 hover:opacity-70 transition-opacity"
           aria-label="Dismiss banner"
@@ -443,7 +443,7 @@ function ValidationErrors({ errors }) {
     <Alert variant="error" title="Please fix the following errors:">
       <ul className="list-disc list-inside space-y-1">
         {errors.map((error, index) => (
-          <li key={index}>{error}</li>
+          <li key={`error-${index}`}>{error}</li>
         ))}
       </ul>
     </Alert>

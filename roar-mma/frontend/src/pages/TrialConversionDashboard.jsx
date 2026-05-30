@@ -12,7 +12,7 @@ export default function TrialConversionDashboard() {
     },
   });
 
-  const { data: trends, isLoading: trendsLoading } = useQuery({
+  const { isLoading: trendsLoading } = useQuery({
     queryKey: ['trial-conversion-trends'],
     queryFn: async () => {
       const response = await api.get('/api/trial-analytics/conversion-trends?days=30');
@@ -63,7 +63,7 @@ export default function TrialConversionDashboard() {
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   item.trial_interest_level === 'hot' ? 'bg-red-100 text-red-800' :
                   item.trial_interest_level === 'warm' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-blue-100 text-blue-800'
+                  'bg-red-100 text-red-800'
                 }`}>
                   {item.trial_interest_level === 'hot' ? '🔥 Hot' :
                    item.trial_interest_level === 'warm' ? '👍 Warm' :
@@ -159,7 +159,7 @@ export default function TrialConversionDashboard() {
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         lead.trial_interest_level === 'hot' ? 'bg-red-100 text-red-800' :
                         lead.trial_interest_level === 'warm' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
+                        'bg-red-100 text-red-800'
                       }`}>
                         {lead.trial_interest_level}
                       </span>
@@ -184,7 +184,7 @@ export default function TrialConversionDashboard() {
 function StatCard({ label, value, color }) {
   const colors = {
     green: 'text-green-600',
-    blue: 'text-blue-600',
+    blue: 'text-red-600',
     yellow: 'text-yellow-600',
     red: 'text-red-600',
   };

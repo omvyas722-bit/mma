@@ -13,7 +13,7 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - .env
+      - ${ENV_FILE:-./backend/.env}
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -47,12 +47,9 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
-    # SSL/TLS: Configure certificates (e.g., via Let's Encrypt/certbot) and update nginx.conf
-    # to listen on 443 with ssl_certificate and ssl_certificate_key directives.
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - roar-network
     healthcheck:

@@ -13,8 +13,11 @@ export default function AdvancedSearch({
   const [activeFilters, setActiveFilters] = useState({});
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const debouncedQuery = useDebounce(searchQuery, debounceDelay);
-  const onSearchRef = useRef();
-  onSearchRef.current = onSearch;
+  const onSearchRef = useRef(onSearch);
+
+  useEffect(() => {
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
 
   useEffect(() => {
     onSearchRef.current({
@@ -66,6 +69,7 @@ export default function AdvancedSearch({
 
         {showFilters && filters.length > 0 && (
           <button
+            type="button"
             onClick={() => setShowFilterPanel(!showFilterPanel)}
             className="btn btn-secondary relative"
           >
@@ -87,7 +91,7 @@ export default function AdvancedSearch({
         )}
 
         {(searchQuery || activeFilterCount > 0) && (
-          <button onClick={clearFilters} className="btn btn-secondary">
+          <button type="button" onClick={clearFilters} className="btn btn-secondary">
             Clear
           </button>
         )}
@@ -113,7 +117,7 @@ export default function AdvancedSearch({
       {activeFilterCount > 0 && (
         <div className="flex flex-wrap gap-2">
           {Object.entries(activeFilters)
-            .filter(([_, value]) => value !== '' && value !== null)
+            .filter(([, value]) => value !== '' && value !== null)
             .map(([key, value]) => {
               const filter = filters.find(f => f.key === key);
               const label = typeof filter?.getLabel === 'function' ? filter.getLabel(value) : value;
@@ -124,7 +128,7 @@ export default function AdvancedSearch({
                 >
                   <span className="font-medium">{filter?.label}:</span>
                   <span>{label}</span>
-                  <button
+                  <button type="button"
                     onClick={() => handleFilterChange(key, '')}
                     className="ml-1 hover:text-blue-900"
                   >
@@ -139,10 +143,7 @@ export default function AdvancedSearch({
   );
 }
 
-FilterField.displayName = 'FilterField';
-
 function FilterField({ filter, value, onChange }) {
-  FilterField.displayName = 'FilterField';
   switch (filter.type) {
     case 'select':
       return (

@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -524,6 +523,10 @@
     </div>
 
     <script>
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         if (!RoarMMA.requireAuth()) return;
         let currentWorkflow = [];
         let workflowName = '';
@@ -645,8 +648,8 @@
             return `
                 <div class="workflow-step">
                     <div class="step-header">
-                        <div class="step-number">${index + 1}</div>
-                        <div class="step-type">${icons[step.type]} ${step.label || step.type}</div>
+                        <div class="step-number">${escapeHtml(index + 1)}</div>
+                        <div class="step-type">${escapeHtml(icons[step.type])} ${escapeHtml(step.label || step.type)}</div>
                         <div class="step-actions">
                             <button class="step-action-btn" >Edit</button>
                             <button class="step-action-btn" >Delete</button>
@@ -668,7 +671,7 @@
                         <div class="step-field">
                             <div class="step-label">Event</div>
                             <select class="step-select" disabled>
-                                <option>${step.event}</option>
+                                <option>${escapeHtml(step.event)}</option>
                             </select>
                         </div>
                     `;
@@ -677,12 +680,12 @@
                     html = `
                         <div class="step-field">
                             <div class="step-label">Duration</div>
-                            <input class="step-input" value="${step.duration}" disabled>
+                            <input class="step-input" value="${escapeHtml(step.duration)}" disabled>
                         </div>
                         <div class="step-field">
                             <div class="step-label">Unit</div>
                             <select class="step-select" disabled>
-                                <option>${step.unit}</option>
+                                <option>${escapeHtml(step.unit)}</option>
                             </select>
                         </div>
                     `;
@@ -691,7 +694,7 @@
                     html = `
                         <div class="step-field" style="grid-column: 1 / -1;">
                             <div class="step-label">Message</div>
-                            <textarea class="step-input" rows="3" disabled>${step.message}</textarea>
+                            <textarea class="step-input" rows="3" disabled>${escapeHtml(step.message)}</textarea>
                         </div>
                     `;
                     break;
@@ -699,11 +702,11 @@
                     html = `
                         <div class="step-field" style="grid-column: 1 / -1;">
                             <div class="step-label">Subject</div>
-                            <input class="step-input" value="${step.subject}" disabled>
+                            <input class="step-input" value="${escapeHtml(step.subject)}" disabled>
                         </div>
                         <div class="step-field" style="grid-column: 1 / -1;">
                             <div class="step-label">Message</div>
-                            <textarea class="step-input" rows="3" disabled>${step.message}</textarea>
+                            <textarea class="step-input" rows="3" disabled>${escapeHtml(step.message)}</textarea>
                         </div>
                     `;
                     break;
@@ -711,12 +714,12 @@
                     html = `
                         <div class="step-field">
                             <div class="step-label">Task Title</div>
-                            <input class="step-input" value="${step.title}" disabled>
+                            <input class="step-input" value="${escapeHtml(step.title)}" disabled>
                         </div>
                         <div class="step-field">
                             <div class="step-label">Assign To</div>
                             <select class="step-select" disabled>
-                                <option>${step.assignTo}</option>
+                                <option>${escapeHtml(step.assignTo)}</option>
                             </select>
                         </div>
                     `;

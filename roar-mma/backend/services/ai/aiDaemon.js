@@ -3,6 +3,9 @@ const openRouter = require('./openRouterClient');
 const { getDatabase } = require('../../db/connection');
 
 const agentHandlers = new Map();
+const failureTracker = new Map();
+const CIRCUIT_BREAKER_THRESHOLD = 3;
+const CIRCUIT_BREAKER_TIMEOUT_MS = 60000;
 let intervalMs = 60000;
 let isRunning = false;
 let startupTime = null;
@@ -35,6 +38,13 @@ async function tick() {
   const results = [];
 
   for (const [name, handler] of agentHandlers) {
+    const circuit = failureTracker.get(name);
+    if (circuit && circuit.count >= CIRCUIT_BREAKER_THRESHOLD && Date.now() < circuit.openUntil) {
+      console.log(`[AI-DAEMON] Circuit breaker open for "${name}", skipping (retry in ${Math.ceil((circuit.openUntil - Date.now()) / 1000)}s)`);
+      results.push({ agent: name, status: 'skipped', reason: 'circuit_breaker_open' });
+      continue;
+    }
+
     try {
       const config = await aiState.getAgentConfig(name);
       if (!config || !config.enabled) {
@@ -43,13 +53,16 @@ async function tick() {
       }
 
       console.log(`[AI-DAEMON] Executing agent: ${name}`);
-      const agentTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`Agent ${name} timed out after 120s`)), 120000)
-      );
+      const agentTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`Agent ${name} timed out after 120s`)), 120000);
+      });
       const result = await Promise.race([
-        handler({ db, aiState, openRouter, broadcast, config }),
+        handler({ db, aiState, openRouter, broadcast, config, agentName: name }),
         agentTimeout
       ]);
+
+      failureTracker.delete(name);
+
       results.push({ agent: name, status: 'ok', result });
 
       await aiState.logActivity({
@@ -64,6 +77,14 @@ async function tick() {
       if (daemonErrors.length > 200) {
         daemonErrors.splice(0, daemonErrors.length - 200);
       }
+
+      const entry = failureTracker.get(name) || { count: 0 };
+      entry.count++;
+      if (entry.count >= CIRCUIT_BREAKER_THRESHOLD) {
+        entry.openUntil = Date.now() + CIRCUIT_BREAKER_TIMEOUT_MS;
+        console.log(`[AI-DAEMON] Circuit breaker opened for "${name}" — ${entry.count} consecutive failures, skipping for 60s`);
+      }
+      failureTracker.set(name, entry);
 
       try {
         await aiState.logActivity({

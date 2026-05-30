@@ -107,12 +107,12 @@ export default function EmptyState({
       {(action || secondaryAction) && (
         <div className="flex gap-3">
           {action && (
-            <button onClick={action} className="btn btn-primary">
+            <button type="button" onClick={action} className="btn btn-primary">
               {actionLabel || 'Get Started'}
             </button>
           )}
           {secondaryAction && (
-            <button onClick={secondaryAction} className="btn btn-secondary">
+            <button type="button" onClick={secondaryAction} className="btn btn-secondary">
               {secondaryActionLabel || 'Learn More'}
             </button>
           )}

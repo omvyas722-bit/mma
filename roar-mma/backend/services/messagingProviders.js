@@ -3,9 +3,11 @@ const { getDatabase } = require('../db/connection');
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 let twilioClient = null;
+let twilioClientSid = null;
 function getTwilioClient(accountSid, authToken) {
-  if (!twilioClient) {
+  if (!twilioClient || twilioClientSid !== accountSid) {
     twilioClient = twilio(accountSid, authToken);
+    twilioClientSid = accountSid;
   }
   return twilioClient;
 }
@@ -64,32 +66,43 @@ class MessagingProviders {
       SELECT * FROM rate_limits
       WHERE contact_value = ?
         AND channel = ?
-        AND window_start >= ?
+        AND window_start = ?
     `).get(contactValue, channel, windowStart);
 
     const maxPerDay = channel === 'sms'
-      ? (parseInt(process.env.SMS_RATE_LIMIT_PER_DAY) || 5)
-      : (parseInt(process.env.EMAIL_RATE_LIMIT_PER_DAY) || 10);
+      ? (parseInt(process.env.SMS_RATE_LIMIT_PER_DAY, 10) || 5)
+      : (parseInt(process.env.EMAIL_RATE_LIMIT_PER_DAY, 10) || 10);
 
     if (!rateLimit) {
-      // Create new rate limit record
+      // Create new rate limit record (use INSERT OR IGNORE to handle race conditions)
       db.prepare(`
-        INSERT INTO rate_limits (contact_value, channel, messages_sent, window_start, window_end)
-        VALUES (?, ?, 1, ?, ?)
+        INSERT OR IGNORE INTO rate_limits (contact_value, channel, messages_sent, window_start, window_end)
+        VALUES (?, ?, 0, ?, ?)
       `).run(contactValue, channel, windowStart, windowEnd);
-      return { allowed: true, remaining: maxPerDay - 1 };
+
+      // Re-fetch after insert to handle concurrent inserts
+      rateLimit = db.prepare(`
+        SELECT * FROM rate_limits
+        WHERE contact_value = ?
+          AND channel = ?
+          AND window_start = ?
+      `).get(contactValue, channel, windowStart);
     }
 
     if (rateLimit.messages_sent >= maxPerDay) {
       return { allowed: false, remaining: 0, reason: 'Rate limit exceeded' };
     }
 
-    // Increment counter
-    db.prepare(`
+    // Increment counter atomically
+    const updateResult = db.prepare(`
       UPDATE rate_limits
       SET messages_sent = messages_sent + 1
-      WHERE id = ?
-    `).run(rateLimit.id);
+      WHERE id = ? AND messages_sent < ?
+    `).run(rateLimit.id, maxPerDay);
+
+    if (updateResult.changes === 0) {
+      return { allowed: false, remaining: 0, reason: 'Rate limit exceeded' };
+    }
 
     return { allowed: true, remaining: maxPerDay - rateLimit.messages_sent - 1 };
   }
@@ -211,11 +224,11 @@ class MessagingProviders {
       const client = getTwilioClient(this.settings.twilio.account_sid, this.settings.twilio.auth_token);
       const result = await client.messages.create({
         body: message,
-        from: this.settings.twilio.from_number,
+        from: this.settings.twilio?.from_number,
         to: phone
       }, { timeout: 15000 });
 
-      const segments = result.numSegments ? parseInt(result.numSegments) : Math.ceil(message.length / 160);
+      const segments = result.numSegments ? parseInt(result.numSegments, 10) : Math.ceil(message.length / 160);
       const cost = segments * 0.08;
 
       if (deliveryId) {
@@ -260,12 +273,12 @@ class MessagingProviders {
     try {
       const smtpTransport = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: parseInt(process.env.SMTP_PORT) === 465,
-        auth: {
-          user: process.env.SMTP_USER || this.settings.brevo?.from_email,
-          pass: process.env.SMTP_PASS || this.settings.brevo?.api_key
-        }
+        port: parseInt(process.env.SMTP_PORT, 10) || 587,
+        secure: parseInt(process.env.SMTP_PORT, 10) === 465,
+      auth: {
+        user: process.env.SMTP_USER || this.settings.brevo?.smtp_user || this.settings.brevo?.from_email,
+        pass: process.env.SMTP_PASS || this.settings.brevo?.smtp_password || this.settings.brevo?.api_key
+      }
       });
 
       const fromEmail = this.settings.brevo?.from_email || process.env.SMTP_FROM || 'notifications@roarmma.com.au';

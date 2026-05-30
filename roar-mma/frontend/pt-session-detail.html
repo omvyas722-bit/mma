@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -166,7 +165,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let sessionId = null;
         let sessionData = null;
@@ -208,15 +212,15 @@
                 document.getElementById('session-header').innerHTML = `
                     <div class="session-top">
                         <div class="session-info">
-                            <div class="session-title">PT Session #${sessionData.id}</div>
+                            <div class="session-title">PT Session #${escapeHtml(sessionData.id)}</div>
                             <div class="session-meta">
-                                <span>📅 ${date}</span>
-                                <span>⏰ ${sessionData.scheduled_time}</span>
-                                <span>⏱️ ${sessionData.duration_minutes} minutes</span>
-                                <span>💰 $${sessionData.amount}</span>
+                                <span>📅 ${escapeHtml(date)}</span>
+                                <span>⏰ ${escapeHtml(sessionData.scheduled_time)}</span>
+                                <span>⏱️ ${escapeHtml(sessionData.duration_minutes)} minutes</span>
+                                <span>💰 $${escapeHtml(sessionData.amount)}</span>
                             </div>
                         </div>
-                        <span class="status-badge ${statusClass}">${sessionData.status.toUpperCase().replace('_', ' ')}</span>
+                        <span class="status-badge ${escapeHtml(statusClass)}">${escapeHtml(sessionData.status.toUpperCase().replace('_', ' '))}</span>
                     </div>
                 `;
 
@@ -246,7 +250,7 @@
                 document.getElementById('participants').innerHTML = `
                     <div class="participant-card">
                         <div class="participant-header">
-                            <div class="participant-name">Member #${sessionData.member_id}</div>
+                            <div class="participant-name">Member #${escapeHtml(sessionData.member_id)}</div>
                             <span class="participant-role">CLIENT</span>
                         </div>
                         <div class="participant-details">
@@ -256,7 +260,7 @@
                     </div>
                     <div class="participant-card">
                         <div class="participant-header">
-                            <div class="participant-name">Coach #${sessionData.coach_id}</div>
+                            <div class="participant-name">Coach #${escapeHtml(sessionData.coach_id)}</div>
                             <span class="participant-role">COACH</span>
                         </div>
                         <div class="participant-details">
@@ -278,27 +282,27 @@
                 document.getElementById('session-details').innerHTML = `
                     <div class="info-field">
                         <div class="info-label">Session Type</div>
-                        <div class="info-value">${sessionType}</div>
+                        <div class="info-value">${escapeHtml(sessionType)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Duration</div>
-                        <div class="info-value">${sessionData.duration_minutes} minutes</div>
+                        <div class="info-value">${escapeHtml(sessionData.duration_minutes)} minutes</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Status</div>
-                        <div class="info-value">${sessionData.status.replace('_', ' ')}</div>
+                        <div class="info-value">${escapeHtml(sessionData.status.replace('_', ' '))}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Payment Method</div>
-                        <div class="info-value">${sessionData.payment_method || 'Not specified'}</div>
+                        <div class="info-value">${escapeHtml(sessionData.payment_method || 'Not specified')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Booked On</div>
-                        <div class="info-value">${createdDate}</div>
+                        <div class="info-value">${escapeHtml(createdDate)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Session ID</div>
-                        <div class="info-value">#${sessionData.id}</div>
+                        <div class="info-value">#${escapeHtml(sessionData.id)}</div>
                     </div>
                 `;
             } catch (error) {
@@ -316,7 +320,7 @@
                             <div class="notes-title">Session Notes</div>
                             <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" >✏️ Edit</button>
                         </div>
-                        <div class="notes-content">${notes}</div>
+                        <div class="notes-content">${escapeHtml(notes)}</div>
                     `;
                 } else {
                     document.getElementById('session-notes').innerHTML = `
@@ -337,9 +341,9 @@
                 document.getElementById('payment-info').innerHTML = `
                     <div class="price-display">
                         <div class="price-label">Total Amount</div>
-                        <div class="price-value">$${sessionData.amount}</div>
+                        <div class="price-value">$${escapeHtml(sessionData.amount)}</div>
                         <div class="price-breakdown">
-                            Coach: $${coachCommission} • Gym: $${gymRevenue}
+                            Coach: $${escapeHtml(coachCommission)} • Gym: $${escapeHtml(gymRevenue)}
                         </div>
                     </div>
                     <div style="margin-top: 20px;">
@@ -349,7 +353,7 @@
                         </div>
                         <div class="info-field">
                             <div class="info-label">Payment Method</div>
-                            <div class="info-value">${sessionData.payment_method || 'Card'}</div>
+                            <div class="info-value">${escapeHtml(sessionData.payment_method || 'Card')}</div>
                         </div>
                         <div class="info-field">
                             <div class="info-label">Commission Rate</div>
@@ -381,9 +385,9 @@
                 activities.forEach(activity => {
                     html += `
                         <div class="timeline-item">
-                            <div class="timeline-date">${new Date(activity.date).toLocaleDateString()}</div>
-                            <div class="timeline-title">${activity.title}</div>
-                            <div class="timeline-desc">${activity.desc}</div>
+                            <div class="timeline-date">${escapeHtml(new Date(activity.date).toLocaleDateString())}</div>
+                            <div class="timeline-title">${escapeHtml(activity.title)}</div>
+                            <div class="timeline-desc">${escapeHtml(activity.desc)}</div>
                         </div>
                     `;
                 });

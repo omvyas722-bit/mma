@@ -34,7 +34,7 @@ export default function Staff() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Staff Management</h1>
         {canManageStaff && (
-          <button className="btn btn-primary">Add Staff Member</button>
+          <button type="button" className="btn btn-primary">Add Staff Member</button>
         )}
       </div>
 
@@ -156,7 +156,7 @@ function StatCard({ label, value }) {
 function RoleBadge({ role }) {
   const colors = {
     owner: 'bg-red-100 text-red-800',
-    gm: 'bg-blue-100 text-blue-800',
+    gm: 'bg-red-100 text-red-800',
     front_desk: 'bg-green-100 text-green-800',
     coach: 'bg-yellow-100 text-yellow-800',
     sales: 'bg-purple-100 text-purple-800',

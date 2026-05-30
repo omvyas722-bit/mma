@@ -136,6 +136,74 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
       ? ((currentPeriodRevenue - previousPeriodRevenue) / previousPeriodRevenue * 100).toFixed(1)
       : 0;
 
+    // trial_members delta
+    const previousPeriodTrial = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM members
+      WHERE status = 'trial'
+        AND DATE(joined_date) BETWEEN ? AND ?
+    `).get(sixtyDaysAgoStr, thirtyDaysAgoStr).count;
+
+    const currentPeriodTrial = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM members
+      WHERE status = 'trial'
+        AND DATE(joined_date) >= ?
+    `).get(thirtyDaysAgoStr).count;
+
+    const trialDelta = previousPeriodTrial > 0
+      ? ((currentPeriodTrial - previousPeriodTrial) / previousPeriodTrial * 100).toFixed(1)
+      : 0;
+
+    // today_bookings delta (compare vs same day last week)
+    const previousWeekBookings = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM bookings b
+      JOIN class_instances ci ON b.class_instance_id = ci.id
+      WHERE ci.date = date('now', '-7 days') AND b.status = 'booked'
+    `).get().count;
+
+    const bookingsDelta = previousWeekBookings > 0
+      ? (((bookingStats.today - previousWeekBookings) / previousWeekBookings) * 100).toFixed(1)
+      : 0;
+
+    // trial_conversions delta (compare vs previous month)
+    const prevMonthStart = new Date(monthStart);
+    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+    const prevMonthStartStr = prevMonthStart.toISOString().split('T')[0];
+
+    const previousConversions = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM members
+      WHERE status = 'active'
+        AND DATE(joined_date) < ?
+        AND DATE(updated_at) >= ?
+        AND DATE(updated_at) < ?
+    `).get(monthStartStr, prevMonthStartStr, monthStartStr).count;
+
+    const conversionDelta = previousConversions > 0
+      ? (((trialConversions - previousConversions) / previousConversions) * 100).toFixed(1)
+      : 0;
+
+    // new_leads delta
+    const previousPeriodLeads = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM leads
+      WHERE stage = 'new'
+        AND DATE(created_at) BETWEEN ? AND ?
+    `).get(sixtyDaysAgoStr, thirtyDaysAgoStr).count;
+
+    const currentPeriodLeads = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM leads
+      WHERE stage = 'new'
+        AND DATE(created_at) >= ?
+    `).get(thirtyDaysAgoStr).count;
+
+    const leadsDelta = previousPeriodLeads > 0
+      ? ((currentPeriodLeads - previousPeriodLeads) / previousPeriodLeads * 100).toFixed(1)
+      : 0;
+
     res.json({
       kpis: {
         active_members: {
@@ -144,7 +212,7 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
         },
         trial_members: {
           value: memberStats.trial,
-          delta: 0 // TODO: Calculate delta
+          delta: parseFloat(trialDelta)
         },
         monthly_revenue: {
           value: monthlyRevenue,
@@ -152,15 +220,15 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
         },
         today_bookings: {
           value: bookingStats.today,
-          delta: 0 // TODO: Calculate delta
+          delta: parseFloat(bookingsDelta)
         },
         trial_conversions: {
           value: trialConversions,
-          delta: 0 // TODO: Calculate delta
+          delta: parseFloat(conversionDelta)
         },
         new_leads: {
           value: leadsStats.new,
-          delta: 0 // TODO: Calculate delta
+          delta: parseFloat(leadsDelta)
         }
       },
       todays_classes: todaysClasses,
@@ -179,7 +247,7 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
 router.get('/revenue-chart', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
     const db = getDatabase();
-    const days = parseInt(req.query.days) || 30;
+    const days = parseInt(req.query.days, 10) || 30;
 
     const chartData = db.prepare(`
       SELECT
@@ -203,7 +271,7 @@ router.get('/revenue-chart', authenticateToken, requirePermission('reports:read'
 router.get('/attendance-chart', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
     const db = getDatabase();
-    const days = parseInt(req.query.days) || 30;
+    const days = parseInt(req.query.days, 10) || 30;
 
     const chartData = db.prepare(`
       SELECT

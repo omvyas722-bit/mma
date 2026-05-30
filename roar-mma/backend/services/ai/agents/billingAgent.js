@@ -3,7 +3,7 @@ const transactionsData = require('../../../data/transactions');
 const staffTasksData = require('../../../data/staffTasks');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[BILLING-AGENT] Starting billing check...');
 
@@ -94,6 +94,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `${recentFailed.length} failed payments today totaling $${failedTotal}. ${overdueFlagged} members possibly overdue.`;
 
     await aiState.logActivity({
+      agentName: agentName || 'billing',
       actionType: 'billing_check',
       details: {
         failed_payments_24h: recentFailed.length,
@@ -106,13 +107,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[BILLING-AGENT] ${summary}`);
 
-    if (recentFailed.length > 0 || overdueFlagged > 0) {
+    if ((recentFailed.length > 0 || overdueFlagged > 0) && broadcast) {
       broadcast({ type: 'billing_agent_update', summary, failedPayments: recentFailed.length, overdueFlagged });
     }
   } catch (err) {
     console.error('[BILLING-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'billing',
         actionType: 'billing_check_error',
         details: { error: err.message },
         summary: `Billing agent failed: ${err.message}`

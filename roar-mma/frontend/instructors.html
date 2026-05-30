@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -288,7 +287,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let instructors = [];
         let editingInstructorId = null;
@@ -415,10 +419,10 @@
                 return `
                     <div class="instructor-card">
                         <div class="instructor-header">
-                            <div class="instructor-avatar">${initials}</div>
+                            <div class="instructor-avatar">${escapeHtml(initials)}</div>
                             <div class="instructor-info">
-                                <div class="instructor-name">${inst.first_name} ${inst.last_name}</div>
-                                <div class="instructor-title">${inst.title}</div>
+                                <div class="instructor-name">${escapeHtml(inst.first_name)} ${escapeHtml(inst.last_name)}</div>
+                                <div class="instructor-title">${escapeHtml(inst.title)}</div>
                                 <div class="instructor-badges">
                                     ${inst.champion ? '<span class="badge badge-champion">CHAMPION</span>' : ''}
                                     ${inst.certified ? '<span class="badge badge-certified">CERTIFIED</span>' : ''}
@@ -427,27 +431,27 @@
                         </div>
 
                         <div class="instructor-disciplines">
-                            ${inst.disciplines.map(d => `<span class="discipline-tag">${d}</span>`).join('')}
+                            ${inst.disciplines.map(d => `<span class="discipline-tag">${escapeHtml(d)}</span>`).join('')}
                         </div>
 
                         <div class="instructor-stats">
                             <div class="stat">
-                                <div class="stat-num">${inst.classes_per_week}</div>
+                                <div class="stat-num">${escapeHtml(inst.classes_per_week)}</div>
                                 <div class="stat-lbl">Classes/Week</div>
                             </div>
                             <div class="stat">
-                                <div class="stat-num">${inst.students}</div>
+                                <div class="stat-num">${escapeHtml(inst.students)}</div>
                                 <div class="stat-lbl">Students</div>
                             </div>
                             <div class="stat">
-                                <div class="stat-num">${inst.rating}</div>
+                                <div class="stat-num">${escapeHtml(inst.rating)}</div>
                                 <div class="stat-lbl">Rating</div>
                             </div>
                         </div>
 
                         <div class="instructor-schedule">
                             <div class="schedule-title">This Week's Schedule</div>
-                            ${inst.schedule.map(s => `<div class="schedule-item">${s}</div>`).join('')}
+                            ${inst.schedule.map(s => `<div class="schedule-item">${escapeHtml(s)}</div>`).join('')}
                         </div>
 
                         <div class="instructor-actions">

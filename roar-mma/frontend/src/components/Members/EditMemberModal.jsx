@@ -20,6 +20,7 @@ export default function EditMemberModal({ isOpen, onClose, member }) {
 
   useEffect(() => {
     if (member) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         first_name: member.first_name || '',
         last_name: member.last_name || '',

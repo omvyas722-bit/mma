@@ -34,3 +34,4 @@ CREATE INDEX IF NOT EXISTS idx_staff_tasks_due_date ON staff_tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_staff_tasks_lead_id ON staff_tasks(lead_id);
 CREATE INDEX IF NOT EXISTS idx_staff_tasks_member_id ON staff_tasks(member_id);
 CREATE INDEX IF NOT EXISTS idx_staff_tasks_completed_by ON staff_tasks(completed_by);
+CREATE INDEX IF NOT EXISTS idx_staff_tasks_task_type ON staff_tasks(task_type);

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS ai_activity_log (
   summary TEXT NOT NULL,
   details TEXT,
   status TEXT DEFAULT 'completed' CHECK(status IN ('completed', 'failed', 'running', 'pending')),
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS ai_agent_config (
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS ai_agent_config (
   interval_ms INTEGER DEFAULT 60000 CHECK(interval_ms > 0),
   model_override TEXT,
   config_json TEXT,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS ai_task_queue (
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS ai_task_queue (
   max_retries INTEGER DEFAULT 3 CHECK(max_retries > 0),
   scheduled_for DATETIME,
   completed_at DATETIME,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT (datetime('now'))
 );
 
 -- Indexes

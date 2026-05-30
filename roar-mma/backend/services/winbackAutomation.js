@@ -2,6 +2,34 @@
 const { getDatabase } = require('../db/connection');
 const scheduledMessagesData = require('../data/scheduledMessages');
 
+// In-memory opt-out tracking
+const optedOutMemberIds = new Set();
+
+function isOptedOut(memberId, campaign) {
+  if (optedOutMemberIds.has(memberId)) return true;
+
+  const db = getDatabase();
+  const contactValues = [campaign.phone, campaign.email].filter(Boolean);
+  if (contactValues.length === 0) return false;
+
+  const placeholders = contactValues.map(() => '?').join(',');
+  const unsubscribed = db.prepare(`
+    SELECT 1 FROM unsubscribes
+    WHERE contact_value IN (${placeholders})
+      AND (channel = 'all' OR channel = 'sms' OR channel = 'email')
+    LIMIT 1
+  `).get(...contactValues);
+  return !!unsubscribed;
+}
+
+function optOutMember(memberId) {
+  optedOutMemberIds.add(memberId);
+}
+
+function removeOptOut(memberId) {
+  optedOutMemberIds.delete(memberId);
+}
+
 // Process win-back campaigns (called by scheduler)
 function processWinbackCampaigns() {
   const db = getDatabase();
@@ -41,6 +69,13 @@ function processWinbackCampaigns() {
     }
 
     if (shouldSend && messageType) {
+      if (isOptedOut(campaign.member_id, campaign)) {
+        console.log(`Member ${campaign.member_id} has opted out, skipping winback message`);
+        db.prepare(`
+          UPDATE winback_campaigns SET status = 'unsubscribed' WHERE id = ?
+        `).run(campaign.id);
+        return;
+      }
       sendWinbackMessage(campaign, messageType);
     }
 
@@ -83,7 +118,7 @@ function sendWinbackMessage(campaign, messageType) {
   // Personalize message
   let content = template.content
     .replace('{{name}}', campaign.name)
-    .replace('{{offer}}', offer.description);
+    .replace('{{offer}}', offer.description || '');
 
   // Schedule message
   const sendDate = new Date();
@@ -132,7 +167,7 @@ function markMemberWonBack(memberId) {
 
   // Log retention event
   const retentionData = require('../data/retention');
-  retentionData.logRetentionEvent(memberId, 'won_back', null);
+  retentionData.logRetentionEvent({ memberId, eventType: 'won_back', relatedId: null });
 }
 
 // Unsubscribe from win-back
@@ -149,5 +184,8 @@ function unsubscribeWinback(memberId) {
 module.exports = {
   processWinbackCampaigns,
   markMemberWonBack,
-  unsubscribeWinback
+  unsubscribeWinback,
+  optOutMember,
+  removeOptOut,
+  isOptedOut
 };

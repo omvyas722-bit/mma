@@ -146,7 +146,7 @@ router.post('/:id/password', authenticateToken, requirePermission('staff:update'
     }
 
     // Only allow users to change their own password, or owner to change anyone's
-    if (req.user.id !== parseInt(req.params.id) && req.user.role !== 'owner') {
+    if (req.user.id !== parseInt(req.params.id, 10) && req.user.role !== 'owner') {
       return res.status(403).json({ error: 'Permission denied' });
     }
 

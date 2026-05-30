@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -237,6 +236,10 @@
     </div>
 
     <script>
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         async function init() {
             if (!RoarMMA.requireAuth()) return;
             document.getElementById('profile-form')?.addEventListener('submit', updateProfile);
@@ -285,10 +288,10 @@
                     const slot = document.createElement('div');
                     slot.className = `class-slot ${cls.booked ? 'class-booked' : ''}`;
                     slot.innerHTML = `
-                        <div class="class-time">${cls.time}</div>
-                        <div class="class-name">${cls.name}</div>
-                        <div class="class-instructor">${cls.instructor}</div>
-                        <div class="class-spots">${cls.spots} spots</div>
+                        <div class="class-time">${escapeHtml(cls.time)}</div>
+                        <div class="class-name">${escapeHtml(cls.name)}</div>
+                        <div class="class-instructor">${escapeHtml(cls.instructor)}</div>
+                        <div class="class-spots">${escapeHtml(cls.spots)} spots</div>
                     `;
                     slot.onclick = () => bookClass(cls);
                     dayColumn.appendChild(slot);
@@ -314,8 +317,8 @@
             list.innerHTML = attendance.map(a => `
                 <div class="attendance-item">
                     <div class="attendance-info">
-                        <div class="attendance-date">${a.date}</div>
-                        <div class="attendance-class">${a.class} - ${a.instructor}</div>
+                        <div class="attendance-date">${escapeHtml(a.date)}</div>
+                        <div class="attendance-class">${escapeHtml(a.class)} - ${escapeHtml(a.instructor)}</div>
                     </div>
                     <div class="attendance-badge">ATTENDED</div>
                 </div>
@@ -334,8 +337,8 @@
 
             list.innerHTML = requirements.map(r => `
                 <div class="requirement-item">
-                    <div class="requirement-name">${r.name}</div>
-                    <div class="requirement-progress ${r.complete ? 'requirement-complete' : ''}">${r.progress}</div>
+                    <div class="requirement-name">${escapeHtml(r.name)}</div>
+                    <div class="requirement-progress ${r.complete ? 'requirement-complete' : ''}">${escapeHtml(r.progress)}</div>
                 </div>
             `).join('');
         }
@@ -354,11 +357,11 @@
             list.innerHTML = payments.map(p => `
                 <div class="payment-item">
                     <div class="payment-info">
-                        <div class="payment-date">${p.date}</div>
-                        <div class="payment-desc">${p.desc}</div>
+                        <div class="payment-date">${escapeHtml(p.date)}</div>
+                        <div class="payment-desc">${escapeHtml(p.desc)}</div>
                     </div>
-                    <div class="payment-amount">$${p.amount}</div>
-                    <div class="payment-status status-${p.status}">${p.status.toUpperCase()}</div>
+                    <div class="payment-amount">$${escapeHtml(p.amount)}</div>
+                    <div class="payment-status status-${escapeHtml(p.status)}">${escapeHtml(p.status.toUpperCase())}</div>
                 </div>
             `).join('');
         }

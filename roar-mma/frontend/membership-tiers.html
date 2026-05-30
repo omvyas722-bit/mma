@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -295,7 +294,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let tiers = [];
         let editingTierId = null;
@@ -390,23 +394,23 @@
                 <div class="tier-card ${tier.featured ? 'featured' : ''}">
                     ${tier.featured ? '<div class="tier-badge">MOST POPULAR</div>' : ''}
                     <div class="tier-header">
-                        <div class="tier-name">${tier.name}</div>
-                        <div class="tier-desc">${tier.description}</div>
-                        <div class="tier-price">$${tier.price}</div>
+                        <div class="tier-name">${escapeHtml(tier.name)}</div>
+                        <div class="tier-desc">${escapeHtml(tier.description)}</div>
+                        <div class="tier-price">$${escapeHtml(tier.price)}</div>
                         <div class="tier-price-period">per month</div>
                     </div>
                     <div class="tier-features">
                         ${tier.features.map(f => `
                             <div class="feature-item">
                                 <span class="feature-icon">✓</span>
-                                <span>${f}</span>
+                                <span>${escapeHtml(f)}</span>
                             </div>
                         `).join('')}
                     </div>
                     <div style="padding-top: 15px; border-top: 1px solid #333; margin-top: 15px;">
-                        <div style="font-size: 13px; color: #888; margin-bottom: 5px;">Contract: ${tier.contract_length}</div>
-                        <div style="font-size: 13px; color: #888; margin-bottom: 5px;">Initiation: $${tier.initiation_fee}</div>
-                        <div style="font-size: 13px; color: #888;">Members: ${tier.members}</div>
+                        <div style="font-size: 13px; color: #888; margin-bottom: 5px;">Contract: ${escapeHtml(tier.contract_length)}</div>
+                        <div style="font-size: 13px; color: #888; margin-bottom: 5px;">Initiation: $${escapeHtml(tier.initiation_fee)}</div>
+                        <div style="font-size: 13px; color: #888;">Members: ${escapeHtml(tier.members)}</div>
                     </div>
                     <div class="tier-actions">
                         <button class="btn btn-secondary btn-small" >Edit</button>

@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -164,7 +163,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let allLeads = [];
         let currentStageFilter = '';
@@ -196,27 +200,27 @@
                 document.getElementById('pipeline-stats').innerHTML = `
                     <div class="stat-card ${currentStageFilter === '' ? 'active' : ''}" >
                         <div class="stat-label">Total Leads</div>
-                        <div class="stat-value">${stats.total}</div>
+                        <div class="stat-value">${escapeHtml(stats.total)}</div>
                         <div class="stat-subtext">All stages</div>
                     </div>
                     <div class="stat-card ${currentStageFilter === 'new' ? 'active' : ''}" >
                         <div class="stat-label">New</div>
-                        <div class="stat-value" style="color: #ff4444;">${stats.new}</div>
+                        <div class="stat-value" style="color: #ff4444;">${escapeHtml(stats.new)}</div>
                         <div class="stat-subtext">Need contact</div>
                     </div>
                     <div class="stat-card ${currentStageFilter === 'contacted' ? 'active' : ''}" >
                         <div class="stat-label">Contacted</div>
-                        <div class="stat-value" style="color: #ff8800;">${stats.contacted}</div>
+                        <div class="stat-value" style="color: #ff8800;">${escapeHtml(stats.contacted)}</div>
                         <div class="stat-subtext">In progress</div>
                     </div>
                     <div class="stat-card ${currentStageFilter === 'trial_booked' ? 'active' : ''}" >
                         <div class="stat-label">Trial Booked</div>
-                        <div class="stat-value" style="color: #00ff00;">${stats.trial_booked}</div>
+                        <div class="stat-value" style="color: #00ff00;">${escapeHtml(stats.trial_booked)}</div>
                         <div class="stat-subtext">Scheduled</div>
                     </div>
                     <div class="stat-card ${currentStageFilter === 'converted' ? 'active' : ''}" >
                         <div class="stat-label">Converted</div>
-                        <div class="stat-value" style="color: #00ff00;">${stats.converted}</div>
+                        <div class="stat-value" style="color: #00ff00;">${escapeHtml(stats.converted)}</div>
                         <div class="stat-subtext">Success!</div>
                     </div>
                 `;
@@ -280,13 +284,13 @@
                     <div class="lead-card" >
                         <div class="lead-header">
                             <div class="lead-info">
-                                <div class="lead-name">${lead.first_name} ${lead.last_name}</div>
+                                <div class="lead-name">${escapeHtml(lead.first_name)} ${escapeHtml(lead.last_name)}</div>
                                 <div class="lead-contact">
-                                    ${lead.email || 'No email'} • ${lead.phone}
+                                    ${escapeHtml(lead.email || 'No email')} • ${escapeHtml(lead.phone)}
                                 </div>
                             </div>
                             <div class="lead-score">
-                                <div class="score-value ${scoreClass}">${lead.score}</div>
+                                <div class="score-value ${escapeHtml(scoreClass)}">${escapeHtml(lead.score)}</div>
                                 <div class="score-label">Score</div>
                             </div>
                         </div>
@@ -294,20 +298,20 @@
                         <div class="lead-meta">
                             <div class="meta-item">
                                 <span class="meta-icon">📍</span>
-                                <span class="stage-badge ${stageClass}">${lead.stage.replace('_', ' ')}</span>
+                                <span class="stage-badge ${escapeHtml(stageClass)}">${escapeHtml(lead.stage.replace('_', ' '))}</span>
                             </div>
                             <div class="meta-item">
                                 <span class="meta-icon">📅</span>
-                                <span>${createdDate}</span>
+                                <span>${escapeHtml(createdDate)}</span>
                             </div>
                             <div class="meta-item">
                                 <span class="meta-icon">🎯</span>
-                                <span>${lead.source || 'Unknown'}</span>
+                                <span>${escapeHtml(lead.source || 'Unknown')}</span>
                             </div>
                             ${lead.interest_level ? `
                             <div class="meta-item">
                                 <span class="meta-icon">🔥</span>
-                                <span>${lead.interest_level} interest</span>
+                                <span>${escapeHtml(lead.interest_level)} interest</span>
                             </div>
                             ` : ''}
                         </div>

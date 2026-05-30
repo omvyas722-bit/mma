@@ -2,7 +2,7 @@
 const staffTasksData = require('../../../data/staffTasks');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[TASK-AGENT] Starting task pipeline check...');
 
@@ -76,6 +76,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `Overdue tasks: ${overdueTasks.length} (${escalatedCount} escalated). Archived ${archivedCount} old completed tasks. Pipeline: ${stats.by_status.pending || 0} pending, ${stats.by_status.completed || 0} completed.`;
 
     await aiState.logActivity({
+      agentName: agentName || 'tasks',
       actionType: 'task_pipeline_check',
       details: {
         overdue_count: overdueTasks.length,
@@ -89,13 +90,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[TASK-AGENT] ${summary}`);
 
-    if (escalatedCount > 0) {
+    if (escalatedCount > 0 && broadcast) {
       broadcast({ type: 'task_agent_update', summary, escalatedCount });
     }
   } catch (err) {
     console.error('[TASK-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'tasks',
         actionType: 'task_pipeline_error',
         details: { error: err.message },
         summary: `Task agent failed: ${err.message}`

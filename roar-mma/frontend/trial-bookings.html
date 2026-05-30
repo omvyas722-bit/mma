@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -353,7 +352,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let bookings = [];
 
@@ -390,12 +394,12 @@
 
             tbody.innerHTML = recent.map(b => `
                 <tr>
-                    <td>${b.name}</td>
-                    <td>${b.class_type}</td>
-                    <td>${b.date} ${b.time}</td>
-                    <td>${b.location}</td>
-                    <td><span class="source-badge">${b.source}</span></td>
-                    <td><span class="status-badge status-${b.status}">${b.status.toUpperCase()}</span></td>
+                    <td>${escapeHtml(b.name)}</td>
+                    <td>${escapeHtml(b.class_type)}</td>
+                    <td>${escapeHtml(b.date)} ${escapeHtml(b.time)}</td>
+                    <td>${escapeHtml(b.location)}</td>
+                    <td><span class="source-badge">${escapeHtml(b.source)}</span></td>
+                    <td><span class="status-badge status-${escapeHtml(b.status)}">${escapeHtml(b.status.toUpperCase())}</span></td>
                     <td>
                         <button class="action-btn" >View</button>
                     </td>
@@ -408,14 +412,14 @@
 
             tbody.innerHTML = bookings.map(b => `
                 <tr>
-                    <td>#${b.id}</td>
-                    <td>${b.name}</td>
-                    <td>${b.email}<br><small style="color: #888">${b.phone}</small></td>
-                    <td>${b.class_type}</td>
-                    <td>${b.date} ${b.time}</td>
-                    <td>${b.location}</td>
-                    <td><span class="source-badge">${b.source}</span></td>
-                    <td><span class="status-badge status-${b.status}">${b.status.toUpperCase()}</span></td>
+                    <td>#${escapeHtml(b.id)}</td>
+                    <td>${escapeHtml(b.name)}</td>
+                    <td>${escapeHtml(b.email)}<br><small style="color: #888">${escapeHtml(b.phone)}</small></td>
+                    <td>${escapeHtml(b.class_type)}</td>
+                    <td>${escapeHtml(b.date)} ${escapeHtml(b.time)}</td>
+                    <td>${escapeHtml(b.location)}</td>
+                    <td><span class="source-badge">${escapeHtml(b.source)}</span></td>
+                    <td><span class="status-badge status-${escapeHtml(b.status)}">${escapeHtml(b.status.toUpperCase())}</span></td>
                     <td>
                         <button class="action-btn" >View</button>
                         <button class="action-btn" >Edit</button>

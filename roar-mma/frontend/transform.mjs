@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const dir = 'D:\\gym software\\mma\\roar-mma\\frontend';
+const dir = process.argv[2] || dirname(fileURLToPath(import.meta.url));
 const exclude = new Set(['index.html', 'transform.mjs', 'transform.ps1', 'debug.mjs', 'classes.html.bak']);
 
 const metaBlock =

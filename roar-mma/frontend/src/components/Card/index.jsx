@@ -158,6 +158,7 @@ export function MemberCard({
           <div className="flex gap-2">
             {onEdit && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(member);
@@ -172,6 +173,7 @@ export function MemberCard({
             )}
             {onDelete && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(member);
@@ -239,6 +241,7 @@ export function ClassCard({
           <div className="flex gap-2">
             {onEdit && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(classData);
@@ -253,6 +256,7 @@ export function ClassCard({
             )}
             {onDelete && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(classData);
@@ -417,7 +421,7 @@ export function PricingCard({
       </div>
       <ul className="space-y-3 mb-6">
         {features.map((feature, index) => (
-          <li key={index} className="flex items-start gap-2">
+          <li key={`feature-${index}`} className="flex items-start gap-2">
             <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
@@ -429,6 +433,7 @@ export function PricingCard({
       </ul>
       {onSelect && (
         <button
+          type="button"
           onClick={onSelect}
           className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
             highlighted
@@ -475,8 +480,8 @@ import {
     <p>Card content goes here</p>
   </CardBody>
   <CardFooter>
-    <button>Cancel</button>
-    <button>Save</button>
+    <button type="button">Cancel</button>
+    <button type="button">Save</button>
   </CardFooter>
 </Card>
 
@@ -511,7 +516,7 @@ import {
   title="No members found"
   description="Get started by adding your first member"
   action={
-    <button onClick={handleAddMember}>
+    <button type="button" onClick={handleAddMember}>
       Add Member
     </button>
   }

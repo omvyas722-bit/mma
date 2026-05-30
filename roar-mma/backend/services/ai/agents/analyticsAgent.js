@@ -2,7 +2,7 @@
 const unifiedAnalytics = require('../../unifiedAnalytics');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[ANALYTICS-AGENT] Starting daily analytics...');
 
@@ -75,6 +75,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const briefing = `Today: ${leadsToday} new leads, $${revenueToday} revenue, ${signupsToday} members joined, ${trialsToday} trials booked. Compared to yesterday: ${leadChange >= 0 ? '+' : ''}${leadChange}% leads, ${revenueChange >= 0 ? '+' : ''}${revenueChange}% revenue, ${signupChange >= 0 ? '+' : ''}${signupChange}% signups, ${trialChange >= 0 ? '+' : ''}${trialChange}% trials.${anomalies.length > 0 ? ` Anomalies: ${anomalies.join('; ')}.` : ''}`;
 
     await aiState.logActivity({
+      agentName: agentName || 'analytics',
       actionType: 'daily_analytics_briefing',
       details: {
         today: todayMetrics,
@@ -99,6 +100,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     console.error('[ANALYTICS-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'analytics',
         actionType: 'daily_analytics_error',
         details: { error: err.message },
         summary: `Analytics agent failed: ${err.message}`

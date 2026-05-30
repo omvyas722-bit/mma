@@ -12,6 +12,7 @@ export default function EditClassModal({ isOpen, onClose, classData }) {
 
   useEffect(() => {
     if (classData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         name: classData.name || '',
         description: classData.description || '',
@@ -55,8 +56,8 @@ export default function EditClassModal({ isOpen, onClose, classData }) {
     if (Object.keys(newErrors).length === 0) {
       updateClass.mutate({
         ...formData,
-        day_of_week: parseInt(formData.day_of_week),
-        max_capacity: formData.max_capacity ? parseInt(formData.max_capacity) : null,
+        day_of_week: formData.day_of_week ? parseInt(formData.day_of_week, 10) : null,
+        max_capacity: formData.max_capacity ? parseInt(formData.max_capacity, 10) : null,
       });
     }
   };

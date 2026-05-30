@@ -16,7 +16,7 @@ export function Breadcrumb({
           const isLast = index === items.length - 1;
 
           return (
-            <li key={index} className="flex items-center">
+            <li key={item.href || item.label || `crumb-${index}`} className="flex items-center">
               {index > 0 && (
                 <span className="mx-2 text-gray-400 dark:text-gray-600">
                   {separator}
@@ -65,7 +65,7 @@ export function BreadcrumbWithIcons({
           const isLast = index === items.length - 1;
 
           return (
-            <li key={index} className="flex items-center">
+            <li key={item.href || item.label || `crumb-icon-${index}`} className="flex items-center">
               {index > 0 && (
                 <span className="mx-2 text-gray-400 dark:text-gray-600">
                   {separator || defaultSeparator}
@@ -175,7 +175,7 @@ export function CollapsibleBreadcrumb({
 
         {/* Dropdown for collapsed items */}
         <li className="relative" ref={dropdownRef}>
-          <button
+          <button type="button"
             onClick={() => setShowDropdown(!showDropdown)}
             className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
           >
@@ -186,7 +186,7 @@ export function CollapsibleBreadcrumb({
             <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[200px] z-10">
               {collapsedItems.map((item, index) => (
                 <Link
-                  key={index}
+                  key={item.href || `collapsed-${index}`}
                   to={item.href}
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                   onClick={() => setShowDropdown(false)}
@@ -203,7 +203,7 @@ export function CollapsibleBreadcrumb({
           const isLast = index === lastItems.length - 1;
 
           return (
-            <React.Fragment key={index}>
+            <React.Fragment key={item.href || `last-${index}`}>
               <span className="text-gray-400 dark:text-gray-600">{separator}</span>
               <li>
                 {isLast ? (
@@ -236,7 +236,7 @@ export function BreadcrumbWithBack({
 }) {
   return (
     <div className={`flex items-center gap-4 ${className}`}>
-      <button
+      <button type="button"
         onClick={onBack}
         className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
         aria-label="Go back"

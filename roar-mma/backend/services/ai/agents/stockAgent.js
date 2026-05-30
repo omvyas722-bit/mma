@@ -2,7 +2,7 @@
 const stockData = require('../../../data/stock');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[STOCK-AGENT] Starting stock check...');
 
@@ -48,6 +48,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `${lowStockItems.length} items low in stock (${outOfStock.length} out of stock). Total inventory value: $${costValue.toFixed(2)} cost / $${sellValue.toFixed(2)} retail.`;
 
     await aiState.logActivity({
+      agentName: agentName || 'stock',
       actionType: 'stock_check',
       details: {
         low_stock_count: lowStockItems.length,
@@ -62,13 +63,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[STOCK-AGENT] ${summary}`);
 
-    if (lowStockItems.length > 0) {
+    if (lowStockItems.length > 0 && broadcast) {
       broadcast({ type: 'stock_agent_update', summary, lowStockCount: lowStockItems.length });
     }
   } catch (err) {
     console.error('[STOCK-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'stock',
         actionType: 'stock_check_error',
         details: { error: err.message },
         summary: `Stock agent failed: ${err.message}`

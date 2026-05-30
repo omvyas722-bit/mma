@@ -73,7 +73,7 @@ export default function Reports() {
           </div>
 
           <div className="flex items-end">
-            <button onClick={() => refetch()} className="btn btn-primary w-full">
+            <button type="button" onClick={() => refetch()} className="btn btn-primary w-full">
               Generate Report
             </button>
           </div>
@@ -132,7 +132,7 @@ function MembershipReport({ data }) {
             <tbody>
               {(data?.by_location || []).map((row) => (
                 <tr key={row.location + row.status} className="border-b">
-                  <td className="py-2 capitalize">{row.location.replace('_', ' ')}</td>
+                  <td className="py-2 capitalize">{row.location?.replace('_', ' ') || ''}</td>
                   <td className="py-2 capitalize">{row.status}</td>
                   <td className="py-2 text-right">{row.count}</td>
                 </tr>
@@ -387,7 +387,7 @@ function LeadsReport({ data }) {
 
 function StatCard({ label, value, color = 'blue' }) {
   const colors = {
-    blue: 'text-blue-600',
+    blue: 'text-red-600',
     green: 'text-green-600',
     yellow: 'text-yellow-600',
     red: 'text-red-600',
@@ -413,7 +413,7 @@ function FunnelBar({ label, value, max }) {
       </div>
       <div className="w-full bg-gray-200 rounded-full h-6">
         <div
-          className="bg-blue-600 h-6 rounded-full flex items-center justify-end pr-2 text-white text-xs font-medium"
+          className="bg-red-600 h-6 rounded-full flex items-center justify-end pr-2 text-white text-xs font-medium"
           style={{ width: `${percentage}%` }}
         >
           {percentage > 10 && `${percentage.toFixed(0)}%`}

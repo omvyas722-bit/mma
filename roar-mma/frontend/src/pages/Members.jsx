@@ -24,6 +24,14 @@ export default function Members() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setSearchQuery(inputValue), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [inputValue]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [deletingMember, setDeletingMember] = useState(null);
@@ -69,7 +77,7 @@ export default function Members() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Members</h1>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+        <button type="button" onClick={() => setShowAddModal(true)} className="btn btn-primary">
           Add Member
         </button>
       </div>
@@ -98,10 +106,7 @@ export default function Members() {
             placeholder="Search members..."
             value={inputValue}
             onChange={(e) => {
-              const value = e.target.value;
-              setInputValue(value);
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => setSearchQuery(value), 300);
+              setInputValue(e.target.value);
             }}
             className="input"
           />
@@ -197,15 +202,17 @@ export default function Members() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingMember(member);
                         }}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        className="text-red-600 hover:text-red-900 mr-4"
                       >
                         Edit
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeletingMember(member);

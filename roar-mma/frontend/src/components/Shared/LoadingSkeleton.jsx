@@ -20,7 +20,7 @@ export function TextSkeleton({ lines = 1, className = '' }) {
     <div className={`space-y-2 ${className}`}>
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
-          key={i}
+          key={`text-skeleton-${i}`}
           variant="text"
           width={i === lines - 1 ? '80%' : '100%'}
         />
@@ -53,7 +53,7 @@ export function TableSkeleton({ rows = 5, columns = 4 }) {
         <thead className="bg-gray-50">
           <tr>
             {Array.from({ length: columns }).map((_, i) => (
-              <th key={i} className="px-6 py-3">
+              <th key={`th-${i}`} className="px-6 py-3">
                 <Skeleton width="80%" height="16px" />
               </th>
             ))}
@@ -61,9 +61,9 @@ export function TableSkeleton({ rows = 5, columns = 4 }) {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex}>
+            <tr key={`row-${rowIndex}`}>
               {Array.from({ length: columns }).map((_, colIndex) => (
-                <td key={colIndex} className="px-6 py-4">
+                <td key={`td-${colIndex}`} className="px-6 py-4">
                   <Skeleton width="90%" height="16px" />
                 </td>
               ))}
@@ -80,7 +80,7 @@ export function ListSkeleton({ items = 5, className = '' }) {
   return (
     <div className={`space-y-3 ${className}`}>
       {Array.from({ length: items }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 p-4 bg-white rounded-lg shadow">
+        <div key={`list-skeleton-${i}`} className="flex items-center gap-3 p-4 bg-white rounded-lg shadow">
           <Skeleton variant="circular" width="48px" height="48px" />
           <div className="flex-1 space-y-2">
             <Skeleton width="40%" height="16px" />
@@ -134,7 +134,7 @@ export function ChartSkeleton({ className = '' }) {
       <Skeleton width="40%" height="24px" className="mb-6" />
       <div className="space-y-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex items-end gap-2">
+          <div key={`chart-bar-${i}`} className="flex items-end gap-2">
             <Skeleton
               width="100%"
               height={`${((i + 1) * 25 + 20) % 150 + 50}px`}
@@ -159,14 +159,14 @@ export function CalendarSkeleton() {
       </div>
       <div className="grid grid-cols-7 border-b">
         {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="p-3 text-center border-r">
+          <div key={`cal-header-${i}`} className="p-3 text-center border-r">
             <Skeleton width="40px" height="16px" className="mx-auto" />
           </div>
         ))}
       </div>
       <div className="grid grid-cols-7">
         {Array.from({ length: 35 }).map((_, i) => (
-          <div key={i} className="min-h-32 border-r border-b p-2">
+          <div key={`cal-day-${i}`} className="min-h-32 border-r border-b p-2">
             <Skeleton width="24px" height="24px" className="mb-2" />
             <div className="space-y-1">
               <Skeleton width="100%" height="20px" />
@@ -186,7 +186,7 @@ export function FormSkeleton({ fields = 4 }) {
       <Skeleton width="40%" height="28px" className="mb-6" />
       <div className="space-y-4">
         {Array.from({ length: fields }).map((_, i) => (
-          <div key={i}>
+          <div key={`form-field-${i}`}>
             <Skeleton width="30%" height="16px" className="mb-2" />
             <Skeleton width="100%" height="40px" />
           </div>
@@ -209,7 +209,7 @@ export function DashboardSkeleton() {
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <StatsCardSkeleton key={i} />
+          <StatsCardSkeleton key={`stat-card-${i}`} />
         ))}
       </div>
 

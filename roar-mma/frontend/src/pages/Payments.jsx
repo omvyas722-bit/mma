@@ -8,7 +8,6 @@ import { PageLoader } from '../components/Shared/Spinner';
 import Modal from '../components/Shared/Modal';
 
 export default function Payments() {
-  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showProcessModal, setShowProcessModal] = useState(false);
@@ -45,7 +44,7 @@ export default function Payments() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
-        <button
+        <button type="button"
           onClick={() => setShowProcessModal(true)}
           className="btn btn-primary"
         >
@@ -161,7 +160,7 @@ export default function Payments() {
   );
 }
 
-function PaymentRow({ payment, onRefund }) {
+function PaymentRow({ payment }) {
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
 
@@ -170,7 +169,7 @@ function PaymentRow({ payment, onRefund }) {
       await api.post(`/api/transactions/${payment.id}/refund`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['payments']);
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
       success('Payment refunded successfully');
     },
     onError: (err) => {
@@ -202,7 +201,7 @@ function PaymentRow({ payment, onRefund }) {
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
         {payment.status === 'succeeded' && (
-          <button
+          <button type="button"
             onClick={handleRefund}
             disabled={refundPayment.isPending}
             className="text-red-600 hover:text-red-900"
@@ -241,13 +240,25 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
     enabled: isOpen && searchQuery.length >= 2,
   });
 
+  const resetForm = () => {
+    setFormData({
+      member_id: '',
+      amount: '',
+      description: '',
+      type: 'membership',
+      payment_method: 'card',
+    });
+    setSearchQuery('');
+    setSelectedMember(null);
+  };
+
   const processPayment = useMutation({
     mutationFn: async (data) => {
       const response = await api.post('/api/transactions', data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['payments']);
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
       onClose();
       resetForm();
       success('Payment processed successfully');
@@ -272,18 +283,6 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
     });
   };
 
-  const resetForm = () => {
-    setFormData({
-      member_id: '',
-      amount: '',
-      description: '',
-      type: 'membership',
-      payment_method: 'card',
-    });
-    setSearchQuery('');
-    setSelectedMember(null);
-  };
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Process Payment" size="md">
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -293,7 +292,7 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
             Select Member *
           </label>
           {selectedMember ? (
-            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900">
                   {selectedMember.first_name} {selectedMember.last_name}
@@ -303,7 +302,7 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
               <button
                 type="button"
                 onClick={() => setSelectedMember(null)}
-                className="text-blue-600 hover:text-blue-900"
+                className="text-red-600 hover:text-red-900"
               >
                 Change
               </button>
@@ -448,7 +447,7 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
 function SummaryCard({ label, value, color }) {
   const colors = {
     green: 'text-green-600',
-    blue: 'text-blue-600',
+    blue: 'text-red-600',
     yellow: 'text-yellow-600',
     red: 'text-red-600',
   };

@@ -7,10 +7,14 @@ const DEFAULT_AGENTS = [
   { name: 'tasks', enabled: 1 },
   { name: 'analytics', enabled: 1 },
   { name: 'billing', enabled: 1 },
-  { name: 'grading', enabled: 0 },
-  { name: 'stock', enabled: 0 },
+  { name: 'grading', enabled: 1 },
+  { name: 'stock', enabled: 1 },
   { name: 'staff', enabled: 1 },
-  { name: 'messaging', enabled: 1 }
+  { name: 'messaging', enabled: 1 },
+  { name: 'sales_team', enabled: 1 },
+  { name: 'member_success_team', enabled: 1 },
+  { name: 'operations_team', enabled: 1 },
+  { name: 'finance_team', enabled: 1 }
 ];
 
 let startupTime = Date.now();
@@ -28,7 +32,7 @@ function ensureTables() {
         summary TEXT NOT NULL,
         details TEXT,
         status TEXT DEFAULT 'completed',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT (datetime('now'))
       );
 
       CREATE TABLE IF NOT EXISTS ai_agent_config (
@@ -37,7 +41,7 @@ function ensureTables() {
         interval_ms INTEGER DEFAULT 60000,
         model_override TEXT,
         config_json TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT (datetime('now'))
       );
 
       CREATE TABLE IF NOT EXISTS ai_task_queue (
@@ -52,7 +56,7 @@ function ensureTables() {
         max_retries INTEGER DEFAULT 3,
         scheduled_for DATETIME,
         completed_at DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT (datetime('now'))
       );
     `);
   } catch (error) {
@@ -185,7 +189,7 @@ function getAgentConfig(agentName) {
   }
 }
 
-function updateAgentConfig(agentName, config) {
+async function updateAgentConfig(agentName, config) {
   try {
     ensureInitialized();
     const db = getDatabase();

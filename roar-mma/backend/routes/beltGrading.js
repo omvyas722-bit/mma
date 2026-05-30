@@ -96,7 +96,7 @@ router.get('/members/:memberId/eligibility', authenticateToken, requirePermissio
 // Member techniques
 router.get('/members/:memberId/techniques', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
-    const beltLevelId = req.query.belt_level_id ? parseInt(req.query.belt_level_id) : null;
+    const beltLevelId = req.query.belt_level_id ? parseInt(req.query.belt_level_id, 10) : null;
     const techniques = beltGradingData.getMemberTechniques(req.params.memberId, beltLevelId);
     res.json(techniques);
   } catch (error) {

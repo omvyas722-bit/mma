@@ -94,7 +94,7 @@ export default function DataTable({
             className="input flex-1"
           />
           {searchQuery && (
-            <button
+            <button type="button"
               onClick={() => setSearchQuery('')}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
@@ -172,7 +172,7 @@ export default function DataTable({
             {Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length} results
           </div>
           <div className="flex gap-2">
-            <button
+            <button type="button"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
               className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -194,7 +194,7 @@ export default function DataTable({
                 return (
                   <div key={page} className="flex items-center gap-2">
                     {showEllipsis && <span className="text-gray-500">...</span>}
-                    <button
+                    <button type="button"
                       onClick={() => handlePageChange(page)}
                       className={`px-3 py-1 rounded ${
                         currentPage === page
@@ -207,7 +207,7 @@ export default function DataTable({
                   </div>
                 );
               })}
-            <button
+            <button type="button"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
               className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"

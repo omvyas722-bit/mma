@@ -19,7 +19,7 @@ router.get('/conversion-stats', authenticateToken, requirePermission('reports:re
 // Get trial conversion trends
 router.get('/conversion-trends', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
-    const days = parseInt(req.query.days) || 30;
+    const days = parseInt(req.query.days, 10) || 30;
     const trends = trialAnalyticsData.getTrialTrends(days);
     res.json(trends);
   } catch (error) {

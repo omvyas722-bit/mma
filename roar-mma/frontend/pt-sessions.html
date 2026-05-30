@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -130,7 +129,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
 
         async function init() {
@@ -152,22 +156,22 @@
                 document.getElementById('revenue-stats').innerHTML = `
                     <div class="stat-card">
                         <div class="stat-label">PT Revenue</div>
-                        <div class="stat-value" style="color: #00ff00;">$${data.revenue.pt_revenue || 0}</div>
+                        <div class="stat-value" style="color: #00ff00;">$${escapeHtml(data.revenue.pt_revenue || 0)}</div>
                         <div class="stat-subtext">This month</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Total Sessions</div>
-                        <div class="stat-value">${data.pt_sessions?.total_sessions || 0}</div>
+                        <div class="stat-value">${escapeHtml(data.pt_sessions?.total_sessions || 0)}</div>
                         <div class="stat-subtext">All time</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Avg Session Value</div>
-                        <div class="stat-value">$${data.pt_sessions?.total_sessions > 0 ? Math.round(data.revenue.pt_revenue / data.pt_sessions.total_sessions) : 0}</div>
+                        <div class="stat-value">$${escapeHtml(data.pt_sessions?.total_sessions > 0 ? Math.round(data.revenue.pt_revenue / data.pt_sessions.total_sessions) : 0)}</div>
                         <div class="stat-subtext">Per session</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Commission Paid</div>
-                        <div class="stat-value" style="color: #ff4444;">$${Math.round((data.revenue.pt_revenue || 0) * 0.5)}</div>
+                        <div class="stat-value" style="color: #ff4444;">$${escapeHtml(Math.round((data.revenue.pt_revenue || 0) * 0.5))}</div>
                         <div class="stat-subtext">To coaches</div>
                     </div>
                 `;
@@ -202,16 +206,16 @@
                         <div class="session-card">
                             <div class="session-header">
                                 <div class="session-info">
-                                    <div class="session-member">Member #${session.member_id}</div>
-                                    <div class="session-coach">Coach #${session.coach_id}</div>
+                                    <div class="session-member">Member #${escapeHtml(session.member_id)}</div>
+                                    <div class="session-coach">Coach #${escapeHtml(session.coach_id)}</div>
                                 </div>
-                                <span class="session-status ${statusClass}">${session.status}</span>
+                                <span class="session-status ${escapeHtml(statusClass)}">${escapeHtml(session.status)}</span>
                             </div>
                             <div class="session-meta">
-                                <span>📅 ${date}</span>
-                                <span>⏰ ${session.scheduled_time}</span>
-                                <span>💰 $${session.amount}</span>
-                                <span>🎯 ${session.duration_minutes}min</span>
+                                <span>📅 ${escapeHtml(date)}</span>
+                                <span>⏰ ${escapeHtml(session.scheduled_time)}</span>
+                                <span>💰 $${escapeHtml(session.amount)}</span>
+                                <span>🎯 ${escapeHtml(session.duration_minutes)}min</span>
                             </div>
                             <div class="session-actions">
                                 ${session.status === 'scheduled' ? `
@@ -246,15 +250,15 @@
                         </div>
                         <div class="coach-stats">
                             <div class="coach-stat">
-                                <div class="coach-stat-value">${stats.sessions_completed || 0}</div>
+                                <div class="coach-stat-value">${escapeHtml(stats.sessions_completed || 0)}</div>
                                 <div class="coach-stat-label">Sessions</div>
                             </div>
                             <div class="coach-stat">
-                                <div class="coach-stat-value">$${stats.total_revenue || 0}</div>
+                                <div class="coach-stat-value">$${escapeHtml(stats.total_revenue || 0)}</div>
                                 <div class="coach-stat-label">Revenue</div>
                             </div>
                             <div class="coach-stat">
-                                <div class="coach-stat-value">$${stats.commission_earned || 0}</div>
+                                <div class="coach-stat-value">$${escapeHtml(stats.commission_earned || 0)}</div>
                                 <div class="coach-stat-label">Commission</div>
                             </div>
                         </div>

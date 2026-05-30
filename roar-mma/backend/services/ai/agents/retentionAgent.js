@@ -4,7 +4,7 @@ const retentionData = require('../../../data/retention');
 const staffTasksData = require('../../../data/staffTasks');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[RETENTION-AGENT] Starting retention check...');
 
@@ -42,10 +42,15 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     let atRiskCount = 0;
     for (const member of atRiskMembers) {
       try {
-        retentionData.logRetentionEvent(member.id, 'at_risk_inactive', null, JSON.stringify({
-          detected_by: 'retention_agent',
-          days_since_last_attendance: 14
-        }));
+        retentionData.logRetentionEvent({
+          memberId: member.id,
+          eventType: 'at_risk_inactive',
+          relatedId: null,
+          metadata: JSON.stringify({
+            detected_by: 'retention_agent',
+            days_since_last_attendance: 14
+          })
+        });
 
         if (!existingTaskKeys.has(member.id)) {
           staffTasksData.createTask({
@@ -103,6 +108,34 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       }
     }
 
+    // Persist recommendations to retention_recommendations table
+    dbConn.exec(`
+      CREATE TABLE IF NOT EXISTS retention_recommendations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        member_id INTEGER NOT NULL,
+        recommendation_type TEXT NOT NULL,
+        priority TEXT CHECK(priority IN ('high', 'medium', 'low')) DEFAULT 'medium',
+        reason TEXT,
+        details TEXT,
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'actioned', 'dismissed')),
+        created_at DATETIME DEFAULT (datetime('now')),
+        updated_at DATETIME DEFAULT (datetime('now')),
+        FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+      )
+    `);
+
+    const insertRec = dbConn.prepare(`
+      INSERT INTO retention_recommendations (member_id, recommendation_type, priority, reason, details)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    for (const member of atRiskMembers) {
+      insertRec.run(member.id, 'at_risk_inactive', 'medium', 'No attendance in 14+ days', JSON.stringify({ detected_by: 'retention_agent', days_since_last_attendance: 14 }));
+    }
+    for (const member of winbackCandidates) {
+      insertRec.run(member.id, 'winback_candidate', 'medium', `Cancelled on ${member.cancellation_date}`, JSON.stringify({ detected_by: 'retention_agent', cancellation_date: member.cancellation_date }));
+    }
+
     // 3. Check winback_campaigns for expired campaigns
     const expiredCampaigns = dbConn.prepare(`
       SELECT id, member_id FROM winback_campaigns
@@ -119,6 +152,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `${atRiskCount} at-risk members detected. ${winbackCreated} win-back candidates. ${expiredCampaigns.length} expired campaigns closed.`;
 
     await aiState.logActivity({
+      agentName: agentName || 'retention',
       actionType: 'retention_check',
       details: {
         at_risk_members: atRiskCount,
@@ -132,13 +166,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[RETENTION-AGENT] ${summary}`);
 
-    if (atRiskCount > 0 || winbackCreated > 0) {
+    if ((atRiskCount > 0 || winbackCreated > 0) && broadcast) {
       broadcast({ type: 'retention_agent_update', summary, atRiskCount, winbackCandidates: winbackCreated });
     }
   } catch (err) {
     console.error('[RETENTION-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'retention',
         actionType: 'retention_check_error',
         details: { error: err.message },
         summary: `Retention agent failed: ${err.message}`

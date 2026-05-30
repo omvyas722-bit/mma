@@ -52,8 +52,8 @@ function getAllLeads(filters = {}) {
 
   const query = `SELECT ${selectColumns} ${fromClause}${whereClause} ORDER BY l.created_at DESC`;
 
-  const limit = Math.min(Math.max(parseInt(filters.limit) || 50, 1), 500);
-  const offset = Math.max(parseInt(filters.offset) || 0, 0);
+  const limit = Math.min(Math.max(parseInt(filters.limit, 10) || 50, 1), 500);
+  const offset = Math.max(parseInt(filters.offset, 10) || 0, 0);
   const paginatedQuery = `${query} LIMIT ? OFFSET ?`;
   const paginatedParams = [...params, limit, offset];
 

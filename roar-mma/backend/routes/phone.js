@@ -39,7 +39,7 @@ function validateTwilioRequest(req, res, next) {
 // Get recent calls
 router.get('/calls', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = parseInt(req.query.limit, 10) || 50;
     const calls = phoneCallsData.getRecentCalls(limit);
     res.json(calls);
   } catch (error) {
@@ -229,7 +229,7 @@ router.post('/webhooks/twilio/status', express.urlencoded({ extended: false }), 
     if (call) {
       phoneCallsData.updatePhoneCall(call.id, {
         status: CallStatus,
-        duration: parseInt(CallDuration) || null,
+        duration: parseInt(CallDuration, 10) || null,
         ended_at: CallStatus === 'completed' ? new Date().toISOString() : null
       });
     }
@@ -254,7 +254,7 @@ router.post('/webhooks/twilio/recording', express.urlencoded({ extended: false }
         call_id: call.id,
         from_number: call.from_number,
         recording_url: RecordingUrl,
-        duration: parseInt(RecordingDuration)
+        duration: parseInt(RecordingDuration, 10)
       });
 
       phoneCallsData.updatePhoneCall(call.id, {

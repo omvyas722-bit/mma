@@ -16,8 +16,8 @@ export default function AddClassModal({ isOpen, onClose }) {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['classes']);
-      queryClient.invalidateQueries(['schedule']);
+      queryClient.invalidateQueries({ queryKey: ['classes'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule'] });
       onClose();
       setFormData(initialClassForm);
       setErrors({});
@@ -40,8 +40,8 @@ export default function AddClassModal({ isOpen, onClose }) {
     if (Object.keys(newErrors).length === 0) {
       createClass.mutate({
         ...formData,
-        day_of_week: parseInt(formData.day_of_week),
-        max_capacity: formData.max_capacity ? parseInt(formData.max_capacity) : null,
+        day_of_week: formData.day_of_week ? parseInt(formData.day_of_week, 10) : null,
+        max_capacity: formData.max_capacity ? parseInt(formData.max_capacity, 10) : null,
       });
     }
   };

@@ -1,5 +1,5 @@
 param(
-    [string]$FrontendPath = "D:\gym software\mma\roar-mma\frontend"
+    [string]$FrontendPath = (Join-Path $PSScriptRoot "roar-mma\frontend")
 )
 
 $files = Get-ChildItem -Path $FrontendPath -Filter "*.html"
@@ -19,7 +19,7 @@ foreach ($file in $files) {
                 const response = await fetch(`${API_BASE}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
+                    body: JSON.stringify({ email: document.getElementById('email')?.value || '', password: document.getElementById('password')?.value || '' })
                 });
                 const data = await response.json();
                 authToken = data.token;
@@ -35,7 +35,6 @@ foreach ($file in $files) {
         $content = $content.Replace($oldLogin, $newLogin)
     } else {
         Write-Output "WARNING: Login pattern not found in $name"
-        # Try alternative indentation (8 spaces instead of 12)
         $oldLogin2 = @'
         try {
             const response = await fetch(`${API_BASE}/auth/login`, {

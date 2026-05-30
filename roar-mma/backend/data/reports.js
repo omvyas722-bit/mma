@@ -11,13 +11,11 @@ function getMembershipReport(filters = {}) {
   const dateTo = filters.date_to || DEFAULT_DATE_TO;
 
   return {
-    summary: {
-      total_members: db.prepare("SELECT status, COUNT(*) as count FROM members GROUP BY status").all().reduce((acc, row) => {
-        acc.total_members += row.count;
-        acc[row.status] = row.count;
-        return acc;
-      }, { total_members: 0, active: 0, trial: 0, paused: 0, cancelled: 0 }),
-    },
+    summary: db.prepare("SELECT status, COUNT(*) as count FROM members GROUP BY status").all().reduce((acc, row) => {
+      acc.total_members += row.count;
+      acc[row.status] = row.count;
+      return acc;
+    }, { total_members: 0, active: 0, trial: 0, paused: 0, cancelled: 0 }),
     by_location: db.prepare(`
       SELECT location, status, COUNT(*) as count
       FROM members

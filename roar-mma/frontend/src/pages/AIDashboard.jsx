@@ -75,7 +75,7 @@ export default function AIDashboard() {
     refetchInterval: 30000
   });
 
-  const handleToggle = useCallback(async (agentName, enabled) => {
+  const handleToggle = useCallback(async (agentName) => {
     try {
       await api.post(`/api/ai/agents/${agentName}/toggle`);
     } catch (err) {

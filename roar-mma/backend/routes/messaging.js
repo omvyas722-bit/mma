@@ -49,7 +49,7 @@ router.get('/deliveries/:scheduledMessageId', authenticateToken, requirePermissi
 router.get('/deliveries', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
     const db = getDatabase();
-    const limit = parseInt(req.query.limit) || 100;
+    const limit = parseInt(req.query.limit, 10) || 100;
     const status = req.query.status;
 
     let query = 'SELECT * FROM message_deliveries';

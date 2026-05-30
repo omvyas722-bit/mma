@@ -1,5 +1,6 @@
 import useAiChat from '../hooks/useAiChat';
 import ChatPanel from '../components/AI/ChatPanel';
+import { PageErrorBoundary } from '../components/Shared/ErrorBoundary';
 
 const SUGGESTIONS = [
   'How many active members?',
@@ -9,7 +10,7 @@ const SUGGESTIONS = [
   'Give me a business summary'
 ];
 
-export default function AIAssistant() {
+function AIAssistantContent() {
   const { messages, sendMessage, isLoading } = useAiChat();
 
   return (
@@ -29,5 +30,13 @@ export default function AIAssistant() {
         />
       </div>
     </div>
+  );
+}
+
+export default function AIAssistant() {
+  return (
+    <PageErrorBoundary pageName="AI Assistant">
+      <AIAssistantContent />
+    </PageErrorBoundary>
   );
 }

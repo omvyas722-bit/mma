@@ -61,18 +61,18 @@ export default function Calendar() {
       {/* Calendar Header */}
       <div className="bg-white rounded-lg shadow mb-6 p-4">
         <div className="flex items-center justify-between">
-          <button onClick={previousMonth} className="btn btn-secondary">
+          <button type="button" onClick={previousMonth} className="btn btn-secondary">
             ◀ Previous
           </button>
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">
               {format(currentDate, 'MMMM yyyy')}
             </h2>
-            <button onClick={today} className="text-sm text-blue-600 hover:underline">
+            <button type="button" onClick={today} className="text-sm text-red-600 hover:underline">
               Today
             </button>
           </div>
-          <button onClick={nextMonth} className="btn btn-secondary">
+          <button type="button" onClick={nextMonth} className="btn btn-secondary">
             Next ▶
           </button>
         </div>
@@ -94,7 +94,7 @@ export default function Calendar() {
 
         {/* Calendar Days */}
         <div className="grid grid-cols-7">
-          {days.map((day, index) => {
+          {days.map((day) => {
             const dayEvents = getEventsForDay(day);
             const isCurrentMonth = isSameMonth(day, currentDate);
             const isToday = isSameDay(day, new Date());
@@ -109,7 +109,7 @@ export default function Calendar() {
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDate(day); } }}
                 className={`min-h-32 border-r border-b border-gray-200 p-2 cursor-pointer hover:bg-gray-50 ${
                   !isCurrentMonth ? 'bg-gray-50' : ''
-                } ${isSelected ? 'bg-blue-50' : ''}`}
+                } ${isSelected ? 'bg-red-50' : ''}`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span
@@ -117,7 +117,7 @@ export default function Calendar() {
                       !isCurrentMonth
                         ? 'text-gray-400'
                         : isToday
-                        ? 'bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center'
+                        ? 'bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center'
                         : 'text-gray-900'
                     }`}
                   >

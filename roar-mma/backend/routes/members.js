@@ -6,7 +6,7 @@ const { isUniqueConstraintError } = require('../db/connection');
 
 const router = express.Router();
 const HOLD_FEE_PER_DAY = parseFloat(process.env.HOLD_FEE_PER_DAY) || 0.71;
-const MAX_HOLD_DAYS = parseInt(process.env.MAX_HOLD_DAYS) || 84;
+const MAX_HOLD_DAYS = parseInt(process.env.MAX_HOLD_DAYS, 10) || 84;
 
 // Get all members (with filters and pagination)
 router.get('/', authenticateToken, requirePermission('members:read'), (req, res) => {
@@ -15,8 +15,8 @@ router.get('/', authenticateToken, requirePermission('members:read'), (req, res)
       status: req.query.status,
       location: req.query.location,
       query: req.query.query,
-      limit: Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100),
-      offset: Math.max(parseInt(req.query.offset) || 0, 0)
+      limit: Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100),
+      offset: Math.max(parseInt(req.query.offset, 10) || 0, 0)
     };
 
     const result = membersData.getAllMembers(filters);
@@ -57,7 +57,7 @@ router.get('/:id', authenticateToken, requirePermission('members:read'), (req, r
 // Get member attendance history
 router.get('/:id/attendance', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const attendance = membersData.getMemberAttendance(req.params.id, limit);
     res.json(attendance);
   } catch (error) {
@@ -69,7 +69,7 @@ router.get('/:id/attendance', authenticateToken, requirePermission('members:read
 // Get member transaction history
 router.get('/:id/transactions', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const transactions = membersData.getMemberTransactions(req.params.id, limit);
     res.json(transactions);
   } catch (error) {

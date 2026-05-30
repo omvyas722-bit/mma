@@ -24,6 +24,7 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Mock IntersectionObserver
+// eslint-disable-next-line no-undef
 global.IntersectionObserver = class IntersectionObserver {
   constructor() {}
   disconnect() {}
@@ -35,6 +36,7 @@ global.IntersectionObserver = class IntersectionObserver {
 };
 
 // Mock ResizeObserver
+// eslint-disable-next-line no-undef
 global.ResizeObserver = class ResizeObserver {
   constructor() {}
   disconnect() {}
@@ -46,6 +48,7 @@ global.ResizeObserver = class ResizeObserver {
 Element.prototype.scrollIntoView = vi.fn();
 
 // Suppress console errors in tests (optional)
+// eslint-disable-next-line no-undef
 beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation((...args) => {
     if (
@@ -58,6 +61,7 @@ beforeAll(() => {
   });
 });
 
+// eslint-disable-next-line no-undef
 afterAll(() => {
   console.error.mockRestore();
 });

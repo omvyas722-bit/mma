@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -375,7 +374,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
 
         // Update time
@@ -423,23 +427,23 @@
                 const metricsHTML = `
                     <div class="metric-card">
                         <div class="metric-label">Total Revenue</div>
-                        <div class="metric-value">$${data.revenue.total_revenue || 0}</div>
-                        <div class="metric-change">MRR: $${data.revenue.mrr || 0}</div>
+                        <div class="metric-value">$${escapeHtml(data.revenue.total_revenue || 0)}</div>
+                        <div class="metric-change">MRR: $${escapeHtml(data.revenue.mrr || 0)}</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Active Members</div>
-                        <div class="metric-value">${data.members.active_members || 0}</div>
-                        <div class="metric-change">Total: ${data.members.total_members || 0}</div>
+                        <div class="metric-value">${escapeHtml(data.members.active_members || 0)}</div>
+                        <div class="metric-change">Total: ${escapeHtml(data.members.total_members || 0)}</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Total Leads</div>
-                        <div class="metric-value">${data.leads.total_leads || 0}</div>
-                        <div class="metric-change">Conversion: ${data.leads.conversion_rate || 0}%</div>
+                        <div class="metric-value">${escapeHtml(data.leads.total_leads || 0)}</div>
+                        <div class="metric-change">Conversion: ${escapeHtml(data.leads.conversion_rate || 0)}%</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">PT Revenue</div>
-                        <div class="metric-value">$${data.revenue.pt_revenue || 0}</div>
-                        <div class="metric-change">Sessions: ${data.pt_sessions?.total_sessions || 0}</div>
+                        <div class="metric-value">$${escapeHtml(data.revenue.pt_revenue || 0)}</div>
+                        <div class="metric-change">Sessions: ${escapeHtml(data.pt_sessions?.total_sessions || 0)}</div>
                     </div>
                 `;
 
@@ -474,13 +478,13 @@
                     systemsHTML += `
                         <div class="system-card">
                             <div class="system-header">
-                                <div class="system-name">${system.name}</div>
+                                <div class="system-name">${escapeHtml(system.name)}</div>
                                 <div class="system-status">ACTIVE</div>
                             </div>
                             <div class="system-metrics">
                                 <div class="system-metric">
-                                    <span class="system-metric-label">${system.metric}</span>
-                                    <span class="system-metric-value">${count}</span>
+                                    <span class="system-metric-label">${escapeHtml(system.metric)}</span>
+                                    <span class="system-metric-value">${escapeHtml(count)}</span>
                                 </div>
                                 <div class="system-metric">
                                     <span class="system-metric-label">Status</span>
@@ -493,7 +497,7 @@
                     systemsHTML += `
                         <div class="system-card">
                             <div class="system-header">
-                                <div class="system-name">${system.name}</div>
+                                <div class="system-name">${escapeHtml(system.name)}</div>
                                 <div class="system-status" style="background: #ff444420; color: #ff4444;">ERROR</div>
                             </div>
                         </div>
@@ -518,7 +522,7 @@
                 let result = await processCommand(command);
                 displayResponse(result);
             } catch (error) {
-                responseArea.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                responseArea.innerHTML = `<div class="error">Error: ${escapeHtml(error.message)}</div>`;
             }
         }
 
@@ -576,14 +580,14 @@
 
             if (Array.isArray(data)) {
                 html = `<div class="response-item">
-                    <div class="response-label">Results (${data.length} items)</div>
-                    <div class="response-value">${JSON.stringify(data, null, 2)}</div>
+                    <div class="response-label">Results (${escapeHtml(data.length)} items)</div>
+                    <div class="response-value">${escapeHtml(JSON.stringify(data, null, 2))}</div>
                 </div>`;
             } else {
                 for (const [key, value] of Object.entries(data)) {
                     html += `<div class="response-item">
-                        <div class="response-label">${key.replace(/_/g, ' ').toUpperCase()}</div>
-                        <div class="response-value">${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}</div>
+                        <div class="response-label">${escapeHtml(key.replace(/_/g, ' ').toUpperCase())}</div>
+                        <div class="response-value">${escapeHtml(typeof value === 'object' ? JSON.stringify(value, null, 2) : value)}</div>
                     </div>`;
                 }
             }
@@ -599,7 +603,7 @@
 
         // Show error
         function showError(message) {
-            document.getElementById('metrics-grid').innerHTML = `<div class="error">${message}</div>`;
+            document.getElementById('metrics-grid').innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
             document.getElementById('systems-grid').innerHTML = '';
         }
 

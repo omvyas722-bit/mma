@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 // Shared form sections for Add/Edit Member modals
 
 function PersonalInfoFields({ formData, errors, handleChange }) {

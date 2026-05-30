@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -172,7 +171,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let allMembers = [];
 
@@ -195,19 +199,19 @@
                 document.getElementById('stats-row').innerHTML = `
                     <div class="stat-card">
                         <div class="stat-label">Total Members</div>
-                        <div class="stat-value">${data.members.total_members || 0}</div>
+                        <div class="stat-value">${escapeHtml(data.members.total_members || 0)}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Active</div>
-                        <div class="stat-value" style="color: #00ff00;">${data.members.active_members || 0}</div>
+                        <div class="stat-value" style="color: #00ff00;">${escapeHtml(data.members.active_members || 0)}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">New This Month</div>
-                        <div class="stat-value" style="color: #ff4444;">${data.members.new_signups || 0}</div>
+                        <div class="stat-value" style="color: #ff4444;">${escapeHtml(data.members.new_signups || 0)}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">MRR</div>
-                        <div class="stat-value">$${data.revenue.mrr || 0}</div>
+                        <div class="stat-value">$${escapeHtml(data.revenue.mrr || 0)}</div>
                     </div>
                 `;
             } catch (error) {
@@ -256,12 +260,12 @@
                 html += `
                     <div class="table-row" >
                         <div>
-                            <div class="member-name">${member.first_name} ${member.last_name}</div>
-                            <div class="member-email">${member.phone || 'No phone'}</div>
+                            <div class="member-name">${escapeHtml(member.first_name)} ${escapeHtml(member.last_name)}</div>
+                            <div class="member-email">${escapeHtml(member.phone || 'No phone')}</div>
                         </div>
-                        <div>${member.email}</div>
-                        <div><span class="status-badge ${statusClass}">${member.status}</span></div>
-                        <div>${member.plan || 'None'}</div>
+                        <div>${escapeHtml(member.email)}</div>
+                        <div><span class="status-badge ${statusClass}">${escapeHtml(member.status)}</span></div>
+                        <div>${escapeHtml(member.plan || 'None')}</div>
                         <div>${new Date(member.joined_date).toLocaleDateString()}</div>
                         <div class="actions-cell">
                             <button class="action-btn" >Message</button>
@@ -282,27 +286,27 @@
                 <div class="detail-grid">
                     <div class="detail-field">
                         <div class="detail-label">Full Name</div>
-                        <div class="detail-value">${member.first_name} ${member.last_name}</div>
+                        <div class="detail-value">${escapeHtml(member.first_name)} ${escapeHtml(member.last_name)}</div>
                     </div>
                     <div class="detail-field">
                         <div class="detail-label">Status</div>
-                        <div class="detail-value"><span class="status-badge status-${member.status}">${member.status}</span></div>
+                        <div class="detail-value"><span class="status-badge status-${escapeHtml(member.status)}">${escapeHtml(member.status)}</span></div>
                     </div>
                     <div class="detail-field">
                         <div class="detail-label">Email</div>
-                        <div class="detail-value">${member.email}</div>
+                        <div class="detail-value">${escapeHtml(member.email)}</div>
                     </div>
                     <div class="detail-field">
                         <div class="detail-label">Phone</div>
-                        <div class="detail-value">${member.phone}</div>
+                        <div class="detail-value">${escapeHtml(member.phone)}</div>
                     </div>
                     <div class="detail-field">
                         <div class="detail-label">Plan</div>
-                        <div class="detail-value">${member.plan || 'None'}</div>
+                        <div class="detail-value">${escapeHtml(member.plan || 'None')}</div>
                     </div>
                     <div class="detail-field">
                         <div class="detail-label">Joined Date</div>
-                        <div class="detail-value">${new Date(member.joined_date).toLocaleDateString()}</div>
+                        <div class="detail-value">${escapeHtml(new Date(member.joined_date).toLocaleDateString())}</div>
                     </div>
                 </div>
 

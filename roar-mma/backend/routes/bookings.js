@@ -175,7 +175,7 @@ router.post('/:id/attendance', authenticateToken, requirePermission('attendance:
 // Get upcoming bookings for a member
 router.get('/member/:memberId/upcoming', authenticateToken, requirePermission('bookings:read'), (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit, 10) || 10;
     const bookings = bookingsData.getUpcomingBookings(req.params.memberId, limit);
 
     res.json(bookings);

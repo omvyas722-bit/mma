@@ -40,7 +40,7 @@ export default function BulkActions({
             <span className="font-medium text-gray-900">
               {selectedItems.length} {itemLabel} selected
             </span>
-            <button
+            <button type="button"
               onClick={onClearSelection}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
@@ -52,8 +52,8 @@ export default function BulkActions({
 
           <div className="flex gap-2">
             {actions.map((action, index) => (
-              <button
-                key={index}
+              <button type="button"
+                key={action.label || `action-${index}`}
                 onClick={() => handleActionClick(action)}
                 disabled={action.disabled}
                 className={`btn ${action.variant || 'btn-secondary'} ${
@@ -102,6 +102,7 @@ export function SelectCheckbox({ checked, onChange, disabled = false }) {
 }
 
 // Hook for managing bulk selection
+// eslint-disable-next-line react-refresh/only-export-components
 export function useBulkSelection(items = []) {
   const [selectedIds, setSelectedIds] = useState(new Set());
 

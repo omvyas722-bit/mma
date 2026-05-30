@@ -108,13 +108,13 @@ class ErrorBoundary extends React.Component {
             )}
 
             <div className="flex gap-3">
-              <button
+              <button type="button"
                 onClick={this.handleReset}
                 className="flex-1 btn btn-primary"
               >
                 Try Again
               </button>
-              <button
+              <button type="button"
                 onClick={() => window.location.href = '/'}
                 className="flex-1 btn btn-secondary"
               >
@@ -133,6 +133,7 @@ class ErrorBoundary extends React.Component {
 export default ErrorBoundary;
 
 // Hook for functional components to trigger error boundary
+// eslint-disable-next-line react-refresh/only-export-components
 export function useErrorHandler() {
   const [error, setError] = React.useState(null);
 
@@ -151,7 +152,7 @@ export function PageErrorBoundary({ children, pageName }) {
     <ErrorBoundary
       title={`Error loading ${pageName}`}
       message="We encountered an error while loading this page. Please try again."
-      fallback={({ error, resetError }) => (
+      fallback={({ resetError }) => (
         <div className="flex flex-col items-center justify-center py-12 px-4">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <svg
@@ -174,7 +175,7 @@ export function PageErrorBoundary({ children, pageName }) {
           <p className="text-sm text-gray-600 text-center max-w-md mb-6">
             We encountered an error while loading this page. Please try again.
           </p>
-          <button onClick={resetError} className="btn btn-primary">
+          <button type="button" onClick={resetError} className="btn btn-primary">
             Reload Page
           </button>
         </div>
@@ -211,7 +212,7 @@ export function ComponentErrorBoundary({ children, componentName }) {
               <p className="text-sm text-red-700 mb-3">
                 This component failed to load. You can try reloading it.
               </p>
-              <button
+              <button type="button"
                 onClick={resetError}
                 className="text-sm text-red-600 hover:text-red-800 font-medium"
               >
@@ -227,67 +228,4 @@ export function ComponentErrorBoundary({ children, componentName }) {
   );
 }
 
-// Usage examples:
-/*
-// Wrap your entire app
-import ErrorBoundary from './components/Shared/ErrorBoundary';
 
-function App() {
-  return (
-    <ErrorBoundary
-      onError={(error, errorInfo) => {
-        // Send to error tracking service
-        console.error('App error:', error, errorInfo);
-      }}
-    >
-      <YourApp />
-    </ErrorBoundary>
-  );
-}
-
-// Wrap individual pages
-import { PageErrorBoundary } from './components/Shared/ErrorBoundary';
-
-function MembersPage() {
-  return (
-    <PageErrorBoundary pageName="Members">
-      <MembersContent />
-    </PageErrorBoundary>
-  );
-}
-
-// Wrap individual components
-import { ComponentErrorBoundary } from './components/Shared/ErrorBoundary';
-
-function Dashboard() {
-  return (
-    <div>
-      <ComponentErrorBoundary componentName="Stats Cards">
-        <StatsCards />
-      </ComponentErrorBoundary>
-
-      <ComponentErrorBoundary componentName="Charts">
-        <Charts />
-      </ComponentErrorBoundary>
-    </div>
-  );
-}
-
-// Use error handler hook in functional components
-import { useErrorHandler } from './components/Shared/ErrorBoundary';
-
-function MyComponent() {
-  const handleError = useErrorHandler();
-
-  const fetchData = async () => {
-    try {
-      const data = await api.get('/data');
-      return data;
-    } catch (error) {
-      handleError(error); // This will trigger the error boundary
-    }
-  };
-
-  return <div>...</div>;
-}
-*/

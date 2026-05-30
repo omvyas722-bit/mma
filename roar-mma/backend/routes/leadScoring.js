@@ -26,7 +26,7 @@ router.get('/leads-with-scores', authenticateToken, requirePermission('leads:rea
 // Get high priority leads
 router.get('/high-priority', authenticateToken, requirePermission('leads:read'), (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit, 10) || 20;
     const leads = leadScoringData.getHighPriorityLeads(limit);
     res.json(leads);
   } catch (error) {

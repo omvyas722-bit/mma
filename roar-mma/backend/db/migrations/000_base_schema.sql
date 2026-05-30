@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS members (
   phone TEXT,
   date_of_birth DATE,
   location TEXT,
-  status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'cancelled', 'paused')),
+  status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'cancelled', 'paused', 'trial')),
   plan TEXT,
   joined_date DATE DEFAULT (date('now')),
   trial_end_date DATE,
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS leads (
   last_name TEXT NOT NULL,
   email TEXT,
   phone TEXT NOT NULL,
-  source TEXT,
+  source TEXT CHECK(source IN ('website', 'facebook', 'instagram', 'referral', 'walk_in', 'other', 'google', 'phone')),
   referrer_member_id INTEGER,
   stage TEXT DEFAULT 'new' CHECK(stage IN ('new', 'contacted', 'trial_booked', 'trial_completed', 'converted', 'lost')),
   interest_level TEXT CHECK(interest_level IN ('high', 'medium', 'low')),
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS classes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   description TEXT,
-  class_type TEXT NOT NULL,
+  class_type TEXT NOT NULL CHECK(class_type IN ('bjj', 'muay_thai', 'mma', 'boxing', 'wrestling', 'fitness', 'kids')),
   instructor_id INTEGER,
   day_of_week INTEGER CHECK(day_of_week BETWEEN 0 AND 6),
   start_time TIME NOT NULL,
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('membership', 'pt', 'product', 'other')),
-  amount REAL NOT NULL CHECK(amount > 0),
+  amount REAL NOT NULL CHECK(amount != 0),
   description TEXT,
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'completed', 'failed', 'refunded')),
   payment_method TEXT,
@@ -142,3 +142,9 @@ CREATE INDEX IF NOT EXISTS idx_leads_referrer_member ON leads(referrer_member_id
 CREATE INDEX IF NOT EXISTS idx_leads_converted_member ON leads(converted_member_id);
 CREATE INDEX IF NOT EXISTS idx_classes_instructor ON classes(instructor_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_class ON attendance(class_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_classes_location ON classes(location);
+CREATE INDEX IF NOT EXISTS idx_classes_active ON classes(active);
+CREATE INDEX IF NOT EXISTS idx_attendance_check_in ON attendance(check_in_time);
+CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source);

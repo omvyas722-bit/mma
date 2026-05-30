@@ -11,6 +11,7 @@ vi.mock('../../lib/api', () => ({
 }));
 
 describe('AgentToggle Component', () => {
+  // eslint-disable-next-line no-undef
   beforeEach(() => {
     mockPost.mockReset();
   });

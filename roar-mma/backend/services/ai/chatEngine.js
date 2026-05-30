@@ -136,6 +136,7 @@ function addToHistory(userId, query, response) {
 
 function sanitizeInput(str) {
   if (!str) return '';
+  // eslint-disable-next-line no-control-regex
   return str.replace(/[\x00-\x1f]/g, '').replace(/[<>{}\\"]/g, '').substring(0, 1000);
 }
 
@@ -290,7 +291,8 @@ async function handleLeadQuery(query) {
   }
 
   if (/recent/i.test(query) || /new\s+lead/i.test(query) || /new\s+leads/i.test(query)) {
-    const recent = leadsData.getAllLeads({}).slice(0, 5);
+    const allLeads = leadsData.getAllLeads({});
+    const recent = allLeads.leads.slice(0, 5);
     if (recent.length === 0) return { context: `No recent leads found. Lead stats — new: ${stats.new}, contacted: ${stats.contacted}, trial booked: ${stats.trial_booked}, trial completed: ${stats.trial_completed}, converted: ${stats.converted}, lost: ${stats.lost}. Total: ${stats.total}.` };
     return {
       context: `Recent leads (${recent.length}):\n${recent.map(l => `${l.first_name} ${l.last_name} — stage: ${l.stage || 'new'}, source: ${l.source || 'unknown'}, created: ${formatTimestamp(l.created_at)}`).join('\n')}`
@@ -298,7 +300,8 @@ async function handleLeadQuery(query) {
   }
 
   if (/uncontacted/i.test(query) || /untouched/i.test(query)) {
-    const uncontacted = leadsData.getAllLeads({ stage: 'new' });
+    const result = leadsData.getAllLeads({ stage: 'new' });
+    const uncontacted = result.leads;
     if (uncontacted.length === 0) return { context: `All leads have been contacted. Lead stats — new: ${stats.new}, contacted: ${stats.contacted}, trial booked: ${stats.trial_booked}, trial completed: ${stats.trial_completed}, converted: ${stats.converted}, lost: ${stats.lost}. Total: ${stats.total}.` };
     return {
       context: `Uncontacted leads (${uncontacted.length}):\n${uncontacted.slice(0, 5).map(l => `${l.first_name} ${l.last_name} — source: ${l.source || 'unknown'}, created: ${formatTimestamp(l.created_at)}`).join('\n')}`

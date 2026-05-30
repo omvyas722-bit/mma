@@ -1,7 +1,7 @@
 // Custom hooks for common operations
 // NOTE: Most hooks are re-exported from useCustomHooks.js (canonical source)
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 
 // Hook for managing form state (deprecated, renamed to avoid collision with useCustomHooks.js)
 // Use useForm from useCustomHooks.js for new code
@@ -10,8 +10,6 @@ export function useManagedForm(initialValues, validator) {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const errorsRef = useRef(errors);
-  errorsRef.current = errors;
 
   const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
@@ -20,10 +18,10 @@ export function useManagedForm(initialValues, validator) {
       [name]: type === 'checkbox' ? checked : value
     }));
 
-    if (errorsRef.current[name]) {
+    if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
-  }, []);
+  }, [errors]);
 
   const handleBlur = useCallback((e) => {
     const { name } = e.target;

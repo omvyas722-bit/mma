@@ -45,7 +45,7 @@ export function Badge({
     >
       {children}
       {removable && (
-        <button
+        <button type="button"
           onClick={onRemove}
           className="ml-1 hover:bg-black hover:bg-opacity-10 rounded-full p-0.5 transition-colors"
           aria-label="Remove"
@@ -205,7 +205,7 @@ export function Tag({
     >
       {children}
       {removable && (
-        <button
+        <button type="button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove?.();

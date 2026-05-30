@@ -63,50 +63,61 @@ class MessageScheduler {
       }
 
       // Process win-back campaigns
-      winbackAutomation.processWinbackCampaigns();
+      try {
+        winbackAutomation.processWinbackCampaigns();
+      } catch (wbError) {
+        console.error('Error processing winback campaigns:', wbError);
+      }
     } catch (error) {
       console.error('Error processing messages:', error);
     }
   }
 
   async sendMessage(message) {
-    console.log(`Sending ${message.message_type} to ${message.recipient_phone || message.recipient_email}`);
+    try {
+      console.log(`Sending ${message.message_type} to ${message.recipient_phone || message.recipient_email}`);
 
-    // Personalize message body
-    const personalizedBody = this.personalizeMessage(message);
+      // Personalize message body
+      const personalizedBody = this.personalizeMessage(message);
 
-    let result;
+      let result;
 
-    if (message.message_type === 'sms') {
-      result = await this.sendSMS(message.recipient_phone, personalizedBody, message.id);
-    } else if (message.message_type === 'email') {
-      result = await this.sendEmail(
-        message.recipient_email,
-        message.subject,
-        personalizedBody,
-        message.id
-      );
+      if (message.message_type === 'sms') {
+        result = await this.sendSMS(message.recipient_phone, personalizedBody, message.id);
+      } else if (message.message_type === 'email') {
+        result = await this.sendEmail(
+          message.recipient_email,
+          message.subject,
+          personalizedBody,
+          message.id
+        );
+      } else {
+        throw new Error(`Unknown message type: ${message.message_type}`);
+      }
+
+      // Check if send was successful
+      if (!result || !result.success) {
+        throw new Error(result?.reason || result?.error || 'Send failed');
+      }
+
+      // Mark as sent
+      scheduledMessagesData.markMessageSent(message.id);
+
+      // Update lead follow-up tracking
+      if (message.lead_id) {
+        const lead = leadsData.getLeadById(message.lead_id);
+        const currentCount = (lead && lead.follow_up_count) || 0;
+        leadsData.updateLead(message.lead_id, {
+          last_contact_date: new Date().toISOString(),
+          follow_up_count: currentCount + 1
+        });
+      }
+
+      console.log(`✓ Message ${message.id} sent successfully`);
+    } catch (error) {
+      console.error(`Failed to send message ${message.id}:`, error);
+      scheduledMessagesData.markMessageFailed(message.id, error.message);
     }
-
-    // Check if send was successful
-    if (!result.success) {
-      throw new Error(result.reason || result.error || 'Send failed');
-    }
-
-    // Mark as sent
-    scheduledMessagesData.markMessageSent(message.id);
-
-    // Update lead follow-up tracking
-    if (message.lead_id) {
-      const lead = leadsData.getLeadById(message.lead_id);
-      const currentCount = (lead && lead.follow_up_count) || 0;
-      leadsData.updateLead(message.lead_id, {
-        last_contact_date: new Date().toISOString(),
-        follow_up_count: currentCount + 1
-      });
-    }
-
-    console.log(`✓ Message ${message.id} sent successfully`);
   }
 
   personalizeMessage(message) {

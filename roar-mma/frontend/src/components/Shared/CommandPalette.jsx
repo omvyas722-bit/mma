@@ -11,25 +11,26 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
   // Default commands
   const defaultCommands = [
     // Navigation
-    { id: 'nav-dashboard', label: 'Go to Dashboard', icon: '📊', action: () => navigate('/'), category: 'Navigation' },
-    { id: 'nav-members', label: 'Go to Members', icon: '👥', action: () => navigate('/members'), category: 'Navigation' },
-    { id: 'nav-leads', label: 'Go to Leads', icon: '🎯', action: () => navigate('/leads'), category: 'Navigation' },
-    { id: 'nav-classes', label: 'Go to Classes', icon: '📅', action: () => navigate('/classes'), category: 'Navigation' },
-    { id: 'nav-payments', label: 'Go to Payments', icon: '💳', action: () => navigate('/payments'), category: 'Navigation' },
-    { id: 'nav-reports', label: 'Go to Reports', icon: '📈', action: () => navigate('/reports'), category: 'Navigation' },
-    { id: 'nav-settings', label: 'Go to Settings', icon: '⚙️', action: () => navigate('/settings'), category: 'Navigation' },
-    { id: 'nav-communications', label: 'Go to Communications', icon: '✉️', action: () => navigate('/communications'), category: 'Navigation' },
-    { id: 'nav-calendar', label: 'Go to Calendar', icon: '📆', action: () => navigate('/calendar'), category: 'Navigation' },
+    { id: 'nav-dashboard', label: 'Go to Dashboard', icon: 'chart', action: () => navigate('/'), category: 'Navigation' },
+    { id: 'nav-members', label: 'Go to Members', icon: 'people', action: () => navigate('/members'), category: 'Navigation' },
+    { id: 'nav-leads', label: 'Go to Leads', icon: 'target', action: () => navigate('/leads'), category: 'Navigation' },
+    { id: 'nav-classes', label: 'Go to Classes', icon: 'calendar', action: () => navigate('/classes'), category: 'Navigation' },
+    { id: 'nav-payments', label: 'Go to Payments', icon: 'credit', action: () => navigate('/payments'), category: 'Navigation' },
+    { id: 'nav-reports', label: 'Go to Reports', icon: 'chart-up', action: () => navigate('/reports'), category: 'Navigation' },
+    { id: 'nav-settings', label: 'Go to Settings', icon: 'gear', action: () => navigate('/settings'), category: 'Navigation' },
+    { id: 'nav-communications', label: 'Go to Communications', icon: 'mail', action: () => navigate('/communications'), category: 'Navigation' },
+    { id: 'nav-calendar', label: 'Go to Calendar', icon: 'date', action: () => navigate('/calendar'), category: 'Navigation' },
 
     // Quick Actions
-    { id: 'action-add-member', label: 'Add New Member', icon: '➕', keywords: ['create', 'new'], category: 'Actions' },
-    { id: 'action-add-lead', label: 'Add New Lead', icon: '➕', keywords: ['create', 'new'], category: 'Actions' },
-    { id: 'action-add-class', label: 'Add New Class', icon: '➕', keywords: ['create', 'new'], category: 'Actions' },
-    { id: 'action-process-payment', label: 'Process Payment', icon: '💰', keywords: ['pay', 'charge'], category: 'Actions' },
-    { id: 'action-send-message', label: 'Send Message', icon: '📧', keywords: ['email', 'sms', 'communicate'], category: 'Actions' },
-    { id: 'action-export-data', label: 'Export Data', icon: '📥', keywords: ['download', 'csv'], category: 'Actions' },
+    { id: 'action-add-member', label: 'Add New Member', icon: 'plus', keywords: ['create', 'new'], category: 'Actions' },
+    { id: 'action-add-lead', label: 'Add New Lead', icon: 'plus', keywords: ['create', 'new'], category: 'Actions' },
+    { id: 'action-add-class', label: 'Add New Class', icon: 'plus', keywords: ['create', 'new'], category: 'Actions' },
+    { id: 'action-process-payment', label: 'Process Payment', icon: 'dollar', keywords: ['pay', 'charge'], category: 'Actions' },
+    { id: 'action-send-message', label: 'Send Message', icon: 'send', keywords: ['email', 'sms', 'communicate'], category: 'Actions' },
+    { id: 'action-export-data', label: 'Export Data', icon: 'download', keywords: ['download', 'csv'], category: 'Actions' },
   ];
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const allCommands = useMemo(() => [...defaultCommands, ...commands], [commands]);
 
   const filteredCommands = useMemo(() => search
@@ -57,9 +58,12 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
   }, [onClose]);
 
   const filteredCommandsRef = useRef(filteredCommands);
-  filteredCommandsRef.current = filteredCommands;
   const selectedIndexRef = useRef(selectedIndex);
-  selectedIndexRef.current = selectedIndex;
+
+  useEffect(() => {
+    filteredCommandsRef.current = filteredCommands;
+    selectedIndexRef.current = selectedIndex;
+  });
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -107,7 +111,9 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
   // Reset state when closed
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearch('');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedIndex(0);
     }
   }, [isOpen]);
@@ -167,12 +173,12 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
                   <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase bg-gray-50">
                     {category}
                   </div>
-                  {cmds.map((command, index) => {
+                  {cmds.map((command) => {
                     const globalIndex = filteredCommands.indexOf(command);
                     const isSelected = globalIndex === selectedIndex;
 
                     return (
-                      <button
+                      <button type="button"
                         key={command.id}
                         onClick={() => executeCommand(command)}
                         onMouseEnter={() => setSelectedIndex(globalIndex)}
@@ -182,7 +188,7 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
                             : 'hover:bg-gray-50'
                         }`}
                       >
-                        <span className="text-2xl">{command.icon}</span>
+                        <span className="flex items-center justify-center w-8 h-8 rounded bg-gray-100 text-gray-600 text-sm font-bold" aria-hidden="true">{command.icon?.charAt(0).toUpperCase() || '?'}</span>
                         <div className="flex-1">
                           <div className="font-medium text-gray-900">
                             {command.label}
@@ -231,6 +237,7 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
 }
 
 // Hook to manage command palette
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -278,7 +285,7 @@ function App() {
 
   return (
     <div>
-      <button onClick={commandPalette.open}>
+      <button type="button" onClick={commandPalette.open}>
         Open Command Palette (⌘K)
       </button>
 

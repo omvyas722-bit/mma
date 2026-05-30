@@ -1,5 +1,5 @@
 // Simple Bar Chart Component
-export default function BarChart({ data, title, xLabel, yLabel }) {
+export default function BarChart({ data, title, xLabel }) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">

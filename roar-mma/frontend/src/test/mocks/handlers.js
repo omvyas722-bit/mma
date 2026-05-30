@@ -67,7 +67,7 @@ export const handlers = [
 
   http.get(`${API_URL}/api/members/:id`, ({ params }) => {
     return HttpResponse.json({
-      id: parseInt(params.id),
+      id: parseInt(params.id, 10),
       first_name: 'John',
       last_name: 'Doe',
       email: 'john@example.com',
@@ -90,7 +90,7 @@ export const handlers = [
   http.put(`${API_URL}/api/members/:id`, async ({ request, params }) => {
     const body = await request.json();
     return HttpResponse.json({
-      id: parseInt(params.id),
+      id: parseInt(params.id, 10),
       ...body,
     });
   }),

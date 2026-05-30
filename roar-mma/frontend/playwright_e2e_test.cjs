@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const FRONTEND = 'http://localhost:5173';
+const FRONTEND = process.env.E2E_FRONTEND_URL || 'http://localhost:5173';
 
 async function run() {
   const browser = await chromium.launch({ headless: true });
@@ -43,13 +43,11 @@ async function run() {
     }
   }
 
-  await test('Login with default admin credentials', async () => {
-    const success = await doLogin('owner@roarmma.com.au', 'admin123');
-    if (!success) {
-      // Fallback to created admin
-      const success2 = await doLogin('admin@roarmma.com.au', 'changeme123');
-      if (!success2) throw new Error('Login failed with both credential sets');
-    }
+  await test('Login with admin credentials', async () => {
+    const email = process.env.E2E_ADMIN_EMAIL || 'admin@roarmma.com.au';
+    const password = process.env.E2E_ADMIN_PASSWORD || 'changeme123';
+    const success = await doLogin(email, password);
+    if (!success) throw new Error('Login failed');
   });
 
   await test('AI Assistant page loads', async () => {

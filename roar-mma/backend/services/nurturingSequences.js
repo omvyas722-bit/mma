@@ -15,21 +15,34 @@ class NurturingSequences {
 
     const messages = [];
 
-    // Day 0: Instant SMS (already handled by lead creation)
-    // Day 0: Welcome email
-    if (templateMap.lead_new && templateMap.lead_new.type === 'email') {
+    // Day 0: Welcome message (supports both email and SMS)
+    const newLeadTemplate = templateMap.lead_new;
+    if (newLeadTemplate) {
       const scheduled = new Date();
       scheduled.setMinutes(scheduled.getMinutes() + 5);
 
-      messages.push({
+      const baseMessage = {
         lead_id: leadId,
-        message_type: 'email',
-        template_id: templateMap.lead_new.id,
+        template_id: newLeadTemplate.id,
         scheduled_for: scheduled.toISOString(),
-        recipient_email: lead.email,
-        subject: templateMap.lead_new.subject,
-        body: templateMap.lead_new.body
-      });
+      };
+
+      if (newLeadTemplate.type === 'email') {
+        messages.push({
+          ...baseMessage,
+          message_type: 'email',
+          recipient_email: lead.email,
+          subject: newLeadTemplate.subject,
+          body: newLeadTemplate.body,
+        });
+      } else if (newLeadTemplate.type === 'sms') {
+        messages.push({
+          ...baseMessage,
+          message_type: 'sms',
+          recipient_phone: lead.phone,
+          body: newLeadTemplate.body,
+        });
+      }
     }
 
     // Day 3: No response follow-up
@@ -83,15 +96,17 @@ class NurturingSequences {
     const morningOf = new Date(trial);
     morningOf.setHours(9, 0, 0, 0);
 
-    if (morningOf > new Date()) {
-      messages.push({
-        lead_id: leadId,
-        message_type: 'sms',
-        scheduled_for: morningOf.toISOString(),
-        recipient_phone: lead.phone,
-        body: `Hi {{first_name}}! Your trial at ROAR MMA is today at ${trial.toLocaleTimeString()}. Address: {{location}}. Can't wait to see you! - ROAR Team`
-      });
+    if (!trial) {
+      return messages;
     }
+    // Schedule morning-of reminder (always schedule; scheduler will send immediately if past due)
+    messages.push({
+      lead_id: leadId,
+      message_type: 'sms',
+      scheduled_for: morningOf.toISOString(),
+      recipient_phone: lead.phone,
+      body: `Hi {{first_name}}! Your trial at ROAR MMA is today at ${trial.toLocaleTimeString()}. Address: {{location}}. Can't wait to see you! - ROAR Team`
+    });
 
     const created = [];
     for (const msg of messages) {

@@ -1,6 +1,6 @@
 // Settings Context Provider - Application settings management
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { settingsApi } from '../lib/api';
 import { useNotifications } from './NotificationContext';
 import logger from '../lib/logger';
@@ -68,7 +68,6 @@ const DEFAULT_SETTINGS = {
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
   const [locations, setLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -299,6 +298,7 @@ export function SettingsProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSettings() {
   const context = useContext(SettingsContext);
 
@@ -310,12 +310,14 @@ export function useSettings() {
 }
 
 // Hook to get specific setting
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSetting(path) {
   const { getSetting } = useSettings();
   return getSetting(path);
 }
 
 // Hook to check if feature is enabled
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFeature(featureName) {
   const { settings } = useSettings();
   return settings.features?.[featureName] ?? false;
@@ -356,7 +358,7 @@ function SettingsPage() {
   return (
     <div>
       <h1>{settings.general.gymName}</h1>
-      <button onClick={handleSave} disabled={isSaving}>
+      <button type="button" onClick={handleSave} disabled={isSaving}>
         {isSaving ? 'Saving...' : 'Save'}
       </button>
     </div>
@@ -383,7 +385,7 @@ function BookingButton() {
     return null;
   }
 
-  return <button>Book Class</button>;
+  return <button type="button">Book Class</button>;
 }
 
 // Location management

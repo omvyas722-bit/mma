@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -224,7 +223,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let locations = [];
         let editingLocationId = null;
@@ -338,41 +342,41 @@
                 <div class="location-card">
                     <div class="location-header">
                         <div>
-                            <div class="location-name">${loc.name}</div>
-                            <span class="location-status status-${loc.status}">${loc.status.toUpperCase()}</span>
+                            <div class="location-name">${escapeHtml(loc.name)}</div>
+                            <span class="location-status status-${escapeHtml(loc.status)}">${escapeHtml(loc.status.toUpperCase())}</span>
                         </div>
                     </div>
 
                     <div class="location-info">
                         <div class="info-row">
                             <span class="info-icon">📍</span>
-                            <span>${loc.address}, ${loc.city} ${loc.state} ${loc.postcode}</span>
+                            <span>${escapeHtml(loc.address)}, ${escapeHtml(loc.city)} ${escapeHtml(loc.state)} ${escapeHtml(loc.postcode)}</span>
                         </div>
                         <div class="info-row">
                             <span class="info-icon">📞</span>
-                            <span>${loc.phone}</span>
+                            <span>${escapeHtml(loc.phone)}</span>
                         </div>
                         <div class="info-row">
                             <span class="info-icon">✉️</span>
-                            <span>${loc.email}</span>
+                            <span>${escapeHtml(loc.email)}</span>
                         </div>
                         <div class="info-row">
                             <span class="info-icon">🕐</span>
-                            <span>${loc.hours}</span>
+                            <span>${escapeHtml(loc.hours)}</span>
                         </div>
                     </div>
 
                     <div class="location-metrics">
                         <div class="metric">
-                            <div class="metric-value">${loc.current_members}</div>
+                            <div class="metric-value">${escapeHtml(loc.current_members)}</div>
                             <div class="metric-label">Members</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-value">${loc.classes_per_week}</div>
+                            <div class="metric-value">${escapeHtml(loc.classes_per_week)}</div>
                             <div class="metric-label">Classes/Week</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-value">$${loc.monthly_revenue.toLocaleString()}</div>
+                            <div class="metric-value">$${escapeHtml(loc.monthly_revenue.toLocaleString())}</div>
                             <div class="metric-label">Revenue</div>
                         </div>
                     </div>
@@ -395,7 +399,7 @@
             document.getElementById('total-locations').textContent = activeLocations.length;
             document.getElementById('total-members').textContent = totalMembers;
             document.getElementById('total-classes').textContent = totalClasses;
-            document.getElementById('total-revenue').textContent = `$${totalRevenue.toLocaleString()}`;
+            document.getElementById('total-revenue').textContent = `$${escapeHtml(totalRevenue.toLocaleString())}`;
         }
 
         function openAddModal() {

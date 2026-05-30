@@ -108,7 +108,7 @@ export function AccordionTrigger({
   const onItemToggle = accordionContext?.onItemToggle;
 
   return (
-    <button
+    <button type="button"
       onClick={() => !disabled && onItemToggle(value)}
       disabled={disabled}
       className={`
@@ -173,7 +173,7 @@ export function AnimatedAccordionContent({
   children,
   className = '',
 }) {
-  const [height, setHeight] = useState(0);
+  const [height, setHeight] = React.useState(0);
   const contentRef = React.useRef(null);
 
   React.useEffect(() => {

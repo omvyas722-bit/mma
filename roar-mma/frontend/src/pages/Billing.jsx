@@ -172,7 +172,7 @@ export default function Billing() {
 
 function StatCard({ label, value, color = 'blue' }) {
   const colors = {
-    blue: 'text-blue-600',
+    blue: 'text-red-600',
     green: 'text-green-600',
     purple: 'text-purple-600',
     red: 'text-red-600',

@@ -1,0 +1,121 @@
+Fix all errors from this:
+PS D:\gym software\mma\roar-mma\backend> npm run dev
+
+> roar-mma-backend@1.0.0 dev
+> nodemon server.js
+
+[nodemon] 3.1.14
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node server.js`
+◇ injected env (28) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+[WEBHOOKS] LIGHTSPEED_WEBHOOK_SECRET environment variable is not set. Webhook verification will reject all requests.
+[PHONE] DEFAULT_TRANSFER_NUMBER not set. Using fallback number. Configure it in .env to route calls to a real staff number.
+(node:15760) [DEP0169] DeprecationWarning: `url.parse()` behavior 
+is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was 
+created)
+=================================
+ROAR MMA Management System
+=================================
+Server running at http://localhost:3001
+WebSocket server running at ws://localhost:3001
+Health check: http://localhost:3001/api/health
+=================================
+Starting message scheduler...
+Message scheduler started
+[AI-DAEMON] Agent registered: leads
+[AI-DAEMON] Agent registered: trials
+[AI-DAEMON] Agent registered: retention
+[AI-DAEMON] Agent registered: tasks
+[AI-DAEMON] Agent registered: analytics
+[AI-DAEMON] Agent registered: billing
+[AI-DAEMON] Agent registered: grading
+[AI-DAEMON] Agent registered: stock
+[AI-DAEMON] Agent registered: staff
+[AI-DAEMON] Agent registered: messaging
+[AI-DAEMON] Agent registered: sales_team
+[AI-DAEMON] Agent registered: member_success_team
+[AI-DAEMON] Agent registered: operations_team
+[AI-DAEMON] Agent registered: finance_team
+[AI-DAEMON] Starting daemon...
+[AI-DAEMON] Tick #1 starting — 14 agents registered
+[AI-STATE] Default agent configs seeded
+[AI-DAEMON] Daemon started — interval=60000ms
+AI daemon started
+[AI-DAEMON] Executing agent: leads
+[LEAD-AGENT] Starting lead processing...
+[AI-STATE] Activity logged: leads/lead_check — Processed 11 leads. Created 1 tasks (0 hot lead, 0 untouched flagged, 1 check-in).   
+[LEAD-AGENT] Processed 11 leads. Created 1 tasks (0 hot lead, 0 untouched flagged, 1 check-in).
+[AI-STATE] Activity logged: leads/tick — Agent leads executed successfully
+[AI-DAEMON] Executing agent: trials
+[TRIAL-AGENT] Starting trial pipeline check...
+[AI-STATE] Activity logged: trials/trial_pipeline_check — Trial pipeline: 0 no-shows flagged, 0 follow-ups created, 0 reminders scheduled. Conversion rate: 0% (null/0).
+[TRIAL-AGENT] Trial pipeline: 0 no-shows flagged, 0 follow-ups created, 0 reminders scheduled. Conversion rate: 0% (null/0).        
+[AI-STATE] Activity logged: trials/tick — Agent trials executed successfully
+[AI-DAEMON] Executing agent: retention
+[RETENTION-AGENT] Starting retention check...
+[AI-STATE] Activity logged: retention/retention_check — 1 at-risk 
+members detected. 1 win-back candidates. 0 expired campaigns closed.
+[RETENTION-AGENT] 1 at-risk members detected. 1 win-back candidates. 0 expired campaigns closed.
+[AI-STATE] Activity logged: retention/tick — Agent retention executed successfully
+[AI-DAEMON] Executing agent: tasks
+[TASK-AGENT] Starting task pipeline check...
+[AI-STATE] Activity logged: tasks/task_pipeline_check — Overdue tasks: 5 (4 escalated). Archived 0 old completed tasks. Pipeline: 12 pending, 0 completed.
+[TASK-AGENT] Overdue tasks: 5 (4 escalated). Archived 0 old completed tasks. Pipeline: 12 pending, 0 completed.
+[AI-STATE] Activity logged: tasks/tick — Agent tasks executed successfully
+[AI-DAEMON] Executing agent: analytics
+[ANALYTICS-AGENT] Starting daily analytics...
+[ANALYTICS-AGENT] Already ran today, skipping.
+[AI-STATE] Activity logged: analytics/tick — Agent analytics executed successfully
+[AI-DAEMON] Executing agent: billing
+[BILLING-AGENT] Starting billing check...
+[BILLING-AGENT] Error: SqliteError: no such column: t.lightspeed_transaction_id
+    at Database.prepare (D:\gym software\mma\roar-mma\backend\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+    at Object.getFailedPayments (D:\gym software\mma\roar-mma\backend\data\transactions.js:197:13)
+    at handler (D:\gym software\mma\roar-mma\backend\services\ai\agents\billingAgent.js:14:41)
+    at tick (D:\gym software\mma\roar-mma\backend\services\ai\aiDaemon.js:60:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async runLoop (D:\gym software\mma\roar-mma\backend\services\ai\aiDaemon.js:128:5)
+[AI-STATE] Activity logged: billing/billing_check_error — Billing 
+agent failed: no such column: t.lightspeed_transaction_id
+[AI-STATE] Activity logged: billing/tick — Agent billing executed 
+successfully
+[AI-DAEMON] Agent "grading" is disabled, skipping
+[AI-DAEMON] Agent "stock" is disabled, skipping
+[AI-DAEMON] Executing agent: staff
+[STAFF-AGENT] Starting staff performance check...
+[AI-STATE] Activity logged: staff/staff_performance_check — Top performer: Admin User (0 signups). 0 staff with declining metrics.  
+[STAFF-AGENT] Top performer: Admin User (0 signups). 0 staff with 
+declining metrics.
+[STAFF-AGENT] Top: Admin User (0 signups, 0 PT revenue)
+[AI-STATE] Activity logged: staff/tick — Agent staff executed successfully
+[AI-DAEMON] Executing agent: messaging
+[MESSAGING-AGENT] Starting messaging check...
+[AI-STATE] Activity logged: messaging/messaging_check — 0 messages sent, 49 failed, 2 pending. Success rate: 0%. 0 overdue pending messages.
+[MESSAGING-AGENT] 0 messages sent, 49 failed, 2 pending. Success rate: 0%. 0 overdue pending messages.
+[AI-STATE] Activity logged: messaging/tick — Agent messaging executed successfully
+[AI-DAEMON] Executing agent: sales_team
+[OPENROUTER] Daily counter reset for new day
+[OPENROUTER] completeChat error: Request failed with status code 401
+[sales_team] sales_team: 0 actions executed, 0 failed
+[AI-STATE] Activity logged: sales_team/department_tick — sales_team: 0 actions executed, 0 failed
+[AI-STATE] Activity logged: sales_team/tick — Agent sales_team executed successfully
+[AI-DAEMON] Executing agent: member_success_team
+[OPENROUTER] completeChat error: Request failed with status code 401
+[member_success_team] member_success_team: 0 actions executed, 0 failed
+[AI-STATE] Activity logged: member_success_team/department_tick — 
+member_success_team: 0 actions executed, 0 failed
+[AI-STATE] Activity logged: member_success_team/tick — Agent member_success_team executed successfully
+[AI-DAEMON] Executing agent: operations_team
+[OPENROUTER] completeChat error: Request failed with status code 401
+[operations_team] operations_team: 0 actions executed, 0 failed   
+[AI-STATE] Activity logged: operations_team/department_tick — operations_team: 0 actions executed, 0 failed
+[AI-STATE] Activity logged: operations_team/tick — Agent operations_team executed successfully
+[AI-DAEMON] Executing agent: finance_team
+[OPENROUTER] completeChat error: Request failed with status code 401
+[finance_team] finance_team: 0 actions executed, 0 failed
+[AI-STATE] Activity logged: finance_team/department_tick — finance_team: 0 actions executed, 0 failed
+[AI-STATE] Activity logged: finance_team/tick — Agent finance_team executed successfully
+[AI-DAEMON] Tick #1 completed in 2241ms — 12/12 ok

@@ -15,7 +15,7 @@ function validateClassForm(formData) {
   if (!formData.start_time) errors.start_time = 'Start time is required';
   if (!formData.end_time) errors.end_time = 'End time is required';
   if (!formData.class_type) errors.class_type = 'Class type is required';
-  if (formData.max_capacity && parseInt(formData.max_capacity) < 1) {
+  if (formData.max_capacity && parseInt(formData.max_capacity, 10) < 1) {
     errors.max_capacity = 'Capacity must be at least 1';
   }
   if (formData.start_time && formData.end_time) {

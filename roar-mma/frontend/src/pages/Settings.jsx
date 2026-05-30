@@ -15,7 +15,7 @@ function ToggleSwitch({ checked, onChange, id }) {
         onChange={(e) => onChange(e.target.checked)}
         className="sr-only peer"
       />
-      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
     </label>
   );
 }
@@ -37,10 +37,11 @@ export default function Settings() {
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
-    if (settings && !hasChanges) {
+    if (settings) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(settings);
     }
-  }, [settings, hasChanges]);
+  }, [settings]);
 
   const updateSettings = useMutation({
     mutationFn: async (data) => {
@@ -80,11 +81,12 @@ export default function Settings() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
         {hasChanges && (
-          <button
-            onClick={handleSave}
-            disabled={updateSettings.isPending}
-            className="btn btn-primary"
-          >
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={updateSettings.isPending}
+          className="btn btn-primary"
+        >
             {updateSettings.isPending ? 'Saving...' : 'Save Changes'}
           </button>
         )}
@@ -161,10 +163,11 @@ export default function Settings() {
 function TabButton({ active, onClick, label }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`px-6 py-3 text-sm font-medium ${
         active
-          ? 'border-b-2 border-blue-500 text-blue-600'
+          ? 'border-b-2 border-red-500 text-red-600'
           : 'text-gray-500 hover:text-gray-700'
       }`}
     >
@@ -298,7 +301,7 @@ function LocationsSettings({ data, onChange }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Locations</h2>
-        <button onClick={addLocation} className="btn btn-primary">
+        <button type="button" onClick={addLocation} className="btn btn-primary">
           Add Location
         </button>
       </div>
@@ -314,6 +317,7 @@ function LocationsSettings({ data, onChange }) {
                   Location {index + 1}
                 </h3>
                 <button
+                  type="button"
                   onClick={() => removeLocation(index)}
                   className="text-red-600 hover:text-red-900"
                 >
@@ -394,7 +398,7 @@ function MembershipSettings({ data, onChange }) {
             <input
               type="number"
               value={data.trial_period_days || 7}
-              onChange={(e) => onChange('trial_period_days', parseInt(e.target.value) || 7)}
+              onChange={(e) => onChange('trial_period_days', e.target.value ? parseInt(e.target.value, 10) : 7)}
               className="input w-20"
               min="1"
             />
@@ -433,7 +437,7 @@ function MembershipSettings({ data, onChange }) {
             <input
               type="number"
               value={data.grace_period_days || 3}
-              onChange={(e) => onChange('grace_period_days', parseInt(e.target.value) || 3)}
+              onChange={(e) => onChange('grace_period_days', e.target.value ? parseInt(e.target.value, 10) : 3)}
               className="input w-20"
               min="0"
             />

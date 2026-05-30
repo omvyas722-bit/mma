@@ -4,7 +4,7 @@ const staffTasksData = require('../../../data/staffTasks');
 const scheduledMessagesData = require('../../../data/scheduledMessages');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config }) {
+async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
   try {
     console.log('[TRIAL-AGENT] Starting trial pipeline check...');
 
@@ -15,7 +15,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // 1. No-shows: trial_booked with past trial_date
-    const trialLeads = (leadsData.getAllLeads({ stage: 'trial_booked' }) || []).slice(0, 200);
+    const trialLeads = (leadsData.getAllLeads({ stage: 'trial_booked' }).leads || []).slice(0, 200);
     const noShows = trialLeads.filter(l => {
       if (!l.trial_date) return false;
       return l.trial_date < today;
@@ -48,7 +48,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     }
 
     // 2. High interest trial_completed not converted in 7 days
-    const completedLeads = (leadsData.getAllLeads({ stage: 'trial_completed' }) || []).slice(0, 200);
+    const completedLeads = (leadsData.getAllLeads({ stage: 'trial_completed' }).leads || []).slice(0, 200);
     const highInterestNotConverted = completedLeads.filter(l => {
       if (!l || !l.trial_interest_level) return false;
       if (l.trial_interest_level !== 'hot' && l.trial_interest_level !== 'warm') return false;
@@ -128,6 +128,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const summary = `Trial pipeline: ${noShowTasks} no-shows flagged, ${followUpTasks} follow-ups created, ${remindersScheduled} reminders scheduled. Conversion rate: ${conversionRate}% (${conversionStats.converted}/${conversionStats.total_completed}).`;
 
     await aiState.logActivity({
+      agentName: agentName || 'trials',
       actionType: 'trial_pipeline_check',
       details: {
         no_shows: noShowTasks,
@@ -142,13 +143,14 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[TRIAL-AGENT] ${summary}`);
 
-    if (noShowTasks > 0 || followUpTasks > 0) {
+    if ((noShowTasks > 0 || followUpTasks > 0) && broadcast) {
       broadcast({ type: 'trial_agent_update', summary, noShowTasks, followUpTasks });
     }
   } catch (err) {
     console.error('[TRIAL-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
+        agentName: agentName || 'trials',
         actionType: 'trial_pipeline_error',
         details: { error: err.message },
         summary: `Trial agent failed: ${err.message}`

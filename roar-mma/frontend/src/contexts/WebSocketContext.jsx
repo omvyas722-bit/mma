@@ -10,7 +10,7 @@ export function WebSocketProvider({ children }) {
   const queryClient = useQueryClient();
   const reconnectTimeoutRef = useRef(null);
 
-  const connectWebSocket = useCallback(() => {
+  const connectWebSocket = useCallback(function connectWs() {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -94,7 +94,7 @@ export function WebSocketProvider({ children }) {
         reconnectTimeoutRef.current = setTimeout(() => {
           if (localStorage.getItem('token')) {
             if (import.meta.env.DEV) console.log('Attempting to reconnect WebSocket...');
-            connectWebSocket();
+            connectWs();
           }
         }, 3000);
       };
@@ -136,6 +136,7 @@ export function WebSocketProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWebSocket() {
   const context = useContext(WebSocketContext);
   if (!context) {

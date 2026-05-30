@@ -254,7 +254,7 @@ function NotificationItem({ notification, onDismiss }) {
           <p className="text-sm">{notification.message}</p>
 
           {notification.action && (
-            <button
+            <button type="button"
               onClick={handleAction}
               className="mt-2 text-sm font-medium underline hover:no-underline"
             >
@@ -264,7 +264,7 @@ function NotificationItem({ notification, onDismiss }) {
         </div>
 
         {notification.dismissible && (
-          <button
+          <button type="button"
             onClick={handleDismiss}
             className="flex-shrink-0 hover:opacity-70 transition-opacity"
             aria-label="Dismiss notification"
@@ -284,6 +284,7 @@ function NotificationItem({ notification, onDismiss }) {
 }
 
 // Custom hook to use notifications
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNotifications() {
   const context = useContext(NotificationContext);
 

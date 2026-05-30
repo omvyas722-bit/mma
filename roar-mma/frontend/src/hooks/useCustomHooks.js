@@ -22,7 +22,7 @@ export function useDebounce(value, delay = 300) {
 // useThrottle - Throttle a value
 export function useThrottle(value, limit = 500) {
   const [throttledValue, setThrottledValue] = useState(value);
-  const lastRan = useRef(Date.now());
+  const lastRan = useRef(0);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -42,12 +42,13 @@ export function useThrottle(value, limit = 500) {
 
 // usePrevious - Get previous value
 export function usePrevious(value) {
-  const ref = useRef();
+  const ref = useRef(value);
 
   useEffect(() => {
     ref.current = value;
   }, [value]);
 
+  // eslint-disable-next-line react-hooks/refs
   return ref.current;
 }
 
@@ -229,7 +230,10 @@ export function useWindowSize() {
 export function useOnScreen(ref, options = {}) {
   const [isIntersecting, setIntersecting] = useState(false);
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -326,7 +330,10 @@ export function useAsync(asyncFunction, immediate = true) {
   const [value, setValue] = useState(null);
   const [error, setError] = useState(null);
   const asyncFnRef = useRef(asyncFunction);
-  asyncFnRef.current = asyncFunction;
+
+  useEffect(() => {
+    asyncFnRef.current = asyncFunction;
+  }, [asyncFunction]);
 
   const execute = useCallback(
     async (...params) => {
@@ -350,6 +357,7 @@ export function useAsync(asyncFunction, immediate = true) {
 
   useEffect(() => {
     if (immediate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       execute();
     }
   }, [execute, immediate]);
@@ -373,9 +381,12 @@ export function useForm(initialValues = {}, onSubmit) {
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const valuesRef = useRef(values);
-  valuesRef.current = values;
   const onSubmitRef = useRef(onSubmit);
-  onSubmitRef.current = onSubmit;
+
+  useEffect(() => {
+    valuesRef.current = values;
+    onSubmitRef.current = onSubmit;
+  }, [values, onSubmit]);
 
   const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;

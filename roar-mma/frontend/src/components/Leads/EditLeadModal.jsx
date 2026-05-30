@@ -12,6 +12,7 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
 
   useEffect(() => {
     if (lead) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         first_name: lead.first_name || '',
         last_name: lead.last_name || '',

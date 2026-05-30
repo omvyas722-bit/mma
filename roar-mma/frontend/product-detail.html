@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -164,7 +163,12 @@
     </div>
 
     <script>
-        var API_BASE = RoarMMA.API_BASE;
+        const API_BASE = RoarMMA.API_BASE;
+        
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
         
         let productId = null;
         let productData = null;
@@ -210,8 +214,8 @@
                         <div class="alert-banner">
                             <div class="alert-icon">⚠️</div>
                             <div class="alert-content">
-                                <div class="alert-title">${stockText}</div>
-                                <div class="alert-text">Current stock: ${productData.stock_quantity} units. Minimum level: ${productData.min_stock_level} units.</div>
+                                <div class="alert-title">${escapeHtml(stockText)}</div>
+                                <div class="alert-text">Current stock: ${escapeHtml(productData.stock_quantity)} units. Minimum level: ${escapeHtml(productData.min_stock_level)} units.</div>
                             </div>
                             <button class="btn btn-primary" >📦 Reorder</button>
                         </div>
@@ -225,30 +229,30 @@
                 document.getElementById('product-header').innerHTML = `
                     <div class="product-top">
                         <div class="product-info">
-                            <div class="product-name">${productData.name}</div>
+                            <div class="product-name">${escapeHtml(productData.name)}</div>
                             <div class="product-meta">
-                                <span>📦 SKU: ${productData.sku}</span>
-                                <span>🏷️ ${productData.category || 'Uncategorized'}</span>
-                                <span>📍 ${productData.location || 'No location'}</span>
+                                <span>📦 SKU: ${escapeHtml(productData.sku)}</span>
+                                <span>🏷️ ${escapeHtml(productData.category || 'Uncategorized')}</span>
+                                <span>📍 ${escapeHtml(productData.location || 'No location')}</span>
                             </div>
                         </div>
-                        <span class="stock-badge ${stockBadgeClass}">${stockText}</span>
+                        <span class="stock-badge ${escapeHtml(stockBadgeClass)}">${escapeHtml(stockText)}</span>
                     </div>
                     <div class="quick-stats">
                         <div class="quick-stat">
-                            <div class="quick-stat-value">${productData.stock_quantity}</div>
+                            <div class="quick-stat-value">${escapeHtml(productData.stock_quantity)}</div>
                             <div class="quick-stat-label">Units in Stock</div>
                         </div>
                         <div class="quick-stat">
-                            <div class="quick-stat-value">$${totalValue.toFixed(0)}</div>
+                            <div class="quick-stat-value">$${escapeHtml(totalValue.toFixed(0))}</div>
                             <div class="quick-stat-label">Inventory Value</div>
                         </div>
                         <div class="quick-stat">
-                            <div class="quick-stat-value">$${potentialRevenue.toFixed(0)}</div>
+                            <div class="quick-stat-value">$${escapeHtml(potentialRevenue.toFixed(0))}</div>
                             <div class="quick-stat-label">Potential Revenue</div>
                         </div>
                         <div class="quick-stat">
-                            <div class="quick-stat-value" style="color: #00ff00;">$${potentialProfit.toFixed(0)}</div>
+                            <div class="quick-stat-value" style="color: #00ff00;">$${escapeHtml(potentialProfit.toFixed(0))}</div>
                             <div class="quick-stat-label">Potential Profit</div>
                         </div>
                     </div>
@@ -263,31 +267,31 @@
                 document.getElementById('product-info').innerHTML = `
                     <div class="info-field">
                         <div class="info-label">Product Name</div>
-                        <div class="info-value">${productData.name}</div>
+                        <div class="info-value">${escapeHtml(productData.name)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">SKU</div>
-                        <div class="info-value">${productData.sku}</div>
+                        <div class="info-value">${escapeHtml(productData.sku)}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Category</div>
-                        <div class="info-value">${productData.category || 'N/A'}</div>
+                        <div class="info-value">${escapeHtml(productData.category || 'N/A')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Brand</div>
-                        <div class="info-value">${productData.brand || 'N/A'}</div>
+                        <div class="info-value">${escapeHtml(productData.brand || 'N/A')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Size</div>
-                        <div class="info-value">${productData.size || 'N/A'}</div>
+                        <div class="info-value">${escapeHtml(productData.size || 'N/A')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Color</div>
-                        <div class="info-value">${productData.color || 'N/A'}</div>
+                        <div class="info-value">${escapeHtml(productData.color || 'N/A')}</div>
                     </div>
                     <div class="info-field full-width">
                         <div class="info-label">Description</div>
-                        <div class="info-value">${productData.description || 'No description'}</div>
+                        <div class="info-value">${escapeHtml(productData.description || 'No description')}</div>
                     </div>
                 `;
             } catch (error) {
@@ -304,19 +308,19 @@
                 document.getElementById('pricing-info').innerHTML = `
                     <div class="margin-row">
                         <span class="margin-label">Cost Price</span>
-                        <span class="margin-value">$${productData.cost_price.toFixed(2)}</span>
+                        <span class="margin-value">$${escapeHtml(productData.cost_price.toFixed(2))}</span>
                     </div>
                     <div class="margin-row">
                         <span class="margin-label">Sell Price</span>
-                        <span class="margin-value">$${productData.sell_price.toFixed(2)}</span>
+                        <span class="margin-value">$${escapeHtml(productData.sell_price.toFixed(2))}</span>
                     </div>
                     <div class="margin-row">
                         <span class="margin-label">Profit per Unit</span>
-                        <span class="margin-value" style="color: #00ff00;">$${profit.toFixed(2)}</span>
+                        <span class="margin-value" style="color: #00ff00;">$${escapeHtml(profit.toFixed(2))}</span>
                     </div>
                     <div class="margin-row">
                         <span class="margin-label">Profit Margin</span>
-                        <span class="margin-value" style="color: ${marginColor};">${margin}%</span>
+                        <span class="margin-value" style="color: ${escapeHtml(marginColor)};">${escapeHtml(margin)}%</span>
                     </div>
                 `;
             } catch (error) {
@@ -329,19 +333,19 @@
                 document.getElementById('supplier-info').innerHTML = `
                     <div class="info-field">
                         <div class="info-label">Supplier Name</div>
-                        <div class="info-value">${productData.supplier_name || 'Not specified'}</div>
+                        <div class="info-value">${escapeHtml(productData.supplier_name || 'Not specified')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Supplier SKU</div>
-                        <div class="info-value">${productData.supplier_sku || 'N/A'}</div>
+                        <div class="info-value">${escapeHtml(productData.supplier_sku || 'N/A')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Lead Time</div>
-                        <div class="info-value">${productData.lead_time_days ? productData.lead_time_days + ' days' : 'N/A'}</div>
+                        <div class="info-value">${escapeHtml(productData.lead_time_days ? productData.lead_time_days + ' days' : 'N/A')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Last Order Date</div>
-                        <div class="info-value">${productData.last_order_date ? new Date(productData.last_order_date).toLocaleDateString() : 'Never'}</div>
+                        <div class="info-value">${escapeHtml(productData.last_order_date ? new Date(productData.last_order_date).toLocaleDateString() : 'Never')}</div>
                     </div>
                 `;
             } catch (error) {
@@ -356,27 +360,27 @@
                 document.getElementById('inventory-status').innerHTML = `
                     <div class="info-field">
                         <div class="info-label">Current Stock</div>
-                        <div class="info-value">${productData.stock_quantity} units</div>
+                        <div class="info-value">${escapeHtml(productData.stock_quantity)} units</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Minimum Level</div>
-                        <div class="info-value">${productData.min_stock_level} units</div>
+                        <div class="info-value">${escapeHtml(productData.min_stock_level)} units</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Reorder Quantity</div>
-                        <div class="info-value">${productData.reorder_quantity || 'Not set'}</div>
+                        <div class="info-value">${escapeHtml(productData.reorder_quantity || 'Not set')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Storage Location</div>
-                        <div class="info-value">${productData.location || 'Not specified'}</div>
+                        <div class="info-value">${escapeHtml(productData.location || 'Not specified')}</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Est. Days of Stock</div>
-                        <div class="info-value">${daysOfStock} days</div>
+                        <div class="info-value">${escapeHtml(daysOfStock)} days</div>
                     </div>
                     <div class="info-field">
                         <div class="info-label">Barcode</div>
-                        <div class="info-value">${productData.barcode || 'N/A'}</div>
+                        <div class="info-value">${escapeHtml(productData.barcode || 'N/A')}</div>
                     </div>
                 `;
             } catch (error) {
@@ -398,9 +402,9 @@
                 activities.forEach(activity => {
                     html += `
                         <div class="timeline-item">
-                            <div class="timeline-date">${new Date(activity.date).toLocaleDateString()}</div>
-                            <div class="timeline-title">${activity.title}</div>
-                            <div class="timeline-desc">${activity.desc}</div>
+                            <div class="timeline-date">${escapeHtml(new Date(activity.date).toLocaleDateString())}</div>
+                            <div class="timeline-title">${escapeHtml(activity.title)}</div>
+                            <div class="timeline-desc">${escapeHtml(activity.desc)}</div>
                         </div>
                     `;
                 });

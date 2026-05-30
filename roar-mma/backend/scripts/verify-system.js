@@ -29,6 +29,7 @@ function request(method, path, data = null) {
           const data = body ? JSON.parse(body) : {};
           resolve({ status: res.statusCode, data });
         } catch (e) {
+          console.error('[VERIFY] JSON parse error:', e.message);
           resolve({ status: res.statusCode, data: body });
         }
       });
@@ -63,8 +64,8 @@ async function testHealth() {
 async function testLogin() {
   console.log('\n🔍 Testing Authentication...');
   const res = await request('POST', '/api/auth/login', {
-    email: 'admin@roarmma.com.au',
-    password: 'changeme123'
+    email: process.env.ADMIN_EMAIL || 'admin@roarmma.com.au',
+    password: process.env.ADMIN_PASSWORD || 'changeme123'
   });
 
   if (res.status === 200 && res.data.token) {

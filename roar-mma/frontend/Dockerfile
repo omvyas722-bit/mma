@@ -25,6 +25,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built files from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
+RUN chown -R appuser:appgroup /usr/share/nginx/html
+USER appuser
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

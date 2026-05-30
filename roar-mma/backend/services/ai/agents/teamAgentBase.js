@@ -272,18 +272,18 @@ module.exports = TeamAgent;
 
 function extractJson(text) {
   if (!text) return null;
-  try { return JSON.parse(text); } catch {}
+  try { return JSON.parse(text); } catch (e) { /* empty */ }
 
   let match = text.match(/\[[\s\S]*?\]\s*(?=\n|$|,)/);
   if (!match) match = text.match(/\[[\s\S]*\]/);
   if (match) {
-    try { return JSON.parse(match[0]); } catch {}
+    try { return JSON.parse(match[0]); } catch (e) { /* empty */ }
   }
 
   match = text.match(/\{[\s\S]*?\}\s*(?=\n|$|,)/);
   if (!match) match = text.match(/\{[\s\S]*\}/);
   if (match) {
-    try { return JSON.parse(match[0]); } catch {}
+    try { return JSON.parse(match[0]); } catch (e) { /* empty */ }
   }
 
   return null;

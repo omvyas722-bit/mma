@@ -126,7 +126,7 @@ async function executeWithRetry(requestFn, retries = MAX_RETRIES) {
       const status = error.response?.status;
       if (!status || status === 429 || (status >= 500 && status < 600)) {
         console.log(`[OPENROUTER] Retry ${attempt}/${retries} after ${delay}ms (status=${status || 'network error'})`);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise(r => { setTimeout(r, delay); });
         delay *= 2;
       } else {
         break;
