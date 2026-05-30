@@ -192,4 +192,81 @@ export const handlers = [
       database: 'connected',
     });
   }),
+
+  // AI endpoints
+  http.post(`${API_URL}/api/ai/chat`, async ({ request }) => {
+    const body = await request.json();
+    const query = body.query?.toLowerCase() || '';
+
+    if (query.includes('fail')) {
+      return HttpResponse.json({ error: 'AI service unavailable' }, { status: 503 });
+    }
+
+    const responses = {
+      'active members': 'Currently 156 active members',
+      'members': 'Currently 156 active members',
+      'new leads': 'You have 8 new leads this week',
+      'leads': 'You have 8 new leads this week',
+      'revenue': "Today's revenue is $2,450",
+      'tasks': 'There are 3 overdue tasks',
+      'overdue tasks': 'There are 3 overdue tasks',
+      'summary': '📊 **Business Summary**\n\n👥 **Members:** 156 active, 12 on trial\n🎯 **Leads:** 8 new\n💰 **Revenue This Month:** $45,000\n📅 **Classes Today:** 4\n📋 **Overdue Tasks:** 3',
+    };
+
+    let response = 'I can help with that! Check the dashboard for details.';
+    for (const [key, val] of Object.entries(responses)) {
+      if (query.includes(key)) {
+        response = val;
+        break;
+      }
+    }
+
+    return HttpResponse.json({
+      response,
+      actions: query.includes('task') ? [{ type: 'task_created', text: 'Task created' }] : [],
+    });
+  }),
+
+  http.get(`${API_URL}/api/ai/status`, () => {
+    return HttpResponse.json({
+      running: true,
+      uptime: 3600,
+      lastTick: new Date().toISOString(),
+      actionsToday: 42,
+      dailyApiCalls: 15,
+      dailyApiLimit: 50,
+      agentsRegistered: 10,
+    });
+  }),
+
+  http.get(`${API_URL}/api/ai/agents`, () => {
+    return HttpResponse.json([
+      { agent_name: 'leads', enabled: true, description: 'Monitors and manages new leads' },
+      { agent_name: 'trials', enabled: true, description: 'Manages trial member conversions' },
+      { agent_name: 'retention', enabled: false, description: 'Monitors member retention metrics' },
+      { agent_name: 'tasks', enabled: true, description: 'Creates and tracks staff tasks' },
+      { agent_name: 'analytics', enabled: true, description: 'Generates business insights' },
+      { agent_name: 'billing', enabled: true, description: 'Monitors billing and payments' },
+      { agent_name: 'belt_grading', enabled: false, description: 'Tracks belt grading progress' },
+      { agent_name: 'stock', enabled: true, description: 'Monitors inventory levels' },
+      { agent_name: 'staff', enabled: true, description: 'Tracks staff performance' },
+      { agent_name: 'messaging', enabled: true, description: 'Handles automated messages' },
+    ]);
+  }),
+
+  http.post(`${API_URL}/api/ai/agents/:name/toggle`, ({ params }) => {
+    return HttpResponse.json({ agent_name: params.name, enabled: true });
+  }),
+
+  http.get(`${API_URL}/api/ai/history`, ({ request }) => {
+    const url = new URL(request.url);
+    const agentFilter = url.searchParams.get('agent');
+    const allActivities = [
+      { id: 1, agent_name: 'leads', action_type: 'check_leads', summary: 'Checked for new leads', status: 'success', created_at: new Date().toISOString() },
+      { id: 2, agent_name: 'tasks', action_type: 'check_tasks', summary: 'Created follow-up task for lead #5', status: 'success', created_at: new Date(Date.now() - 60000).toISOString() },
+      { id: 3, agent_name: 'billing', action_type: 'check_payments', summary: 'Payment processing check completed', status: 'partial', created_at: new Date(Date.now() - 120000).toISOString() },
+    ];
+    const filtered = agentFilter ? allActivities.filter(a => a.agent_name === agentFilter) : allActivities;
+    return HttpResponse.json(filtered);
+  }),
 ];

@@ -14,6 +14,8 @@ import Leads from './pages/Leads';
 import Reports from './pages/Reports';
 import Billing from './pages/Billing';
 import Staff from './pages/Staff';
+import AIAssistant from './pages/AIAssistant';
+import AIDashboard from './pages/AIDashboard';
 
 // Layout
 import AppShell from './components/Layout/AppShell';
@@ -46,6 +48,8 @@ function App() {
                 <Route path="billing" element={<Billing />} />
                 <Route path="staff" element={<Staff />} />
                 <Route path="reports" element={<Reports />} />
+                <Route path="ai" element={<AIAssistant />} />
+                <Route path="ai-dashboard" element={<AIDashboard />} />
               </Route>
 
               {/* Catch all */}

@@ -16,6 +16,8 @@ export default function AppShell() {
     { name: 'Billing', path: '/billing', icon: '💰' },
     { name: 'Staff', path: '/staff', icon: '👔' },
     { name: 'Reports', path: '/reports', icon: '📈' },
+    { name: 'AI Assistant', path: '/ai', icon: '🤖' },
+    { name: 'AI Dashboard', path: '/ai-dashboard', icon: '⚙️' },
   ];
 
   function isActive(path) {

@@ -31,9 +31,23 @@ const messagingRoutes = require('./routes/messaging');
 const analyticsRoutes = require('./routes/analytics');
 const stockRoutes = require('./routes/stock');
 const beltGradingRoutes = require('./routes/beltGrading');
+const aiRoutes = require('./routes/ai');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
+const aiDaemon = require('./services/ai/aiDaemon');
+
+// Import AI agents
+const leadAgent = require('./services/ai/agents/leadAgent');
+const trialAgent = require('./services/ai/agents/trialAgent');
+const retentionAgent = require('./services/ai/agents/retentionAgent');
+const taskAgent = require('./services/ai/agents/taskAgent');
+const analyticsAgent = require('./services/ai/agents/analyticsAgent');
+const billingAgent = require('./services/ai/agents/billingAgent');
+const beltGradingAgent = require('./services/ai/agents/beltGradingAgent');
+const stockAgent = require('./services/ai/agents/stockAgent');
+const staffAgent = require('./services/ai/agents/staffAgent');
+const messagingAgent = require('./services/ai/agents/messagingAgent');
 
 const app = express();
 const server = http.createServer(app);
@@ -114,6 +128,7 @@ app.use('/api/messaging', messagingRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/grading', beltGradingRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -186,6 +201,7 @@ process.on('SIGTERM', () => {
 
   // Stop message scheduler
   messageScheduler.stop();
+  aiDaemon.stop();
 
   server.close(() => {
     console.log('HTTP server closed');
@@ -207,6 +223,7 @@ process.on('SIGINT', () => {
 
   // Stop message scheduler
   messageScheduler.stop();
+  aiDaemon.stop();
 
   server.close(() => {
     console.log('HTTP server closed');
@@ -234,6 +251,20 @@ server.listen(PORT, HOST, () => {
   // Start message scheduler
   messageScheduler.start();
   console.log('Message scheduler started');
+
+  // Start AI daemon heartbeat
+  aiDaemon.registerAgent('leads', leadAgent.handler);
+  aiDaemon.registerAgent('trials', trialAgent.handler);
+  aiDaemon.registerAgent('retention', retentionAgent.handler);
+  aiDaemon.registerAgent('tasks', taskAgent.handler);
+  aiDaemon.registerAgent('analytics', analyticsAgent.handler);
+  aiDaemon.registerAgent('billing', billingAgent.handler);
+  aiDaemon.registerAgent('grading', beltGradingAgent.handler);
+  aiDaemon.registerAgent('stock', stockAgent.handler);
+  aiDaemon.registerAgent('staff', staffAgent.handler);
+  aiDaemon.registerAgent('messaging', messagingAgent.handler);
+  aiDaemon.start();
+  console.log('AI daemon started');
 });
 
 module.exports = { app, server, broadcast };

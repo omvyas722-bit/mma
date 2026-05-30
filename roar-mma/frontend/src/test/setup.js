@@ -42,6 +42,9 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
 };
 
+// Mock scrollIntoView (not available in jsdom)
+Element.prototype.scrollIntoView = vi.fn();
+
 // Suppress console errors in tests (optional)
 const originalError = console.error;
 beforeAll(() => {
