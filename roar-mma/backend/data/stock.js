@@ -16,7 +16,7 @@ function getAllProducts(filters = {}) {
 
   if (filters.active !== undefined) {
     conditions.push('p.active = ?');
-    params.push(filters.active);
+    params.push(filters.active ? 1 : 0);
   }
 
   if (filters.low_stock) {

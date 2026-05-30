@@ -32,7 +32,7 @@ async function handler({ db, aiState, openRouter, broadcast, config, agentName }
             adjustment_type: 'correction',
             quantity: item.stock_quantity,
             reason: `[AUTO] Low stock alert: ${item.name || 'Unknown'} has ${item.stock_quantity} remaining (min: ${item.min_stock_level})`,
-            adjusted_by: null
+            adjusted_by: dbConn.prepare('SELECT id FROM staff WHERE role = ? ORDER BY id LIMIT 1').get('owner')?.id || null
           });
           console.log(`[STOCK-AGENT] Low stock alert for ${item.name || 'Unknown'} (qty: ${item.stock_quantity}, min: ${item.min_stock_level})`);
         }

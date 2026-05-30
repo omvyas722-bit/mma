@@ -42,14 +42,11 @@ async function handler({ db, aiState, openRouter, broadcast, config, agentName }
     let atRiskCount = 0;
     for (const member of atRiskMembers) {
       try {
-        retentionData.logRetentionEvent({
-          memberId: member.id,
-          eventType: 'at_risk_inactive',
-          relatedId: null,
-          metadata: JSON.stringify({
-            detected_by: 'retention_agent',
-            days_since_last_attendance: 14
-          })
+        await aiState.logActivity({
+          agentName: 'retention',
+          actionType: 'at_risk_detected',
+          summary: `Member #${member.id} flagged as at-risk (inactive)`,
+          details: { member_id: member.id, days_since_last_attendance: 14 }
         });
 
         if (!existingTaskKeys.has(member.id)) {
