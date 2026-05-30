@@ -4,54 +4,69 @@ const { getDatabase } = require('../db/connection');
 function getAllLeads(filters = {}) {
   const db = getDatabase();
 
-  let query = `
-    SELECT
-      l.*,
+  const selectColumns = `
+      l.id, l.first_name, l.last_name, l.email, l.phone, l.source, l.referrer_member_id, l.stage, l.interest_level, l.location, l.interests, l.assigned_to, l.converted_member_id, l.lost_reason, l.notes, l.trial_date, l.trial_notes, l.trial_experience_rating, l.trial_interest_level, l.trial_class_type, l.trial_coach_id, l.follow_up_status, l.next_follow_up_date, l.last_contact_date, l.follow_up_count, l.created_at, l.updated_at,
       s.name as assigned_to_name,
       m.first_name || ' ' || m.last_name as referrer_name
+  `;
+
+  const fromClause = `
     FROM leads l
     LEFT JOIN staff s ON l.assigned_to = s.id
     LEFT JOIN members m ON l.referrer_member_id = m.id
     WHERE 1=1
   `;
+
+  const conditions = [];
   const params = [];
 
   if (filters.stage) {
-    query += ' AND l.stage = ?';
+    conditions.push('l.stage = ?');
     params.push(filters.stage);
   }
 
   if (filters.location) {
-    query += ' AND l.location = ?';
+    conditions.push('l.location = ?');
     params.push(filters.location);
   }
 
   if (filters.source) {
-    query += ' AND l.source = ?';
+    conditions.push('l.source = ?');
     params.push(filters.source);
   }
 
   if (filters.assigned_to) {
-    query += ' AND l.assigned_to = ?';
+    conditions.push('l.assigned_to = ?');
     params.push(filters.assigned_to);
   }
 
   if (filters.query) {
-    query += ' AND (l.first_name LIKE ? OR l.last_name LIKE ? OR l.email LIKE ? OR l.phone LIKE ?)';
+    conditions.push('(l.first_name LIKE ? OR l.last_name LIKE ? OR l.email LIKE ? OR l.phone LIKE ?)');
     const searchTerm = `%${filters.query}%`;
     params.push(searchTerm, searchTerm, searchTerm, searchTerm);
   }
 
-  query += ' ORDER BY l.created_at DESC';
+  const whereClause = conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
+  const countQuery = `SELECT COUNT(*) as total ${fromClause}${whereClause}`;
+  const total = db.prepare(countQuery).get(...params).total;
 
-  return db.prepare(query).all(...params);
+  const query = `SELECT ${selectColumns} ${fromClause}${whereClause} ORDER BY l.created_at DESC`;
+
+  const limit = Math.min(Math.max(parseInt(filters.limit) || 50, 1), 500);
+  const offset = Math.max(parseInt(filters.offset) || 0, 0);
+  const paginatedQuery = `${query} LIMIT ? OFFSET ?`;
+  const paginatedParams = [...params, limit, offset];
+
+  const leads = db.prepare(paginatedQuery).all(...paginatedParams);
+
+  return { leads, total, limit, offset };
 }
 
 function getLeadById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      l.*,
+      l.id, l.first_name, l.last_name, l.email, l.phone, l.source, l.referrer_member_id, l.stage, l.interest_level, l.location, l.interests, l.assigned_to, l.converted_member_id, l.lost_reason, l.notes, l.trial_date, l.trial_notes, l.trial_experience_rating, l.trial_interest_level, l.trial_class_type, l.trial_coach_id, l.follow_up_status, l.next_follow_up_date, l.last_contact_date, l.follow_up_count, l.created_at, l.updated_at,
       s.name as assigned_to_name,
       m.first_name || ' ' || m.last_name as referrer_name
     FROM leads l
@@ -125,7 +140,9 @@ function updateLead(id, updates) {
 
 function deleteLead(id) {
   const db = getDatabase();
-  const result = db.prepare('DELETE FROM leads WHERE id = ?').run(id);
+  const result = db.prepare(`
+    UPDATE leads SET stage = 'lost', lost_reason = 'Deleted by staff', updated_at = datetime('now') WHERE id = ?
+  `).run(id);
   return result.changes > 0;
 }
 
@@ -134,7 +151,7 @@ function getLeadInteractions(leadId) {
 
   return db.prepare(`
     SELECT
-      li.*,
+      li.id, li.lead_id, li.staff_id, li.interaction_type, li.notes, li.created_at,
       s.name as staff_name
     FROM lead_interactions li
     JOIN staff s ON li.staff_id = s.id
@@ -161,7 +178,7 @@ function addLeadInteraction(interactionData) {
 
   return db.prepare(`
     SELECT
-      li.*,
+      li.id, li.lead_id, li.staff_id, li.interaction_type, li.notes, li.created_at,
       s.name as staff_name
     FROM lead_interactions li
     JOIN staff s ON li.staff_id = s.id

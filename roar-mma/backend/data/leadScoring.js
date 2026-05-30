@@ -70,7 +70,7 @@ function calculateLeadScore(lead) {
   if (lead.last_contact_date && lead.created_at) {
     const created = new Date(lead.created_at);
     const responded = new Date(lead.last_contact_date);
-    const hoursDiff = (responded - created) / (1000 * 60 * 60);
+    const hoursDiff = Math.abs((responded - created) / (1000 * 60 * 60));
 
     if (hoursDiff <= 1) {
       score += SCORING.quick_response;
@@ -78,7 +78,7 @@ function calculateLeadScore(lead) {
   }
 
   // Recency penalty (lose 1 point per day since last contact, max -20)
-  if (lead.last_contact_date) {
+  if (lead.last_contact_date && lead.stage !== 'new') {
     const lastContact = new Date(lead.last_contact_date);
     const now = new Date();
     const daysSince = (now - lastContact) / (1000 * 60 * 60 * 24);
@@ -212,7 +212,7 @@ function getLeadScoreBreakdown(leadId) {
   if (lead.last_contact_date && lead.created_at) {
     const created = new Date(lead.created_at);
     const responded = new Date(lead.last_contact_date);
-    const hoursDiff = (responded - created) / (1000 * 60 * 60);
+    const hoursDiff = Math.abs((responded - created) / (1000 * 60 * 60));
 
     if (hoursDiff <= 1) {
       breakdown.components.response_speed = {
@@ -224,7 +224,7 @@ function getLeadScoreBreakdown(leadId) {
   }
 
   // Recency penalty
-  if (lead.last_contact_date) {
+  if (lead.last_contact_date && lead.stage !== 'new') {
     const lastContact = new Date(lead.last_contact_date);
     const now = new Date();
     const daysSince = (now - lastContact) / (1000 * 60 * 60 * 24);

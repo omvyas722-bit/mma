@@ -1,19 +1,17 @@
 // Theme Context Provider - Manage theme preferences
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { theme as defaultTheme, darkTheme, applyTheme } from '../lib/theme';
 
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [mode, setMode] = useState(() => {
-    // Load theme preference from localStorage
     const savedMode = localStorage.getItem('theme-mode');
     if (savedMode) {
       return savedMode;
     }
 
-    // Check system preference
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
     }
@@ -22,6 +20,7 @@ export function ThemeProvider({ children }) {
   });
 
   const [customTheme, setCustomTheme] = useState(null);
+  const [isSystem, setIsSystem] = useState(() => !localStorage.getItem('theme-mode'));
 
   // Apply theme when mode changes
   useEffect(() => {
@@ -30,15 +29,14 @@ export function ThemeProvider({ children }) {
 
     applyTheme(finalTheme);
 
-    // Update document class for Tailwind dark mode
     if (mode === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
 
-    // Save preference
     localStorage.setItem('theme-mode', mode);
+    setIsSystem(!localStorage.getItem('theme-mode'));
   }, [mode, customTheme]);
 
   // Listen for system theme changes
@@ -89,10 +87,11 @@ export function ThemeProvider({ children }) {
     setCustomTheme(null);
   }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     mode,
     isDark: mode === 'dark',
     isLight: mode === 'light',
+    isSystem,
     theme: mode === 'dark' ? darkTheme : defaultTheme,
     toggleTheme,
     setLightMode,
@@ -100,7 +99,7 @@ export function ThemeProvider({ children }) {
     setSystemMode,
     updateCustomTheme,
     resetCustomTheme,
-  };
+  }), [mode, isSystem, toggleTheme, setLightMode, setDarkMode, setSystemMode, updateCustomTheme, resetCustomTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
@@ -150,16 +149,17 @@ export function ThemeToggle({ className = '' }) {
 
 // Theme selector component
 export function ThemeSelector() {
-  const { mode, setLightMode, setDarkMode, setSystemMode } = useTheme();
+  const { mode, isSystem, setLightMode, setDarkMode, setSystemMode } = useTheme();
 
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
         Theme
       </label>
-      <div className="flex gap-2">
+      <div className="flex gap-2" role="radiogroup" aria-label="Theme selection">
         <button
           onClick={setLightMode}
+          aria-pressed={mode === 'light'}
           className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
             mode === 'light'
               ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
@@ -179,6 +179,7 @@ export function ThemeSelector() {
 
         <button
           onClick={setDarkMode}
+          aria-pressed={mode === 'dark'}
           className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
             mode === 'dark'
               ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
@@ -198,8 +199,9 @@ export function ThemeSelector() {
 
         <button
           onClick={setSystemMode}
+          aria-pressed={isSystem}
           className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
-            !localStorage.getItem('theme-mode')
+            isSystem
               ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
               : 'border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800'
           }`}

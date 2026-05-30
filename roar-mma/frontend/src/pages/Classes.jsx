@@ -1,8 +1,10 @@
 // Classes page
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { format, startOfWeek, addDays } from 'date-fns';
+import { useNotifications } from '../contexts/NotificationContext';
+import logger from '../lib/logger';
 import AddClassModal from '../components/Classes/AddClassModal';
 import EditClassModal from '../components/Classes/EditClassModal';
 import CheckInModal from '../components/Classes/CheckInModal';
@@ -10,6 +12,7 @@ import ConfirmDialog from '../components/Shared/ConfirmDialog';
 
 export default function Classes() {
   const queryClient = useQueryClient();
+  const { error } = useNotifications();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [deletingClass, setDeletingClass] = useState(null);
@@ -26,14 +29,12 @@ export default function Classes() {
       await api.delete(`/api/classes/${classId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['classes']);
-      queryClient.invalidateQueries(['class-instances']);
-      queryClient.invalidateQueries(['schedule']);
+      queryClient.invalidateQueries({ queryKey: ['class-instances'] });
       setDeletingClass(null);
     },
-    onError: (error) => {
-      console.error('Error deleting class:', error);
-      alert('Failed to delete class. Please try again.');
+    onError: (err) => {
+      logger.error('Error deleting class:', err);
+      error('Failed to delete class. Please try again.');
     }
   });
 
@@ -70,18 +71,21 @@ export default function Classes() {
   }
 
   // Group instances by day
-  const instancesByDay = {};
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  days.forEach((day, index) => {
-    const date = addDays(weekStart, index);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    instancesByDay[day] = {
-      date: dateStr,
-      displayDate: format(date, 'MMM d'),
-      instances: (instances || []).filter((inst) => inst.date === dateStr),
-    };
-  });
+  const instancesByDay = useMemo(() => {
+    const grouped = {};
+    days.forEach((day, index) => {
+      const date = addDays(weekStart, index);
+      const dateStr = format(date, 'yyyy-MM-dd');
+      grouped[day] = {
+        date: dateStr,
+        displayDate: format(date, 'MMM d'),
+        instances: (instances || []).filter((inst) => inst.date === dateStr),
+      };
+    });
+    return grouped;
+  }, [instances, weekStart]);
 
   return (
     <div>
@@ -173,7 +177,7 @@ export default function Classes() {
 }
 
 function ClassInstanceCard({ instance, onEdit, onDelete, onCheckIn }) {
-  const fillPercentage = (instance.booked_count / instance.capacity) * 100;
+  const fillPercentage = instance.capacity ? (instance.booked_count / instance.capacity) * 100 : 0;
   const fillColor =
     fillPercentage >= 90
       ? 'bg-red-500'
@@ -225,7 +229,7 @@ function ClassInstanceCard({ instance, onEdit, onDelete, onCheckIn }) {
           <p className="text-xs text-gray-500">{instance.start_time}</p>
         </div>
         <span className={`badge text-xs ${classTypeColors[instance.class_type] || 'badge-gray'}`}>
-          {instance.class_type.toUpperCase()}
+          {instance.class_type?.toUpperCase()}
         </span>
       </div>
 

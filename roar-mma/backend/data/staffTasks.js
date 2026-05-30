@@ -6,7 +6,7 @@ function getAllTasks(filters = {}) {
 
   let query = `
     SELECT
-      st.*,
+      st.id, st.lead_id, st.member_id, st.assigned_to, st.task_type, st.priority, st.title, st.description, st.due_date, st.status, st.completed_at, st.completed_by, st.notes, st.created_at, st.updated_at,
       l.first_name || ' ' || l.last_name as lead_name,
       l.phone as lead_phone,
       l.stage as lead_stage,
@@ -49,7 +49,7 @@ function getTaskById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      st.*,
+      st.id, st.lead_id, st.member_id, st.assigned_to, st.task_type, st.priority, st.title, st.description, st.due_date, st.status, st.completed_at, st.completed_by, st.notes, st.created_at, st.updated_at,
       l.first_name || ' ' || l.last_name as lead_name,
       l.phone as lead_phone,
       l.email as lead_email,

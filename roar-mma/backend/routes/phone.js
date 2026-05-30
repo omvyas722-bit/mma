@@ -1,10 +1,40 @@
 // Phone calls routes
 const express = require('express');
+const twilio = require('twilio');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const phoneCallsData = require('../data/phoneCalls');
 const aiPhoneService = require('../services/aiPhoneService');
 
 const router = express.Router();
+const VoiceResponse = twilio.twiml.VoiceResponse;
+const DEFAULT_TRANSFER_NUMBER = process.env.DEFAULT_TRANSFER_NUMBER || '+61899999999';
+
+if (!process.env.DEFAULT_TRANSFER_NUMBER) {
+  console.warn('[PHONE] DEFAULT_TRANSFER_NUMBER not set. Using fallback number. Configure it in .env to route calls to a real staff number.');
+}
+
+function validateTwilioRequest(req, res, next) {
+  const twilioSignature = req.headers['x-twilio-signature'];
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+  if (!authToken) {
+    console.warn('[PHONE] TWILIO_AUTH_TOKEN not set, skipping signature validation');
+    return next();
+  }
+
+  if (!twilioSignature) {
+    return res.status(403).json({ error: 'Missing Twilio signature' });
+  }
+
+  const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const isValid = twilio.validateRequest(authToken, twilioSignature, url, req.body);
+
+  if (!isValid) {
+    return res.status(403).json({ error: 'Invalid Twilio signature' });
+  }
+
+  next();
+}
 
 // Get recent calls
 router.get('/calls', authenticateToken, requirePermission('reports:read'), (req, res) => {
@@ -109,47 +139,46 @@ router.put('/settings/:key', authenticateToken, requirePermission('settings:writ
 });
 
 // Twilio webhook - incoming call
-router.post('/webhooks/twilio/voice', express.urlencoded({ extended: false }), async (req, res) => {
+router.post('/webhooks/twilio/voice', express.urlencoded({ extended: false }), validateTwilioRequest, async (req, res) => {
   try {
     const { CallSid, From, To } = req.body;
 
     console.log(`Incoming call: ${From} → ${To} (${CallSid})`);
 
     const result = await aiPhoneService.handleIncomingCall(CallSid, From, To);
-
-    // Generate TwiML response
-    let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+    const twiml = new VoiceResponse();
 
     if (result.action === 'ai_handle') {
-      // AI handles the call
-      twiml += `<Say voice="alice">${result.greeting}</Say>`;
-      twiml += `<Gather input="speech" action="/api/phone/webhooks/twilio/gather" method="POST" timeout="5" speechTimeout="auto">`;
-      twiml += `<Say voice="alice">I'm listening.</Say>`;
-      twiml += `</Gather>`;
+      twiml.say({ voice: 'alice' }, result.greeting);
+      twiml.gather({
+        input: 'speech',
+        action: '/api/phone/webhooks/twilio/gather',
+        method: 'POST',
+        timeout: 5,
+        speechTimeout: 'auto'
+      }, (gatherNode) => {
+        gatherNode.say({ voice: 'alice' }, "I'm listening.");
+      });
     } else if (result.action === 'transfer_to_staff') {
-      // Transfer to staff
-      twiml += `<Say voice="alice">Please hold while I transfer you to a staff member.</Say>`;
-      twiml += `<Dial timeout="30" action="/api/phone/webhooks/twilio/dial-status">`;
-      twiml += `<Number>+61899999999</Number>`; // TODO: Get from settings
-      twiml += `</Dial>`;
+      twiml.say({ voice: 'alice' }, 'Please hold while I transfer you to a staff member.');
+      twiml.dial({ timeout: 30, action: '/api/phone/webhooks/twilio/dial-status' }, (dialNode) => {
+        dialNode.number(DEFAULT_TRANSFER_NUMBER);
+      });
     } else if (result.action === 'voicemail') {
-      // Voicemail
-      twiml += `<Say voice="alice">We're currently unavailable. Please leave a message after the beep.</Say>`;
-      twiml += `<Record maxLength="120" action="/api/phone/webhooks/twilio/recording" />`;
+      twiml.say({ voice: 'alice' }, "We're currently unavailable. Please leave a message after the beep.");
+      twiml.record({ maxLength: 120, action: '/api/phone/webhooks/twilio/recording' });
     }
 
-    twiml += '</Response>';
-
     res.type('text/xml');
-    res.send(twiml);
+    res.send(twiml.toString());
   } catch (error) {
     console.error('Error handling incoming call:', error);
-    res.status(500).send('Error');
+    res.status(500).json({ error: 'Failed to handle incoming call' });
   }
 });
 
 // Twilio webhook - gather speech input
-router.post('/webhooks/twilio/gather', express.urlencoded({ extended: false }), async (req, res) => {
+router.post('/webhooks/twilio/gather', express.urlencoded({ extended: false }), validateTwilioRequest, async (req, res) => {
   try {
     const { CallSid, SpeechResult } = req.body;
 
@@ -157,35 +186,40 @@ router.post('/webhooks/twilio/gather', express.urlencoded({ extended: false }), 
 
     const call = phoneCallsData.getPhoneCallBySid(CallSid);
     if (!call) {
-      return res.status(404).send('Call not found');
+      return res.status(404).json({ error: 'Call not found' });
     }
 
     const result = await aiPhoneService.processInput(call.id, SpeechResult);
-
-    let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+    const twiml = new VoiceResponse();
 
     if (result.actions.includes('transfer_to_staff')) {
-      twiml += `<Say voice="alice">${result.response}</Say>`;
-      twiml += `<Dial timeout="30"><Number>+61899999999</Number></Dial>`;
+      twiml.say({ voice: 'alice' }, result.response);
+      twiml.dial({ timeout: 30 }, (dialNode) => {
+        dialNode.number(DEFAULT_TRANSFER_NUMBER);
+      });
     } else {
-      twiml += `<Say voice="alice">${result.response}</Say>`;
-      twiml += `<Gather input="speech" action="/api/phone/webhooks/twilio/gather" method="POST" timeout="5" speechTimeout="auto">`;
-      twiml += `<Say voice="alice">I'm listening.</Say>`;
-      twiml += `</Gather>`;
+      twiml.say({ voice: 'alice' }, result.response);
+      twiml.gather({
+        input: 'speech',
+        action: '/api/phone/webhooks/twilio/gather',
+        method: 'POST',
+        timeout: 5,
+        speechTimeout: 'auto'
+      }, (gatherNode) => {
+        gatherNode.say({ voice: 'alice' }, "I'm listening.");
+      });
     }
 
-    twiml += '</Response>';
-
     res.type('text/xml');
-    res.send(twiml);
+    res.send(twiml.toString());
   } catch (error) {
     console.error('Error processing speech:', error);
-    res.status(500).send('Error');
+    res.status(500).json({ error: 'Failed to process speech' });
   }
 });
 
 // Twilio webhook - call status
-router.post('/webhooks/twilio/status', express.urlencoded({ extended: false }), (req, res) => {
+router.post('/webhooks/twilio/status', express.urlencoded({ extended: false }), validateTwilioRequest, (req, res) => {
   try {
     const { CallSid, CallStatus, CallDuration } = req.body;
 
@@ -203,12 +237,12 @@ router.post('/webhooks/twilio/status', express.urlencoded({ extended: false }), 
     res.sendStatus(200);
   } catch (error) {
     console.error('Error updating call status:', error);
-    res.sendStatus(500);
+    res.status(500).json({ error: 'Failed to update call status' });
   }
 });
 
 // Twilio webhook - recording
-router.post('/webhooks/twilio/recording', express.urlencoded({ extended: false }), (req, res) => {
+router.post('/webhooks/twilio/recording', express.urlencoded({ extended: false }), validateTwilioRequest, (req, res) => {
   try {
     const { CallSid, RecordingUrl, RecordingDuration } = req.body;
 
@@ -232,7 +266,7 @@ router.post('/webhooks/twilio/recording', express.urlencoded({ extended: false }
     res.sendStatus(200);
   } catch (error) {
     console.error('Error saving recording:', error);
-    res.sendStatus(500);
+    res.status(500).json({ error: 'Failed to save recording' });
   }
 });
 

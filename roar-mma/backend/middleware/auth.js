@@ -1,7 +1,10 @@
 // Authentication middleware
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS_IN_PRODUCTION_min_32_chars_random_string_here';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('CRITICAL: JWT_SECRET environment variable is not set.');
+}
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -11,12 +14,16 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
+  if (!JWT_SECRET) {
+    return res.status(500).json({ error: 'Server authentication configuration error' });
+  }
+
   try {
     const user = jwt.verify(token, JWT_SECRET);
     req.user = user;
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
@@ -38,30 +45,51 @@ function hasPermission(userRole, permission) {
   const rolePermissions = {
     owner: ['*'],
     gm: [
-      'members:read', 'members:create', 'members:update',
-      'classes:read', 'classes:create', 'classes:update',
+      'members:read', 'members:create', 'members:update', 'members:delete',
+      'classes:read', 'classes:create', 'classes:update', 'classes:delete',
       'bookings:*',
       'leads:*',
-      'reports:read',
-      'staff:read'
+      'reports:read', 'reports:write',
+      'staff:read', 'staff:create', 'staff:update',
+      'dashboard:read',
+      'ai:manage', 'ai:read',
+      'analytics:read',
+      'transactions:read', 'transactions:create',
+      'attendance:*',
+      'communications:read', 'communications:write',
+      'settings:read', 'settings:write',
+      'stock:read', 'stock:write',
+      'grading:read', 'grading:write',
+      'pt:read', 'pt:write',
+      'retention:read', 'retention:write',
+      'tasks:read', 'tasks:write'
     ],
     front_desk: [
       'members:read', 'members:create',
       'classes:read',
       'bookings:*',
-      'waivers:*'
+      'leads:read', 'leads:create',
+      'attendance:*',
+      'communications:read',
+      'dashboard:read'
     ],
     coach: [
       'classes:read',
       'attendance:*',
-      'members:read'
+      'members:read',
+      'grading:read', 'grading:write',
+      'pt:read', 'pt:write',
+      'tasks:read'
     ],
     sales: [
       'leads:*',
-      'members:read'
+      'members:read',
+      'communications:read', 'communications:write',
+      'dashboard:read'
     ],
     social: [
-      'social:*'
+      'social:*',
+      'communications:read'
     ]
   };
 
@@ -93,7 +121,7 @@ function requirePermission(permission) {
     }
 
     if (!hasPermission(req.user.role, permission)) {
-      return res.status(403).json({ error: `Permission denied: ${permission}` });
+      return res.status(403).json({ error: 'Permission denied' });
     }
 
     next();

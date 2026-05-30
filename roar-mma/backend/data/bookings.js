@@ -6,7 +6,7 @@ function getAllBookings(filters = {}) {
 
   let query = `
     SELECT
-      b.*,
+      b.id, b.member_id, b.class_instance_id, b.status, b.waitlist, b.waitlist_position, b.booked_at, b.attended_at, b.cancelled_at, b.created_at, b.updated_at,
       m.first_name,
       m.last_name,
       m.email,
@@ -52,7 +52,7 @@ function getBookingById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      b.*,
+      b.id, b.member_id, b.class_instance_id, b.status, b.waitlist, b.waitlist_position, b.booked_at, b.attended_at, b.cancelled_at, b.created_at, b.updated_at,
       m.first_name,
       m.last_name,
       m.email,
@@ -78,11 +78,11 @@ function createBooking(bookingData) {
   // Check if member already has a booking for this class
   const existingBooking = db.prepare(`
     SELECT id FROM bookings
-    WHERE member_id = ? AND class_instance_id = ?
+    WHERE member_id = ? AND class_instance_id = ? AND status != 'cancelled'
   `).get(bookingData.member_id, bookingData.class_instance_id);
 
   if (existingBooking) {
-    throw new Error('Member already has a booking for this class');
+    throw new Error('Member already has an active booking for this class');
   }
 
   // Get class instance details
@@ -234,7 +234,7 @@ function getUpcomingBookings(memberId, limit = 10) {
 
   return db.prepare(`
     SELECT
-      b.*,
+      b.id, b.member_id, b.class_instance_id, b.status, b.waitlist, b.waitlist_position, b.booked_at, b.attended_at, b.cancelled_at, b.created_at, b.updated_at,
       ci.date,
       ci.start_time,
       c.name as class_name,

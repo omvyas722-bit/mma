@@ -1,8 +1,11 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+FROM node:22-alpine
 
-# Set working directory
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
+
+# Create directories needed at runtime (before switching user)
+RUN mkdir -p /app/data /app/logs
 
 # Copy package files
 COPY backend/package*.json ./
@@ -10,18 +13,18 @@ COPY backend/package*.json ./
 # Install dependencies
 RUN npm install --production
 
-# Copy application code
+# Copy application code (selective — .dockerignore filters out node_modules, .env, etc.)
 COPY backend/ ./
 
-# Create data directory
-RUN mkdir -p /app/data
+# Set ownership for writable directories
+RUN chown -R appuser:appgroup /app/data /app/logs
 
-# Expose port
+USER appuser
+
 EXPOSE 3001
 
-# Health check
+# Health check with proper error handling for connection failures
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "try { require('http').get('http://localhost:3001/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1)) } catch(e) { process.exit(1) }"
 
-# Start application
 CMD ["node", "server.js"]

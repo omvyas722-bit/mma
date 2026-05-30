@@ -2,7 +2,7 @@
 # Run daily for backups, health checks, and cleanup
 
 param(
-    [string]$BackupDir = "C:\backups\roar-mma",
+    [string]$BackupDir = "$env:LOCALAPPDATA\roar-mma-backups",
     [int]$RetentionDays = 30
 )
 

@@ -1,9 +1,9 @@
 // Custom React Hooks Library
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // useDebounce - Debounce a value
-export function useDebounce(value, delay = 500) {
+export function useDebounce(value, delay = 300) {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {
@@ -85,14 +85,16 @@ export function useLocalStorage(key, initialValue) {
   const setValue = useCallback(
     (value) => {
       try {
-        const valueToStore = value instanceof Function ? value(storedValue) : value;
-        setStoredValue(valueToStore);
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        setStoredValue(prev => {
+          const valueToStore = value instanceof Function ? value(prev) : value;
+          window.localStorage.setItem(key, JSON.stringify(valueToStore));
+          return valueToStore;
+        });
       } catch (error) {
         console.error('Error writing to localStorage:', error);
       }
     },
-    [key, storedValue]
+    [key]
   );
 
   const removeValue = useCallback(() => {
@@ -122,14 +124,16 @@ export function useSessionStorage(key, initialValue) {
   const setValue = useCallback(
     (value) => {
       try {
-        const valueToStore = value instanceof Function ? value(storedValue) : value;
-        setStoredValue(valueToStore);
-        window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
+        setStoredValue(prev => {
+          const valueToStore = value instanceof Function ? value(prev) : value;
+          window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
+          return valueToStore;
+        });
       } catch (error) {
         console.error('Error writing to sessionStorage:', error);
       }
     },
-    [key, storedValue]
+    [key]
   );
 
   return [storedValue, setValue];
@@ -224,23 +228,26 @@ export function useWindowSize() {
 // useOnScreen - Detect if element is visible on screen
 export function useOnScreen(ref, options = {}) {
   const [isIntersecting, setIntersecting] = useState(false);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIntersecting(entry.isIntersecting),
-      options
+      optionsRef.current
     );
 
-    if (ref.current) {
-      observer.observe(ref.current);
+    const element = ref.current;
+    if (element) {
+      observer.observe(element);
     }
 
     return () => {
-      if (ref.current) {
-        observer.unobserve(ref.current);
+      if (element) {
+        observer.unobserve(element);
       }
     };
-  }, [ref, options]);
+  }, [ref]);
 
   return isIntersecting;
 }
@@ -318,6 +325,8 @@ export function useAsync(asyncFunction, immediate = true) {
   const [status, setStatus] = useState('idle');
   const [value, setValue] = useState(null);
   const [error, setError] = useState(null);
+  const asyncFnRef = useRef(asyncFunction);
+  asyncFnRef.current = asyncFunction;
 
   const execute = useCallback(
     async (...params) => {
@@ -326,7 +335,7 @@ export function useAsync(asyncFunction, immediate = true) {
       setError(null);
 
       try {
-        const response = await asyncFunction(...params);
+        const response = await asyncFnRef.current(...params);
         setValue(response);
         setStatus('success');
         return response;
@@ -336,7 +345,7 @@ export function useAsync(asyncFunction, immediate = true) {
         throw error;
       }
     },
-    [asyncFunction]
+    []
   );
 
   useEffect(() => {
@@ -363,6 +372,10 @@ export function useForm(initialValues = {}, onSubmit) {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
 
   const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
@@ -417,7 +430,7 @@ export function useForm(initialValues = {}, onSubmit) {
       setIsSubmitting(true);
 
       try {
-        await onSubmit(values);
+        await onSubmitRef.current(valuesRef.current);
         resetForm();
       } catch (error) {
         console.error('Form submission error:', error);
@@ -425,7 +438,7 @@ export function useForm(initialValues = {}, onSubmit) {
         setIsSubmitting(false);
       }
     },
-    [values, onSubmit, resetForm]
+    [resetForm]
   );
 
   return {
@@ -654,11 +667,14 @@ export function useDocumentTitle(title) {
 // useFavicon - Update favicon
 export function useFavicon(href) {
   useEffect(() => {
-    const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    const head = document.getElementsByTagName('head')[0];
+    const existingLinks = head.querySelectorAll("link[rel*='icon']");
+    existingLinks.forEach(link => link.remove());
+    const link = document.createElement('link');
     link.type = 'image/x-icon';
     link.rel = 'shortcut icon';
     link.href = href;
-    document.getElementsByTagName('head')[0].appendChild(link);
+    head.appendChild(link);
   }, [href]);
 }
 

@@ -9,7 +9,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     // 1. Check for new leads in last 60 min that haven't been contacted
     const sixtyMinAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const allLeads = leadsData.getAllLeads({});
+    const allLeads = (leadsData.getAllLeads({}) || []).slice(0, 500);
     const newUncontactedLeads = allLeads.filter(l => {
       if (l.stage !== 'new') return false;
       const created = new Date(l.created_at);
@@ -18,20 +18,25 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     let tasksCreated = 0;
 
-    for (const lead of newUncontactedLeads) {
-      const score = leadScoringData.calculateLeadScore(lead);
-      if (score > 50) {
-        staffTasksData.createTask({
-          lead_id: lead.id,
-          task_type: 'call_hot_lead',
-          priority: 'high',
-          title: `Hot lead: ${lead.first_name} ${lead.last_name}`,
-          description: `Lead scored ${score}/100. Call immediately. Source: ${lead.source || 'unknown'}.`,
-          due_date: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          status: 'pending'
-        });
-        tasksCreated++;
-        console.log(`[LEAD-AGENT] Created hot lead task for lead #${lead.id} (score: ${score})`);
+    for (const lead of newUncontactedLeads.slice(0, 50)) {
+      if (!lead || !lead.id) continue;
+      try {
+        const score = leadScoringData.calculateLeadScore(lead);
+        if (score > 50) {
+          staffTasksData.createTask({
+            lead_id: lead.id,
+            task_type: 'call_hot_lead',
+            priority: 'high',
+            title: `Hot lead: ${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
+            description: `Lead scored ${score}/100. Call immediately. Source: ${lead.source || 'unknown'}.`,
+            due_date: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+            status: 'pending'
+          });
+          tasksCreated++;
+          console.log(`[LEAD-AGENT] Created hot lead task for lead #${lead.id} (score: ${score})`);
+        }
+      } catch (loopErr) {
+        console.error(`[LEAD-AGENT] Error scoring lead #${lead.id}:`, loopErr.message);
       }
     }
 
@@ -44,23 +49,28 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     });
 
     let flaggedCount = 0;
-    for (const lead of untouchedLeads) {
-      const existingTasks = staffTasksData.getAllTasks({
-        lead_id: lead.id,
-        task_type: 'untouched_lead',
-        status: 'pending'
-      });
-      if (existingTasks.length === 0) {
-        staffTasksData.createTask({
+    for (const lead of untouchedLeads.slice(0, 50)) {
+      if (!lead || !lead.id) continue;
+      try {
+        const existingTasks = staffTasksData.getAllTasks({
           lead_id: lead.id,
           task_type: 'untouched_lead',
-          priority: 'medium',
-          title: `Untouched lead: ${lead.first_name} ${lead.last_name}`,
-          description: `Lead in 'new' stage for > 24 hours. Created: ${lead.created_at}. Needs initial contact.`,
-          due_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
           status: 'pending'
         });
-        flaggedCount++;
+        if (!existingTasks || existingTasks.length === 0) {
+          staffTasksData.createTask({
+            lead_id: lead.id,
+            task_type: 'untouched_lead',
+            priority: 'medium',
+            title: `Untouched lead: ${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
+            description: `Lead in 'new' stage for > 24 hours. Created: ${lead.created_at}. Needs initial contact.`,
+            due_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+            status: 'pending'
+          });
+          flaggedCount++;
+        }
+      } catch (loopErr) {
+        console.error(`[LEAD-AGENT] Error flagging lead #${lead.id}:`, loopErr.message);
       }
     }
 
@@ -75,23 +85,28 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     });
 
     let checkinTasks = 0;
-    for (const lead of staleWarmLeads) {
-      const existing = staffTasksData.getAllTasks({
-        lead_id: lead.id,
-        task_type: 'check_in',
-        status: 'pending'
-      });
-      if (existing.length === 0) {
-        staffTasksData.createTask({
+    for (const lead of staleWarmLeads.slice(0, 50)) {
+      if (!lead || !lead.id) continue;
+      try {
+        const existing = staffTasksData.getAllTasks({
           lead_id: lead.id,
           task_type: 'check_in',
-          priority: 'medium',
-          title: `Check-in: ${lead.first_name} ${lead.last_name}`,
-          description: `Warm/hot lead not contacted in 3+ days. Interest: ${lead.trial_interest_level}. Last contact: ${lead.last_contact_date || 'never'}.`,
-          due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           status: 'pending'
         });
-        checkinTasks++;
+        if (!existing || existing.length === 0) {
+          staffTasksData.createTask({
+            lead_id: lead.id,
+            task_type: 'check_in',
+            priority: 'medium',
+            title: `Check-in: ${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
+            description: `Warm/hot lead not contacted in 3+ days. Interest: ${lead.trial_interest_level || 'N/A'}. Last contact: ${lead.last_contact_date || 'never'}.`,
+            due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            status: 'pending'
+          });
+          checkinTasks++;
+        }
+      } catch (loopErr) {
+        console.error(`[LEAD-AGENT] Error checking lead #${lead.id}:`, loopErr.message);
       }
     }
 
@@ -116,14 +131,16 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       broadcast({ type: 'lead_agent_update', summary, tasksCreated: totalTasks });
     }
   } catch (err) {
-    console.error('[LEAD-AGENT] Error:', err.message);
+    console.error('[LEAD-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'lead_check_error',
         details: { error: err.message },
         summary: `Lead agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[LEAD-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 

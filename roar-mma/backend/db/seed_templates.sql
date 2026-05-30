@@ -1,4 +1,7 @@
 -- Default message templates for trial follow-up automation
+-- DEPENDENCY: Requires message_templates table created by 001_add_trial_tracking.sql.
+-- ORDERING: Must be applied AFTER migration 001_add_trial_tracking.sql.
+-- VARIABLE CONVENTION: All templates use {{first_name}} (consistent with all other seed files).
 
 -- SMS: 2 hours after trial
 INSERT INTO message_templates (name, type, trigger_event, body) VALUES (

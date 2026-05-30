@@ -14,7 +14,7 @@ function AgentBadge({ name }) {
     'bg-pink-100 text-pink-700',
     'bg-teal-100 text-teal-700'
   ];
-  const hash = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const hash = Array.from(name).reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const color = colors[hash % colors.length];
 
   return (
@@ -29,6 +29,7 @@ function formatRelativeTime(timestamp) {
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now - date;
+  if (diffMs < 0) return 'just now';
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
+import { useNotifications } from '../contexts/NotificationContext';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { PageLoader } from '../components/Shared/Spinner';
 import Modal from '../components/Shared/Modal';
@@ -20,18 +21,18 @@ export default function Payments() {
       if (statusFilter) params.append('status', statusFilter);
       if (searchQuery) params.append('query', searchQuery);
 
-      const [transactionsRes, statsRes] = await Promise.all([
+      const [transactionsRes, statsRes] = await Promise.allSettled([
         api.get(`/api/transactions?${params}`),
         api.get('/api/transactions/stats')
       ]);
 
       return {
-        transactions: transactionsRes.transactions || [],
+        transactions: transactionsRes.status === 'fulfilled' ? transactionsRes.value.data?.transactions || [] : [],
         summary: {
-          total_revenue: statsRes.mrr || 0,
+          total_revenue: statsRes.status === 'fulfilled' ? statsRes.value.data?.mrr || 0 : 0,
           pending_amount: 0,
-          failed_count: statsRes.failed_this_month?.count || 0,
-          month_revenue: statsRes.this_month || 0,
+          failed_count: statsRes.status === 'fulfilled' ? statsRes.value.data?.failed_this_month?.count || 0 : 0,
+          month_revenue: statsRes.status === 'fulfilled' ? statsRes.value.data?.this_month || 0 : 0,
         }
       };
     },
@@ -162,6 +163,7 @@ export default function Payments() {
 
 function PaymentRow({ payment, onRefund }) {
   const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
 
   const refundPayment = useMutation({
     mutationFn: async () => {
@@ -169,18 +171,16 @@ function PaymentRow({ payment, onRefund }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['payments']);
-      alert('Payment refunded successfully');
+      success('Payment refunded successfully');
     },
-    onError: (error) => {
-      console.error('Error refunding payment:', error);
-      alert('Failed to refund payment');
+    onError: (err) => {
+      console.error('Error refunding payment:', err);
+      error('Failed to refund payment');
     }
   });
 
   const handleRefund = () => {
-    if (confirm(`Refund ${formatCurrency(payment.amount)} to ${payment.member_name}?`)) {
-      refundPayment.mutate();
-    }
+    refundPayment.mutate();
   };
 
   return (
@@ -217,6 +217,7 @@ function PaymentRow({ payment, onRefund }) {
 
 function ProcessPaymentModal({ isOpen, onClose, member }) {
   const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
   const [formData, setFormData] = useState({
     member_id: '',
     amount: '',
@@ -249,18 +250,18 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
       queryClient.invalidateQueries(['payments']);
       onClose();
       resetForm();
-      alert('Payment processed successfully');
+      success('Payment processed successfully');
     },
-    onError: (error) => {
-      console.error('Error processing payment:', error);
-      alert('Failed to process payment');
+    onError: (err) => {
+      console.error('Error processing payment:', err);
+      error('Failed to process payment');
     }
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedMember) {
-      alert('Please select a member');
+      error('Please select a member');
       return;
     }
 
@@ -325,10 +326,13 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
                       {members.map((m) => (
                         <div
                           key={m.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSelectedMember(m);
                             setSearchQuery('');
                           }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedMember(m); setSearchQuery(''); } }}
                           className="p-3 cursor-pointer hover:bg-gray-50"
                         >
                           <p className="text-sm font-medium text-gray-900">
@@ -357,6 +361,7 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
             <input
               type="number"
               step="0.01"
+              min="0.01"
               value={formData.amount}
               onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
               className="input pl-8"

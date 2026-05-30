@@ -14,11 +14,13 @@ router.get('/', authenticateToken, requirePermission('leads:read'), (req, res) =
       location: req.query.location,
       source: req.query.source,
       assigned_to: req.query.assigned_to,
-      query: req.query.query
+      query: req.query.query,
+      limit: req.query.limit,
+      offset: req.query.offset
     };
 
-    const leads = leadsData.getAllLeads(filters);
-    res.json(leads);
+    const result = leadsData.getAllLeads(filters);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching leads:', error);
     res.status(500).json({ error: 'Failed to fetch leads' });
@@ -79,7 +81,15 @@ router.post('/', authenticateToken, requirePermission('leads:create'), (req, res
       return res.status(400).json({ error: 'first_name, last_name, and phone required' });
     }
 
-    const lead = leadsData.createLead(req.body);
+    const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'source', 'location', 'interests', 'notes', 'assigned_to'];
+    const leadData = {};
+    for (const [key, value] of Object.entries(req.body)) {
+      if (allowedFields.includes(key)) {
+        leadData[key] = value;
+      }
+    }
+
+    const lead = leadsData.createLead(leadData);
 
     // Schedule instant response SMS (within 2 minutes)
     try {
@@ -129,7 +139,11 @@ router.put('/:id', authenticateToken, requirePermission('leads:update'), (req, r
       return res.status(404).json({ error: 'Lead not found' });
     }
 
-    const updatedLead = leadsData.updateLead(req.params.id, req.body);
+    const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'source', 'location', 'interests', 'notes', 'assigned_to'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+
+    const updatedLead = leadsData.updateLead(req.params.id, updateData);
 
     res.json(updatedLead);
   } catch (error) {
@@ -185,13 +199,25 @@ router.post('/:id/convert', authenticateToken, requirePermission('leads:update')
       return res.status(400).json({ error: 'Lead already converted' });
     }
 
-    // This would typically create a member and link it
-    // For now, just update the stage
-    const updatedLead = leadsData.updateLead(req.params.id, {
-      stage: 'converted'
+    const membersData = require('../data/members');
+    const member = membersData.createMember({
+      first_name: lead.first_name,
+      last_name: lead.last_name,
+      email: lead.email,
+      phone: lead.phone,
+      location: lead.location || null,
+      source: 'lead_conversion',
+      status: 'active',
+      joined_date: new Date().toISOString().split('T')[0],
+      notes: lead.notes ? `Converted from lead #${lead.id}: ${lead.notes}` : `Converted from lead #${lead.id}`
     });
 
-    res.json(updatedLead);
+    const updatedLead = leadsData.updateLead(req.params.id, {
+      stage: 'converted',
+      converted_to_member_id: member.id
+    });
+
+    res.json({ lead: updatedLead, member });
   } catch (error) {
     console.error('Error converting lead:', error);
     res.status(500).json({ error: 'Failed to convert lead' });

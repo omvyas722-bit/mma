@@ -15,7 +15,7 @@ vi.mock('../lib/api', () => ({
 const mockStatusData = {
   running: true,
   uptime: 3600,
-  lastTick: new Date().toISOString(),
+  lastTick: '2025-01-01T00:00:00.000Z',
   actionsToday: 42,
   dailyApiCalls: 15,
   dailyApiLimit: 50,
@@ -29,8 +29,8 @@ const mockAgentsData = [
 ];
 
 const mockHistoryData = [
-  { id: 1, agent_name: 'leads', action_type: 'check_leads', summary: 'Checked leads', status: 'success', created_at: new Date().toISOString() },
-  { id: 2, agent_name: 'billing', action_type: 'check_payments', summary: 'Billing check', status: 'warning', created_at: new Date(Date.now() - 60000).toISOString() },
+  { id: 1, agent_name: 'leads', action_type: 'check_leads', summary: 'Checked leads', status: 'success', created_at: '2025-01-01T00:00:00.000Z' },
+  { id: 2, agent_name: 'billing', action_type: 'check_payments', summary: 'Billing check', status: 'warning', created_at: '2025-01-01T00:01:00.000Z' },
 ];
 
 const createWrapper = () => {

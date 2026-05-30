@@ -1,4 +1,8 @@
 -- Win-back campaign message templates
+-- DEPENDENCY: Requires message_templates table created by 001_add_trial_tracking.sql
+-- with trigger_event constraint expanded by 004_add_retention_system.sql.
+-- ORDERING: Must be applied AFTER migration 004_add_retention_system.sql.
+-- VARIABLE CONVENTION: All templates use {{first_name}} (not {{first_name}}).
 
 -- Immediate win-back (within 7 days of cancellation)
 INSERT INTO message_templates (
@@ -8,7 +12,7 @@ INSERT INTO message_templates (
   'sms',
   'winback_immediate',
   NULL,
-  'Hey {{name}}, we''re sorry to see you go! We''d love to have you back. {{offer}} Reply YES if interested or call us at {{gym_phone}}',
+  'Hey {{first_name}}, we''re sorry to see you go! We''d love to have you back. {{offer}} Reply YES if interested or call us at {{gym_phone}}',
   1
 );
 
@@ -19,7 +23,7 @@ INSERT INTO message_templates (
   'email',
   'winback_immediate',
   'We Miss You at ROAR MMA',
-  'Hi {{name}},
+  'Hi {{first_name}},
 
 We noticed you recently cancelled your membership and wanted to reach out personally.
 
@@ -45,7 +49,7 @@ INSERT INTO message_templates (
   'sms',
   'winback_30day',
   NULL,
-  'Hi {{name}}, it''s been a month since we last saw you at ROAR. We''ve got a special offer just for you: {{offer}} Ready to come back? {{gym_phone}}',
+  'Hi {{first_name}}, it''s been a month since we last saw you at ROAR. We''ve got a special offer just for you: {{offer}} Ready to come back? {{gym_phone}}',
   1
 );
 
@@ -56,7 +60,7 @@ INSERT INTO message_templates (
   'email',
   'winback_30day',
   'Your Spot is Still Here at ROAR',
-  'Hi {{name}},
+  'Hi {{first_name}},
 
 It''s been about a month since you left ROAR MMA, and we wanted to check in.
 
@@ -82,7 +86,7 @@ INSERT INTO message_templates (
   'sms',
   'winback_90day',
   NULL,
-  '{{name}}, we haven''t forgotten about you! Ready to restart your MMA journey? {{offer}} Text back or call {{gym_phone}}',
+  '{{first_name}}, we haven''t forgotten about you! Ready to restart your MMA journey? {{offer}} Text back or call {{gym_phone}}',
   1
 );
 
@@ -93,7 +97,7 @@ INSERT INTO message_templates (
   'email',
   'winback_90day',
   'Time to Get Back in the Fight?',
-  'Hi {{name}},
+  'Hi {{first_name}},
 
 Three months have passed since you trained with us. Whether life got busy or priorities shifted, we understand.
 
@@ -119,7 +123,7 @@ INSERT INTO message_templates (
   'sms',
   'winback_6month',
   NULL,
-  'Final message from ROAR - {{name}}, if you ever want to come back, we''re here. {{offer}} available this month only. {{gym_phone}}',
+  'Final message from ROAR - {{first_name}}, if you ever want to come back, we''re here. {{offer}} available this month only. {{gym_phone}}',
   1
 );
 
@@ -130,7 +134,7 @@ INSERT INTO message_templates (
   'email',
   'winback_6month',
   'One Last Invitation from ROAR MMA',
-  'Hi {{name}},
+  'Hi {{first_name}},
 
 This will be our last message. It''s been 6 months since you left, and we wanted to reach out one final time.
 

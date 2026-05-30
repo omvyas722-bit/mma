@@ -35,61 +35,29 @@ function updatePhoneCall(callId, data) {
   const updates = [];
   const values = [];
 
-  if (data.status !== undefined) {
-    updates.push('status = ?');
-    values.push(data.status);
-  }
-  if (data.duration !== undefined) {
-    updates.push('duration = ?');
-    values.push(data.duration);
-  }
-  if (data.recording_url !== undefined) {
-    updates.push('recording_url = ?');
-    values.push(data.recording_url);
-  }
-  if (data.transcription !== undefined) {
-    updates.push('transcription = ?');
-    values.push(data.transcription);
-  }
-  if (data.call_type !== undefined) {
-    updates.push('call_type = ?');
-    values.push(data.call_type);
-  }
-  if (data.sentiment !== undefined) {
-    updates.push('sentiment = ?');
-    values.push(data.sentiment);
-  }
-  if (data.intent_detected !== undefined) {
-    updates.push('intent_detected = ?');
-    values.push(JSON.stringify(data.intent_detected));
-  }
-  if (data.actions_taken !== undefined) {
-    updates.push('actions_taken = ?');
-    values.push(JSON.stringify(data.actions_taken));
-  }
-  if (data.ai_confidence !== undefined) {
-    updates.push('ai_confidence = ?');
-    values.push(data.ai_confidence);
-  }
-  if (data.requires_followup !== undefined) {
-    updates.push('requires_followup = ?');
-    values.push(data.requires_followup);
-  }
-  if (data.followup_reason !== undefined) {
-    updates.push('followup_reason = ?');
-    values.push(data.followup_reason);
-  }
-  if (data.ended_at !== undefined) {
-    updates.push('ended_at = ?');
-    values.push(data.ended_at);
-  }
-  if (data.member_id !== undefined) {
-    updates.push('member_id = ?');
-    values.push(data.member_id);
-  }
-  if (data.lead_id !== undefined) {
-    updates.push('lead_id = ?');
-    values.push(data.lead_id);
+  const fieldMap = {
+    status: 'status',
+    duration: 'duration',
+    recording_url: 'recording_url',
+    transcription: 'transcription',
+    call_type: 'call_type',
+    sentiment: 'sentiment',
+    intent_detected: 'intent_detected',
+    actions_taken: 'actions_taken',
+    ai_confidence: 'ai_confidence',
+    requires_followup: 'requires_followup',
+    followup_reason: 'followup_reason',
+    ended_at: 'ended_at',
+    member_id: 'member_id',
+    lead_id: 'lead_id'
+  };
+  const jsonFields = new Set(['intent_detected', 'actions_taken']);
+
+  for (const [key, column] of Object.entries(fieldMap)) {
+    if (data[key] !== undefined) {
+      updates.push(`${column} = ?`);
+      values.push(jsonFields.has(key) ? JSON.stringify(data[key]) : data[key]);
+    }
   }
 
   if (updates.length === 0) return null;
@@ -217,8 +185,20 @@ function getConversationContext(callId) {
   return db.prepare('SELECT * FROM ai_conversation_context WHERE call_id = ?').get(callId);
 }
 
+const ALLOWED_CONTEXT_FIELDS = [
+  'current_intent', 'conversation_stage', 'member_info', 'booking_details',
+  'inquiry_type', 'call_summary', 'action_items', 'next_steps'
+];
+
 function updateConversationContext(callId, contextData, lastIntent = null, collectedInfo = null, nextExpectedInput = null) {
   const db = getDatabase();
+
+  const filteredContext = {};
+  for (const key of Object.keys(contextData)) {
+    if (ALLOWED_CONTEXT_FIELDS.includes(key)) {
+      filteredContext[key] = contextData[key];
+    }
+  }
 
   const existing = getConversationContext(callId);
 
@@ -232,7 +212,7 @@ function updateConversationContext(callId, contextData, lastIntent = null, colle
           updated_at = datetime('now')
       WHERE call_id = ?
     `).run(
-      JSON.stringify(contextData),
+      JSON.stringify(filteredContext),
       lastIntent,
       collectedInfo ? JSON.stringify(collectedInfo) : null,
       nextExpectedInput,
@@ -245,7 +225,7 @@ function updateConversationContext(callId, contextData, lastIntent = null, colle
       ) VALUES (?, ?, ?, ?, ?)
     `).run(
       callId,
-      JSON.stringify(contextData),
+      JSON.stringify(filteredContext),
       lastIntent,
       collectedInfo ? JSON.stringify(collectedInfo) : null,
       nextExpectedInput
@@ -327,7 +307,7 @@ function getCallAnalytics(dateFrom = null, dateTo = null) {
     SELECT COUNT(*) as count
     FROM phone_calls
     WHERE DATE(started_at) BETWEEN ? AND ?
-      AND actions_taken LIKE '%trial_booked%'
+      AND json_extract(actions_taken, '$') LIKE '%"trial_booked"%'
   `).get(dateFrom, dateTo).count;
 
   // Leads created via phone

@@ -2,8 +2,11 @@
 const express = require('express');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const membersData = require('../data/members');
+const { isUniqueConstraintError } = require('../db/connection');
 
 const router = express.Router();
+const HOLD_FEE_PER_DAY = parseFloat(process.env.HOLD_FEE_PER_DAY) || 0.71;
+const MAX_HOLD_DAYS = parseInt(process.env.MAX_HOLD_DAYS) || 84;
 
 // Get all members (with filters and pagination)
 router.get('/', authenticateToken, requirePermission('members:read'), (req, res) => {
@@ -12,8 +15,8 @@ router.get('/', authenticateToken, requirePermission('members:read'), (req, res)
       status: req.query.status,
       location: req.query.location,
       query: req.query.query,
-      limit: req.query.limit,
-      offset: req.query.offset
+      limit: Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100),
+      offset: Math.max(parseInt(req.query.offset) || 0, 0)
     };
 
     const result = membersData.getAllMembers(filters);
@@ -54,7 +57,7 @@ router.get('/:id', authenticateToken, requirePermission('members:read'), (req, r
 // Get member attendance history
 router.get('/:id/attendance', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
     const attendance = membersData.getMemberAttendance(req.params.id, limit);
     res.json(attendance);
   } catch (error) {
@@ -66,7 +69,7 @@ router.get('/:id/attendance', authenticateToken, requirePermission('members:read
 // Get member transaction history
 router.get('/:id/transactions', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
     const transactions = membersData.getMemberTransactions(req.params.id, limit);
     res.json(transactions);
   } catch (error) {
@@ -85,6 +88,12 @@ router.post('/', authenticateToken, requirePermission('members:create'), (req, r
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
     // Check if email already exists
     const existingMember = membersData.getMemberByEmail(email);
     if (existingMember) {
@@ -101,10 +110,9 @@ router.post('/', authenticateToken, requirePermission('members:create'), (req, r
       trialEndDate.setDate(trialEndDate.getDate() + 1);
     }
 
-    const memberData = {
-      ...req.body,
-      trial_end_date: trialEndDate.toISOString().split('T')[0]
-    };
+    const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'location', 'plan', 'emergency_contact_name', 'emergency_contact_phone', 'medical_conditions', 'injuries', 'goals', 'experience_level', 'source', 'notes'];
+    const memberData = { trial_end_date: trialEndDate.toISOString().split('T')[0] };
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) memberData[f] = req.body[f]; });
 
     const member = membersData.createMember(memberData);
 
@@ -112,7 +120,7 @@ router.post('/', authenticateToken, requirePermission('members:create'), (req, r
   } catch (error) {
     console.error('Error creating member:', error);
 
-    if (error.message.includes('UNIQUE constraint')) {
+    if (isUniqueConstraintError(error)) {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
@@ -137,13 +145,16 @@ router.put('/:id', authenticateToken, requirePermission('members:update'), (req,
       }
     }
 
-    const updatedMember = membersData.updateMember(req.params.id, req.body);
+    const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'location', 'status', 'plan', 'trial_end_date', 'pause_start', 'pause_end', 'cancellation_date', 'emergency_contact_name', 'emergency_contact_phone', 'medical_conditions', 'injuries', 'goals', 'experience_level', 'lightspeed_customer_id', 'notes'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    const updatedMember = membersData.updateMember(req.params.id, updateData);
 
     res.json(updatedMember);
   } catch (error) {
     console.error('Error updating member:', error);
 
-    if (error.message.includes('UNIQUE constraint')) {
+    if (isUniqueConstraintError(error)) {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
@@ -170,16 +181,21 @@ router.post('/:id/pause', authenticateToken, requirePermission('members:update')
       return res.status(400).json({ error: 'Only active members can be paused' });
     }
 
-    // Calculate hold fee ($0.71 per day)
+    // Validate pause period
     const startDate = new Date(pause_start);
     const endDate = new Date(pause_end);
-    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
 
-    if (days > 84) {
-      return res.status(400).json({ error: 'Maximum hold period is 84 days' });
+    if (endDate <= startDate) {
+      return res.status(400).json({ error: 'Pause end date must be after start date' });
     }
 
-    const holdFee = days * 0.71;
+    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+    if (days > MAX_HOLD_DAYS) {
+      return res.status(400).json({ error: `Maximum hold period is ${MAX_HOLD_DAYS} days` });
+    }
+
+    const holdFee = +(days * HOLD_FEE_PER_DAY).toFixed(2);
 
     const updatedMember = membersData.updateMember(req.params.id, {
       status: 'paused',
@@ -242,28 +258,6 @@ router.post('/:id/cancel', authenticateToken, requirePermission('members:update'
   } catch (error) {
     console.error('Error cancelling membership:', error);
     res.status(500).json({ error: 'Failed to cancel membership' });
-  }
-});
-
-// Delete member (soft delete by cancelling)
-router.delete('/:id', authenticateToken, requirePermission('members:delete'), (req, res) => {
-  try {
-    const member = membersData.getMemberById(req.params.id);
-
-    if (!member) {
-      return res.status(404).json({ error: 'Member not found' });
-    }
-
-    // Soft delete by cancelling
-    membersData.updateMember(req.params.id, {
-      status: 'cancelled',
-      cancellation_date: new Date().toISOString().split('T')[0]
-    });
-
-    res.json({ message: 'Member cancelled successfully' });
-  } catch (error) {
-    console.error('Error deleting member:', error);
-    res.status(500).json({ error: 'Failed to delete member' });
   }
 });
 

@@ -10,17 +10,22 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const now = new Date().toISOString();
 
     // 1. Find overdue tasks (past due_date, not completed)
-    const allPendingTasks = staffTasksData.getAllTasks({ status: 'pending' });
+    const allPendingTasks = (staffTasksData.getAllTasks({ status: 'pending' }) || []).slice(0, 500);
     const overdueTasks = allPendingTasks.filter(t => {
-      if (!t.due_date) return false;
+      if (!t || !t.due_date) return false;
       return t.due_date < now;
     });
 
     let escalatedCount = 0;
     for (const task of overdueTasks) {
-      if (task.priority !== 'critical') {
-        staffTasksData.updateTask(task.id, { priority: 'high', notes: `[AUTO] Escalated - overdue past ${task.due_date}` });
-        escalatedCount++;
+      if (!task || !task.id) continue;
+      try {
+        if (task.priority !== 'critical') {
+          staffTasksData.updateTask(task.id, { priority: 'high', notes: `[AUTO] Escalated - overdue past ${task.due_date}` });
+          escalatedCount++;
+        }
+      } catch (loopErr) {
+        console.error(`[TASK-AGENT] Error escalating task #${task.id}:`, loopErr.message);
       }
     }
 
@@ -29,19 +34,24 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const fiveDaysMs = 5 * 24 * 60 * 60 * 1000;
 
     for (const task of allPendingTasks) {
-      const created = new Date(task.created_at);
-      const elapsed = Date.now() - created.getTime();
-      let newPriority = task.priority;
+      if (!task || !task.id) continue;
+      try {
+        const created = new Date(task.created_at);
+        const elapsed = Date.now() - created.getTime();
+        let newPriority = task.priority;
 
-      if (elapsed > fiveDaysMs && task.priority === 'low') {
-        newPriority = 'medium';
-      }
-      if (elapsed > twoDaysMs && task.priority === 'medium') {
-        newPriority = 'high';
-      }
+        if (elapsed > fiveDaysMs && task.priority === 'low') {
+          newPriority = 'medium';
+        }
+        if (elapsed > twoDaysMs && task.priority === 'medium') {
+          newPriority = 'high';
+        }
 
-      if (newPriority !== task.priority) {
-        staffTasksData.updateTask(task.id, { priority: newPriority, notes: `[AUTO] Priority escalated from ${task.priority} to ${newPriority} due to age` });
+        if (newPriority !== task.priority) {
+          staffTasksData.updateTask(task.id, { priority: newPriority, notes: `[AUTO] Priority escalated from ${task.priority} to ${newPriority} due to age` });
+        }
+      } catch (loopErr) {
+        console.error(`[TASK-AGENT] Error updating priority for task #${task.id}:`, loopErr.message);
       }
     }
 
@@ -83,14 +93,16 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       broadcast({ type: 'task_agent_update', summary, escalatedCount });
     }
   } catch (err) {
-    console.error('[TASK-AGENT] Error:', err.message);
+    console.error('[TASK-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'task_pipeline_error',
         details: { error: err.message },
         summary: `Task agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[TASK-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 

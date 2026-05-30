@@ -28,9 +28,9 @@ const createWrapper = () => {
 };
 
 describe('Dashboard Page', () => {
-  it('displays loading state initially', () => {
+  it('displays loading spinner initially', () => {
     render(<Dashboard />, { wrapper: createWrapper() });
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('displays KPI cards after loading', async () => {

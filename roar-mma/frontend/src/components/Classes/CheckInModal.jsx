@@ -4,11 +4,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '../Shared/Modal';
 import api from '../../lib/api';
 import { useDebounce } from '../../hooks/useCommon';
+import { useNotifications } from '../../contexts/NotificationContext';
+import ConfirmDialog from '../Shared/ConfirmDialog';
 
 export default function CheckInModal({ isOpen, onClose, classInstance }) {
   const queryClient = useQueryClient();
+  const { error } = useNotifications();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
+  const [removeConfirmId, setRemoveConfirmId] = useState(null);
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Fetch members for search
@@ -49,9 +53,9 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
       setSelectedMembers([]);
       setSearchQuery('');
     },
-    onError: (error) => {
-      console.error('Error checking in members:', error);
-      alert('Failed to check in members. Please try again.');
+    onError: (err) => {
+      console.error('Error checking in members:', err);
+      error('Failed to check in members. Please try again.');
     }
   });
 
@@ -65,9 +69,9 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
       queryClient.invalidateQueries(['attendance']);
       refetchAttendees();
     },
-    onError: (error) => {
-      console.error('Error removing attendee:', error);
-      alert('Failed to remove attendee. Please try again.');
+    onError: (err) => {
+      console.error('Error removing attendee:', err);
+      error('Failed to remove attendee. Please try again.');
     }
   });
 
@@ -78,9 +82,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
   };
 
   const handleRemoveAttendee = (attendanceId) => {
-    if (confirm('Remove this member from the class?')) {
-      removeAttendeeMutation.mutate(attendanceId);
-    }
+    setRemoveConfirmId(attendanceId);
   };
 
   const toggleMemberSelection = (member) => {
@@ -110,8 +112,16 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
 
   if (!classInstance) return null;
 
+  const confirmDelete = () => {
+    if (removeConfirmId) {
+      removeAttendeeMutation.mutate(removeConfirmId);
+      setRemoveConfirmId(null);
+    }
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Class Check-In" size="lg">
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} title="Class Check-In" size="lg">
       <div className="space-y-6">
         {/* Class Info */}
         <div className="bg-gray-50 rounded-lg p-4">
@@ -252,5 +262,15 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
         </div>
       </div>
     </Modal>
+      <ConfirmDialog
+        isOpen={!!removeConfirmId}
+        onClose={() => setRemoveConfirmId(null)}
+        onConfirm={confirmDelete}
+        title="Remove Attendee"
+        message="Remove this member from the class?"
+        confirmText="Remove"
+        type="danger"
+      />
+    </>
   );
 }

@@ -1,13 +1,28 @@
 // Global Notification System using Context
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 
 const NotificationContext = createContext();
 
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
+  const timeoutsRef = useRef({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(timeoutsRef.current).forEach(clearTimeout);
+    };
+  }, []);
+
+  const removeNotification = useCallback((id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    if (timeoutsRef.current[id]) {
+      clearTimeout(timeoutsRef.current[id]);
+      delete timeoutsRef.current[id];
+    }
+  }, []);
 
   const addNotification = useCallback((notification) => {
-    const id = Date.now() + Math.random();
+    const id = crypto.randomUUID();
     const newNotification = {
       id,
       type: notification.type || 'info',
@@ -19,17 +34,13 @@ export function NotificationProvider({ children }) {
     setNotifications((prev) => [...prev, newNotification]);
 
     if (newNotification.duration > 0) {
-      setTimeout(() => {
+      timeoutsRef.current[id] = setTimeout(() => {
         removeNotification(id);
       }, newNotification.duration);
     }
 
     return id;
-  }, []);
-
-  const removeNotification = useCallback((id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  }, [removeNotification]);
 
   const success = useCallback((title, message, duration) => {
     return addNotification({ type: 'success', title, message, duration });

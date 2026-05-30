@@ -27,7 +27,7 @@ describe('Input Component', () => {
   it('applies error styling when error prop is present', () => {
     render(<Input error="Error message" />);
     const input = screen.getByRole('textbox');
-    expect(input).toHaveClass('input-error');
+    expect(input).toHaveClass('border-red-500');
   });
 
   it('shows required indicator', () => {

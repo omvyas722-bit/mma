@@ -8,7 +8,7 @@ export default function Staff() {
   const { hasPermission } = useAuth();
   const [roleFilter, setRoleFilter] = useState('');
 
-  const { data: staff = [], isLoading } = useQuery({
+  const { data: staff = [], isLoading, isError } = useQuery({
     queryKey: ['staff', { role: roleFilter }],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -19,7 +19,7 @@ export default function Staff() {
     },
   });
 
-  const { data: stats } = useQuery({
+  const { data: stats, isError: statsError } = useQuery({
     queryKey: ['staff-stats'],
     queryFn: async () => {
       const response = await api.get('/api/staff/stats');
@@ -38,11 +38,17 @@ export default function Staff() {
         )}
       </div>
 
+      {isError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-red-700">Failed to load staff data. Please try again.</p>
+        </div>
+      )}
+
       {/* Stats */}
-      {stats && (
+      {stats && !statsError && (
         <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
           <StatCard label="Total Staff" value={stats.total} />
-          {stats.by_role.map((role) => (
+          {(stats.by_role || []).map((role) => (
             <StatCard
               key={role.role}
               label={role.role.replace('_', ' ').toUpperCase()}
@@ -148,15 +154,6 @@ function StatCard({ label, value }) {
 }
 
 function RoleBadge({ role }) {
-  const badges = {
-    owner: 'badge-red',
-    gm: 'badge-blue',
-    front_desk: 'badge-green',
-    coach: 'badge-yellow',
-    sales: 'badge-purple',
-    social: 'badge-pink',
-  };
-
   const colors = {
     owner: 'bg-red-100 text-red-800',
     gm: 'bg-blue-100 text-blue-800',

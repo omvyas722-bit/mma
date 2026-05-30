@@ -3,27 +3,15 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '../Shared/Modal';
 import api from '../../lib/api';
+import { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadNotesFields } from './LeadFormFields';
 
 export default function EditLeadModal({ isOpen, onClose, lead }) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    source: '',
-    status: '',
-    location_preference: '',
-    interests: '',
-    notes: '',
-  });
-
+  const [formData, setFormData] = useState(initialLeadForm);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (lead) {
-      // Initialize form with lead data
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         first_name: lead.first_name || '',
         last_name: lead.last_name || '',
@@ -31,7 +19,7 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
         phone: lead.phone || '',
         source: lead.source || '',
         status: lead.status || '',
-        location_preference: lead.location_preference || '',
+        location: lead.location_preference || '',
         interests: lead.interests || '',
         notes: lead.notes || '',
       });
@@ -40,7 +28,10 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
 
   const updateLead = useMutation({
     mutationFn: async (data) => {
-      const response = await api.put(`/api/leads/${lead.id}`, data);
+      const response = await api.put(`/api/leads/${lead.id}`, {
+        ...data,
+        location_preference: data.location,
+      });
       return response.data;
     },
     onSuccess: () => {
@@ -49,36 +40,22 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
       queryClient.invalidateQueries(['dashboard']);
       onClose();
     },
-    onError: (error) => {
-      console.error('Error updating lead:', error);
-      setErrors({ submit: 'Failed to update lead. Please try again.' });
+    onError: (err) => {
+      setErrors({ submit: err.response?.data?.error || 'Failed to update lead. Please try again.' });
     }
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.first_name.trim()) newErrors.first_name = 'First name is required';
-    if (!formData.last_name.trim()) newErrors.last_name = 'Last name is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
-    if (!formData.source) newErrors.source = 'Source is required';
-    if (!formData.status) newErrors.status = 'Status is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateForm()) {
+    const newErrors = validateLeadForm(formData, ['source', 'status']);
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length === 0) {
       updateLead.mutate(formData);
     }
   };
@@ -94,111 +71,37 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
           </div>
         )}
 
-        {/* Contact Information */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name *
-              </label>
-              <input
-                type="text"
-                name="first_name"
-                value={formData.first_name}
-                onChange={handleChange}
-                className={`input ${errors.first_name ? 'border-red-500' : ''}`}
-              />
-              {errors.first_name && (
-                <p className="text-red-500 text-sm mt-1">{errors.first_name}</p>
-              )}
-            </div>
+          <LeadNameFields formData={formData} errors={errors} handleChange={handleChange} />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name *
-              </label>
-              <input
-                type="text"
-                name="last_name"
-                value={formData.last_name}
-                onChange={handleChange}
-                className={`input ${errors.last_name ? 'border-red-500' : ''}`}
-              />
-              {errors.last_name && (
-                <p className="text-red-500 text-sm mt-1">{errors.last_name}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone *
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className={`input ${errors.phone ? 'border-red-500' : ''}`}
-              />
-              {errors.phone && (
-                <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-              )}
-            </div>
+          <div className="mt-4">
+            <LeadContactFields formData={formData} errors={errors} handleChange={handleChange} showEmail />
           </div>
         </div>
 
-        {/* Lead Details */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Lead Details</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Source *
-                </label>
-                <select
-                  name="source"
-                  value={formData.source}
-                  onChange={handleChange}
-                  className={`input ${errors.source ? 'border-red-500' : ''}`}
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-1">Source *</label>
+                <select name="source" value={formData.source} onChange={handleChange}
+                  className={`input ${errors.source ? 'border-red-500' : ''}`}>
                   <option value="">Select Source</option>
                   <option value="website">Website</option>
                   <option value="facebook">Facebook</option>
                   <option value="instagram">Instagram</option>
                   <option value="referral">Referral</option>
-                  <option value="walk-in">Walk-in</option>
+                  <option value="walk_in">Walk-in</option>
                   <option value="other">Other</option>
                 </select>
-                {errors.source && (
-                  <p className="text-red-500 text-sm mt-1">{errors.source}</p>
-                )}
+                {errors.source && <p className="text-red-500 text-sm mt-1">{errors.source}</p>}
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status *
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className={`input ${errors.status ? 'border-red-500' : ''}`}
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                <select name="status" value={formData.status} onChange={handleChange}
+                  className={`input ${errors.status ? 'border-red-500' : ''}`}>
                   <option value="">Select Status</option>
                   <option value="new">New</option>
                   <option value="contacted">Contacted</option>
@@ -207,74 +110,28 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
                   <option value="converted">Converted</option>
                   <option value="lost">Lost</option>
                 </select>
-                {errors.status && (
-                  <p className="text-red-500 text-sm mt-1">{errors.status}</p>
-                )}
+                {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status}</p>}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location Preference
-              </label>
-              <select
-                name="location_preference"
-                value={formData.location_preference}
-                onChange={handleChange}
-                className="input"
-              >
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location Preference</label>
+              <select name="location" value={formData.location} onChange={handleChange} className="input">
                 <option value="">Select Location</option>
-                <option value="Burleigh Heads">Burleigh Heads</option>
-                <option value="Varsity Lakes">Varsity Lakes</option>
-                <option value="Either">Either</option>
+                <option value="rockingham">Rockingham</option>
+                <option value="bibra_lake">Bibra Lake</option>
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Interests
-              </label>
-              <input
-                type="text"
-                name="interests"
-                value={formData.interests}
-                onChange={handleChange}
-                className="input"
-                placeholder="e.g., BJJ, Muay Thai, MMA"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
-              </label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                rows="4"
-                className="input"
-                placeholder="Additional notes about this lead..."
-              />
-            </div>
+            <LeadNotesFields formData={formData} handleChange={handleChange} />
           </div>
         </div>
 
-        {/* Form Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn btn-secondary"
-            disabled={updateLead.isPending}
-          >
+          <button type="button" onClick={onClose} className="btn btn-secondary" disabled={updateLead.isPending}>
             Cancel
           </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={updateLead.isPending}
-          >
+          <button type="submit" className="btn btn-primary" disabled={updateLead.isPending}>
             {updateLead.isPending ? 'Updating...' : 'Update Lead'}
           </button>
         </div>

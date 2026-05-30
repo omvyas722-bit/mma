@@ -8,7 +8,7 @@ export default function TrialConversionDashboard() {
     queryKey: ['trial-conversion-stats'],
     queryFn: async () => {
       const response = await api.get('/api/trial-analytics/conversion-stats');
-      return response;
+      return response.data;
     },
   });
 
@@ -16,7 +16,7 @@ export default function TrialConversionDashboard() {
     queryKey: ['trial-conversion-trends'],
     queryFn: async () => {
       const response = await api.get('/api/trial-analytics/conversion-trends?days=30');
-      return response;
+      return response.data;
     },
   });
 
@@ -84,8 +84,8 @@ export default function TrialConversionDashboard() {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Conversion by Experience Rating</h2>
         <div className="space-y-3">
-          {stats?.by_experience_rating?.map((item) => (
-            <div key={item.trial_experience_rating} className="flex items-center justify-between">
+          {stats?.by_experience_rating?.map((item, idx) => (
+            <div key={item.trial_experience_rating + '-' + idx} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">
                   {item.trial_experience_rating === 1 ? '😞' :
@@ -192,7 +192,7 @@ function StatCard({ label, value, color }) {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <p className="text-sm text-gray-500 mb-1">{label}</p>
-      <p className={`text-3xl font-bold ${colors[color]}`}>{value}</p>
+      <p className={`text-3xl font-bold ${colors[color] || 'text-gray-600'}`}>{value}</p>
     </div>
   );
 }

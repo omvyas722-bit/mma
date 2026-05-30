@@ -9,14 +9,15 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const dbConn = db || getDatabase();
 
     // 1. Scheduled messages that are pending and past schedule
-    const pendingMessages = scheduledMessagesData.getPendingMessages();
+    const pendingMessages = (scheduledMessagesData.getPendingMessages() || []).slice(0, 500);
     const pastDueMessages = pendingMessages.filter(m => {
-      return m.scheduled_for <= new Date().toISOString();
+      return m && m.scheduled_for && m.scheduled_for <= new Date().toISOString();
     });
 
     // Log overdue messages
     let overdueCount = 0;
     for (const msg of pastDueMessages) {
+      if (!msg) continue;
       console.log(`[MESSAGING-AGENT] Overdue message #${msg.id} scheduled for ${msg.scheduled_for} to ${msg.recipient_phone || msg.recipient_email}`);
       overdueCount++;
     }
@@ -39,7 +40,7 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     const totalProcessed = (deliveryStats.sent || 0) + (deliveryStats.failed || 0);
     const successRate = totalProcessed > 0
-      ? Math.round(((deliveryStats.sent || 0) / totalProcessed) * 100)
+      ? Math.round(((deliveryStats.sent || 0) / totalProcessed) * 100) || 0
       : 0;
 
     // Also check today's numbers
@@ -79,14 +80,16 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       broadcast({ type: 'messaging_agent_alert', summary, successRate, failed: deliveryStats.failed });
     }
   } catch (err) {
-    console.error('[MESSAGING-AGENT] Error:', err.message);
+    console.error('[MESSAGING-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'messaging_check_error',
         details: { error: err.message },
         summary: `Messaging agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[MESSAGING-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 

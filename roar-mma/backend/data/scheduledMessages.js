@@ -6,7 +6,7 @@ function getAllScheduledMessages(filters = {}) {
 
   let query = `
     SELECT
-      sm.*,
+      sm.id, sm.lead_id, sm.member_id, sm.message_type, sm.template_id, sm.scheduled_for, sm.sent_at, sm.status, sm.recipient_phone, sm.recipient_email, sm.subject, sm.body, sm.response_received, sm.response_text, sm.error_message, sm.created_at, sm.updated_at,
       l.first_name || ' ' || l.last_name as lead_name,
       m.first_name || ' ' || m.last_name as member_name,
       mt.name as template_name
@@ -47,7 +47,7 @@ function getScheduledMessageById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      sm.*,
+      sm.id, sm.lead_id, sm.member_id, sm.message_type, sm.template_id, sm.scheduled_for, sm.sent_at, sm.status, sm.recipient_phone, sm.recipient_email, sm.subject, sm.body, sm.response_received, sm.response_text, sm.error_message, sm.created_at, sm.updated_at,
       l.first_name || ' ' || l.last_name as lead_name,
       m.first_name || ' ' || m.last_name as member_name,
       mt.name as template_name
@@ -141,7 +141,7 @@ function getPendingMessages(beforeTime = null) {
 
   return db.prepare(`
     SELECT
-      sm.*,
+      sm.id, sm.lead_id, sm.member_id, sm.message_type, sm.template_id, sm.scheduled_for, sm.sent_at, sm.status, sm.recipient_phone, sm.recipient_email, sm.subject, sm.body, sm.response_received, sm.response_text, sm.error_message, sm.created_at, sm.updated_at,
       l.first_name as lead_first_name,
       l.last_name as lead_last_name,
       l.email as lead_email,

@@ -1,4 +1,5 @@
 // Main application shell with sidebar navigation
+import { Suspense } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../contexts/WebSocketContext';
@@ -18,6 +19,7 @@ export default function AppShell() {
     { name: 'Reports', path: '/reports', icon: '📈' },
     { name: 'AI Assistant', path: '/ai', icon: '🤖' },
     { name: 'AI Dashboard', path: '/ai-dashboard', icon: '⚙️' },
+    { name: 'AI Agents', path: '/agents', icon: '🧠' },
   ];
 
   function isActive(path) {
@@ -81,7 +83,9 @@ export default function AppShell() {
       {/* Main content */}
       <div className="ml-64">
         <div className="p-8">
-          <Outlet />
+          <Suspense fallback={<div className="text-center py-8 text-gray-500">Loading...</div>}>
+            <Outlet />
+          </Suspense>
         </div>
       </div>
     </div>

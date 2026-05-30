@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Workflow Automation</title>
     <style>
         * {
@@ -417,7 +423,7 @@
         <div class="header">
             <div class="logo">⚡ ROAR MMA Workflow Automation</div>
             <div class="nav">
-                <div class="nav-item" onclick="window.location.href='command-center-v2.html'">Dashboard</div>
+                <div class="nav-item" >Dashboard</div>
                 <div class="nav-item" style="border-color: #ff4444;">Workflows</div>
             </div>
         </div>
@@ -426,32 +432,32 @@
             <div class="sidebar">
                 <div class="sidebar-title">📋 Workflow Templates</div>
                 <div class="workflow-templates">
-                    <div class="template-item" onclick="loadTemplate('trial')">
+                    <div class="template-item" >
                         <div class="template-icon">🎯</div>
                         <div class="template-name">Trial Follow-Up</div>
                         <div class="template-desc">5-stage automated sequence</div>
                     </div>
-                    <div class="template-item" onclick="loadTemplate('retention')">
+                    <div class="template-item" >
                         <div class="template-icon">💪</div>
                         <div class="template-name">Retention Campaign</div>
                         <div class="template-desc">Save cancelling members</div>
                     </div>
-                    <div class="template-item" onclick="loadTemplate('winback')">
+                    <div class="template-item" >
                         <div class="template-icon">🔄</div>
                         <div class="template-name">Win-Back Sequence</div>
                         <div class="template-desc">4-stage re-engagement</div>
                     </div>
-                    <div class="template-item" onclick="loadTemplate('lead')">
+                    <div class="template-item" >
                         <div class="template-icon">📞</div>
                         <div class="template-name">Lead Nurturing</div>
                         <div class="template-desc">Instant response + follow-ups</div>
                     </div>
-                    <div class="template-item" onclick="loadTemplate('pt')">
+                    <div class="template-item" >
                         <div class="template-icon">🏋️</div>
                         <div class="template-name">PT Upsell</div>
                         <div class="template-desc">Automated PT offers</div>
                     </div>
-                    <div class="template-item" onclick="loadTemplate('custom')">
+                    <div class="template-item" >
                         <div class="template-icon">⚙️</div>
                         <div class="template-name">Custom Workflow</div>
                         <div class="template-desc">Build from scratch</div>
@@ -463,8 +469,8 @@
                 <div class="canvas-header">
                     <div class="canvas-title" id="workflow-title">Select a template to get started</div>
                     <div class="canvas-actions">
-                        <button class="btn btn-secondary" onclick="clearWorkflow()">Clear</button>
-                        <button class="btn btn-primary" onclick="saveWorkflow()">Save Workflow</button>
+                        <button class="btn btn-secondary" >Clear</button>
+                        <button class="btn btn-primary" >Save Workflow</button>
                     </div>
                 </div>
 
@@ -485,39 +491,40 @@
             <div class="modal-title">Add Workflow Step</div>
             <div class="modal-body">
                 <div class="step-type-grid">
-                    <div class="step-type-option" onclick="selectStepType('trigger')">
+                    <div class="step-type-option" >
                         <div class="step-type-icon">⚡</div>
                         <div class="step-type-name">Trigger</div>
                     </div>
-                    <div class="step-type-option" onclick="selectStepType('wait')">
+                    <div class="step-type-option" >
                         <div class="step-type-icon">⏱️</div>
                         <div class="step-type-name">Wait</div>
                     </div>
-                    <div class="step-type-option" onclick="selectStepType('sms')">
+                    <div class="step-type-option" >
                         <div class="step-type-icon">💬</div>
                         <div class="step-type-name">Send SMS</div>
                     </div>
-                    <div class="step-type-option" onclick="selectStepType('email')">
+                    <div class="step-type-option" >
                         <div class="step-type-icon">📧</div>
                         <div class="step-type-name">Send Email</div>
                     </div>
-                    <div class="step-type-option" onclick="selectStepType('task')">
+                    <div class="step-type-option" >
                         <div class="step-type-icon">✅</div>
                         <div class="step-type-name">Create Task</div>
                     </div>
-                    <div class="step-type-option" onclick="selectStepType('condition')">
+                    <div class="step-type-option" >
                         <div class="step-type-icon">🔀</div>
                         <div class="step-type-name">Condition</div>
                     </div>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-secondary" >Cancel</button>
             </div>
         </div>
     </div>
 
     <script>
+        if (!RoarMMA.requireAuth()) return;
         let currentWorkflow = [];
         let workflowName = '';
 
@@ -601,7 +608,7 @@
                         <div class="empty-state-icon">🤖</div>
                         <div class="empty-state-title">Empty Workflow</div>
                         <div class="empty-state-desc">Add steps to build your automation</div>
-                        <button class="btn btn-primary" onclick="showAddStepModal()">Add First Step</button>
+                        <button class="btn btn-primary" >Add First Step</button>
                     </div>
                 `;
                 return;
@@ -617,7 +624,7 @@
             });
 
             html += `
-                <div class="add-step-btn" onclick="showAddStepModal()">
+                <div class="add-step-btn" >
                     + Add Step
                 </div>
             </div>`;
@@ -641,8 +648,8 @@
                         <div class="step-number">${index + 1}</div>
                         <div class="step-type">${icons[step.type]} ${step.label || step.type}</div>
                         <div class="step-actions">
-                            <button class="step-action-btn" onclick="editStep(${index})">Edit</button>
-                            <button class="step-action-btn" onclick="deleteStep(${index})">Delete</button>
+                            <button class="step-action-btn" >Edit</button>
+                            <button class="step-action-btn" >Delete</button>
                         </div>
                     </div>
                     <div class="step-content">

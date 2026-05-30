@@ -103,6 +103,12 @@ router.post('/', authenticateToken, requirePermission('bookings:create'), (req, 
       return res.status(400).json({ error: 'Cannot book completed class' });
     }
 
+    // Check capacity
+    const currentBookings = bookingsData.getAllBookings({ class_instance_id, status: 'booked' });
+    if (instance.capacity && currentBookings.length >= instance.capacity) {
+      return res.status(400).json({ error: 'Class is at full capacity' });
+    }
+
     // Create booking
     const booking = bookingsData.createBooking({ member_id, class_instance_id });
 
@@ -111,7 +117,7 @@ router.post('/', authenticateToken, requirePermission('bookings:create'), (req, 
     console.error('Error creating booking:', error);
 
     if (error.message.includes('already has a booking')) {
-      return res.status(409).json({ error: error.message });
+      return res.status(409).json({ error: 'Member already has an active booking for this class' });
     }
 
     res.status(500).json({ error: 'Failed to create booking' });
@@ -128,11 +134,11 @@ router.post('/:id/cancel', authenticateToken, requirePermission('bookings:update
     console.error('Error cancelling booking:', error);
 
     if (error.message.includes('not found')) {
-      return res.status(404).json({ error: error.message });
+      return res.status(404).json({ error: 'Booking not found' });
     }
 
     if (error.message.includes('already cancelled')) {
-      return res.status(400).json({ error: error.message });
+      return res.status(400).json({ error: 'Booking already cancelled' });
     }
 
     res.status(500).json({ error: 'Failed to cancel booking' });
@@ -155,11 +161,11 @@ router.post('/:id/attendance', authenticateToken, requirePermission('attendance:
     console.error('Error marking attendance:', error);
 
     if (error.message.includes('not found')) {
-      return res.status(404).json({ error: error.message });
+      return res.status(404).json({ error: 'Booking not found' });
     }
 
     if (error.message.includes('cancelled')) {
-      return res.status(400).json({ error: error.message });
+      return res.status(400).json({ error: 'Cannot mark attendance for cancelled booking' });
     }
 
     res.status(500).json({ error: 'Failed to mark attendance' });

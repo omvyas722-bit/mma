@@ -14,8 +14,9 @@ export default function Reports() {
     return new Date().toISOString().split('T')[0];
   });
 
-  const { data: report, isLoading, refetch } = useQuery({
+  const { data: report, isLoading, isError, refetch } = useQuery({
     queryKey: ['reports', reportType, dateFrom, dateTo],
+    placeholderData: (prev) => prev,
     queryFn: async () => {
       const response = await api.get(`/api/reports/${reportType}`, {
         params: { date_from: dateFrom, date_to: dateTo }
@@ -80,18 +81,24 @@ export default function Reports() {
       </div>
 
       {/* Report content */}
+      {isError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-red-700">Failed to load report. Please try again.</p>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
-      ) : (
+      ) : !isError && report ? (
         <>
           {reportType === 'membership' && <MembershipReport data={report} />}
           {reportType === 'revenue' && <RevenueReport data={report} />}
           {reportType === 'attendance' && <AttendanceReport data={report} />}
           {reportType === 'leads' && <LeadsReport data={report} />}
         </>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -103,11 +110,11 @@ function MembershipReport({ data }) {
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <StatCard label="Total Members" value={data.summary.total_members} />
-        <StatCard label="Active" value={data.summary.active} color="green" />
-        <StatCard label="Trial" value={data.summary.trial} color="yellow" />
-        <StatCard label="Paused" value={data.summary.paused} color="gray" />
-        <StatCard label="Cancelled" value={data.summary.cancelled} color="red" />
+        <StatCard label="Total Members" value={data?.summary?.total_members ?? 0} />
+        <StatCard label="Active" value={data?.summary?.active ?? 0} color="green" />
+        <StatCard label="Trial" value={data?.summary?.trial ?? 0} color="yellow" />
+        <StatCard label="Paused" value={data?.summary?.paused ?? 0} color="gray" />
+        <StatCard label="Cancelled" value={data?.summary?.cancelled ?? 0} color="red" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -123,8 +130,8 @@ function MembershipReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.by_location.map((row, idx) => (
-                <tr key={idx} className="border-b">
+              {(data?.by_location || []).map((row) => (
+                <tr key={row.location + row.status} className="border-b">
                   <td className="py-2 capitalize">{row.location.replace('_', ' ')}</td>
                   <td className="py-2 capitalize">{row.status}</td>
                   <td className="py-2 text-right">{row.count}</td>
@@ -145,8 +152,8 @@ function MembershipReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.by_plan.map((row, idx) => (
-                <tr key={idx} className="border-b">
+              {(data?.by_plan || []).map((row) => (
+                <tr key={row.plan || 'no-plan'} className="border-b">
                   <td className="py-2 capitalize">{row.plan?.replace('_', ' ') || 'No plan'}</td>
                   <td className="py-2 text-right">{row.count}</td>
                 </tr>
@@ -159,7 +166,7 @@ function MembershipReport({ data }) {
       {/* Trial conversions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-2">Trial Conversions</h3>
-        <p className="text-3xl font-bold text-green-600">{data.trial_conversions}</p>
+        <p className="text-3xl font-bold text-green-600">{data?.trial_conversions ?? 0}</p>
         <p className="text-sm text-gray-500">Members converted from trial to active</p>
       </div>
     </div>
@@ -173,10 +180,10 @@ function RevenueReport({ data }) {
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard label="Total Revenue" value={`$${data.summary.total_revenue.toFixed(2)}`} color="green" />
-        <StatCard label="Transactions" value={data.summary.total_transactions} />
-        <StatCard label="Failed Payments" value={data.summary.failed_payments.count} color="red" />
-        <StatCard label="Avg Transaction" value={`$${data.summary.avg_transaction.toFixed(2)}`} />
+        <StatCard label="Total Revenue" value={`$${data?.summary?.total_revenue?.toFixed?.(2) || '0.00'}`} color="green" />
+        <StatCard label="Transactions" value={data?.summary?.total_transactions ?? 0} />
+        <StatCard label="Failed Payments" value={data?.summary?.failed_payments?.count ?? 0} color="red" />
+        <StatCard label="Avg Transaction" value={`$${data?.summary?.avg_transaction?.toFixed?.(2) || '0.00'}`} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -192,11 +199,11 @@ function RevenueReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.by_type.map((row, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="py-2 capitalize">{row.type.replace('_', ' ')}</td>
-                  <td className="py-2 text-right">{row.count}</td>
-                  <td className="py-2 text-right font-medium">${row.total.toFixed(2)}</td>
+              {(data?.by_type || []).map((row) => (
+                <tr key={row.type || 'unknown'} className="border-b">
+                  <td className="py-2 capitalize">{row.type?.replace('_', ' ') || ''}</td>
+                  <td className="py-2 text-right">{row.count ?? 0}</td>
+                  <td className="py-2 text-right font-medium">${(row.total ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -215,11 +222,11 @@ function RevenueReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.top_members.map((row, idx) => (
-                <tr key={idx} className="border-b">
+              {(data?.top_members || []).map((row) => (
+                <tr key={row.name} className="border-b">
                   <td className="py-2">{row.name}</td>
-                  <td className="py-2 text-right">{row.transaction_count}</td>
-                  <td className="py-2 text-right font-medium">${row.total_spent.toFixed(2)}</td>
+                  <td className="py-2 text-right">{row.transaction_count ?? 0}</td>
+                  <td className="py-2 text-right font-medium">${(row.total_spent ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -233,18 +240,20 @@ function RevenueReport({ data }) {
 function AttendanceReport({ data }) {
   if (!data) return null;
 
-  const attendanceRate = data.summary.total_bookings > 0
-    ? ((data.summary.attended / data.summary.total_bookings) * 100).toFixed(1)
+  const totalBookings = data?.summary?.total_bookings || 0;
+  const attended = data?.summary?.attended || 0;
+  const attendanceRate = totalBookings > 0
+    ? ((attended / totalBookings) * 100).toFixed(1)
     : 0;
 
   return (
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <StatCard label="Total Bookings" value={data.summary.total_bookings} />
-        <StatCard label="Attended" value={data.summary.attended} color="green" />
-        <StatCard label="No Shows" value={data.summary.no_shows} color="red" />
-        <StatCard label="Cancelled" value={data.summary.cancelled} color="gray" />
+        <StatCard label="Total Bookings" value={totalBookings} />
+        <StatCard label="Attended" value={attended} color="green" />
+        <StatCard label="No Shows" value={data?.summary?.no_shows || 0} color="red" />
+        <StatCard label="Cancelled" value={data?.summary?.cancelled || 0} color="gray" />
         <StatCard label="Attendance Rate" value={`${attendanceRate}%`} color="blue" />
       </div>
 
@@ -262,10 +271,10 @@ function AttendanceReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.by_class_type.map((row, idx) => {
+              {(data?.by_class_type || []).map((row) => {
                 const rate = row.bookings > 0 ? ((row.attended / row.bookings) * 100).toFixed(1) : 0;
                 return (
-                  <tr key={idx} className="border-b">
+                  <tr key={row.class_type} className="border-b">
                     <td className="py-2 uppercase">{row.class_type}</td>
                     <td className="py-2 text-right">{row.bookings}</td>
                     <td className="py-2 text-right">{row.attended}</td>
@@ -289,8 +298,8 @@ function AttendanceReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.top_attendees.map((row, idx) => (
-                <tr key={idx} className="border-b">
+              {(data?.top_attendees || []).map((row) => (
+                <tr key={row.name} className="border-b">
                   <td className="py-2">{row.name}</td>
                   <td className="py-2 text-right">{row.total_bookings}</td>
                   <td className="py-2 text-right font-medium">{row.attended}</td>
@@ -311,10 +320,10 @@ function LeadsReport({ data }) {
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard label="Total Leads" value={data.summary.total_leads} />
-        <StatCard label="Converted" value={data.summary.converted} color="green" />
-        <StatCard label="Lost" value={data.summary.lost} color="red" />
-        <StatCard label="Conversion Rate" value={`${data.summary.conversion_rate}%`} color="blue" />
+        <StatCard label="Total Leads" value={data?.summary?.total_leads ?? 0} />
+        <StatCard label="Converted" value={data?.summary?.converted ?? 0} color="green" />
+        <StatCard label="Lost" value={data?.summary?.lost ?? 0} color="red" />
+        <StatCard label="Conversion Rate" value={`${data?.summary?.conversion_rate ?? 0}%`} color="blue" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -329,8 +338,8 @@ function LeadsReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.by_source.map((row, idx) => (
-                <tr key={idx} className="border-b">
+              {(data?.by_source || []).map((row) => (
+                <tr key={row.source || 'unknown'} className="border-b">
                   <td className="py-2 capitalize">{row.source?.replace('_', ' ') || 'Unknown'}</td>
                   <td className="py-2 text-right">{row.count}</td>
                 </tr>
@@ -350,10 +359,10 @@ function LeadsReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.by_stage.map((row, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="py-2 capitalize">{row.stage.replace('_', ' ')}</td>
-                  <td className="py-2 text-right">{row.count}</td>
+              {(data?.by_stage || []).map((row) => (
+                <tr key={row.stage || 'unknown'} className="border-b">
+                  <td className="py-2 capitalize">{row.stage?.replace('_', ' ') || ''}</td>
+                  <td className="py-2 text-right">{row.count ?? 0}</td>
                 </tr>
               ))}
             </tbody>
@@ -365,11 +374,11 @@ function LeadsReport({ data }) {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-4">Conversion Funnel</h3>
         <div className="space-y-2">
-          <FunnelBar label="New Leads" value={data.conversion_funnel.new} max={data.conversion_funnel.new} />
-          <FunnelBar label="Contacted" value={data.conversion_funnel.contacted} max={data.conversion_funnel.new} />
-          <FunnelBar label="Trial Booked" value={data.conversion_funnel.trial_booked} max={data.conversion_funnel.new} />
-          <FunnelBar label="Trial Completed" value={data.conversion_funnel.trial_completed} max={data.conversion_funnel.new} />
-          <FunnelBar label="Converted" value={data.conversion_funnel.converted} max={data.conversion_funnel.new} />
+          <FunnelBar label="New Leads" value={data?.conversion_funnel?.new || 0} max={data?.conversion_funnel?.new || 0} />
+          <FunnelBar label="Contacted" value={data?.conversion_funnel?.contacted || 0} max={data?.conversion_funnel?.new || 0} />
+          <FunnelBar label="Trial Booked" value={data?.conversion_funnel?.trial_booked || 0} max={data?.conversion_funnel?.new || 0} />
+          <FunnelBar label="Trial Completed" value={data?.conversion_funnel?.trial_completed || 0} max={data?.conversion_funnel?.new || 0} />
+          <FunnelBar label="Converted" value={data?.conversion_funnel?.converted || 0} max={data?.conversion_funnel?.new || 0} />
         </div>
       </div>
     </div>

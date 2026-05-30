@@ -1,11 +1,28 @@
 // Settings Page - Gym Configuration
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { PageLoader } from '../components/Shared/Spinner';
+import { useNotifications } from '../contexts/NotificationContext';
+
+function ToggleSwitch({ checked, onChange, id }) {
+  return (
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only peer"
+      />
+      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+    </label>
+  );
+}
 
 export default function Settings() {
   const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
   const [activeTab, setActiveTab] = useState('general');
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -17,7 +34,13 @@ export default function Settings() {
     },
   });
 
-  const [formData, setFormData] = useState(settings || {});
+  const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    if (settings && !hasChanges) {
+      setFormData(settings);
+    }
+  }, [settings, hasChanges]);
 
   const updateSettings = useMutation({
     mutationFn: async (data) => {
@@ -27,11 +50,11 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries(['settings']);
       setHasChanges(false);
-      alert('Settings saved successfully!');
+      success('Settings saved successfully!');
     },
-    onError: (error) => {
-      console.error('Error saving settings:', error);
-      alert('Failed to save settings. Please try again.');
+    onError: (err) => {
+      console.error('Error saving settings:', err);
+      error('Failed to save settings. Please try again.');
     }
   });
 
@@ -285,7 +308,7 @@ function LocationsSettings({ data, onChange }) {
       ) : (
         <div className="space-y-4">
           {data.map((location, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4">
+            <div key={location.name + index} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-start justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
                   Location {index + 1}
@@ -371,7 +394,7 @@ function MembershipSettings({ data, onChange }) {
             <input
               type="number"
               value={data.trial_period_days || 7}
-              onChange={(e) => onChange('trial_period_days', parseInt(e.target.value))}
+              onChange={(e) => onChange('trial_period_days', parseInt(e.target.value) || 7)}
               className="input w-20"
               min="1"
             />
@@ -384,15 +407,10 @@ function MembershipSettings({ data, onChange }) {
             <h3 className="font-medium text-gray-900">Auto-Renewal</h3>
             <p className="text-sm text-gray-500">Automatically renew memberships</p>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={data.auto_renewal || false}
-              onChange={(e) => onChange('auto_renewal', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+          <ToggleSwitch
+            checked={data.auto_renewal || false}
+            onChange={(v) => onChange('auto_renewal', v)}
+          />
         </div>
 
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
@@ -400,15 +418,10 @@ function MembershipSettings({ data, onChange }) {
             <h3 className="font-medium text-gray-900">Require Waiver</h3>
             <p className="text-sm text-gray-500">Members must sign waiver before joining</p>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={data.require_waiver || false}
-              onChange={(e) => onChange('require_waiver', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+          <ToggleSwitch
+            checked={data.require_waiver || false}
+            onChange={(v) => onChange('require_waiver', v)}
+          />
         </div>
 
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
@@ -420,7 +433,7 @@ function MembershipSettings({ data, onChange }) {
             <input
               type="number"
               value={data.grace_period_days || 3}
-              onChange={(e) => onChange('grace_period_days', parseInt(e.target.value))}
+              onChange={(e) => onChange('grace_period_days', parseInt(e.target.value) || 3)}
               className="input w-20"
               min="0"
             />
@@ -443,15 +456,10 @@ function NotificationsSettings({ data, onChange }) {
             <h3 className="font-medium text-gray-900">Email Notifications</h3>
             <p className="text-sm text-gray-500">Send email notifications to members</p>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={data.email_enabled || false}
-              onChange={(e) => onChange('email_enabled', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+          <ToggleSwitch
+            checked={data.email_enabled || false}
+            onChange={(v) => onChange('email_enabled', v)}
+          />
         </div>
 
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
@@ -459,15 +467,10 @@ function NotificationsSettings({ data, onChange }) {
             <h3 className="font-medium text-gray-900">SMS Notifications</h3>
             <p className="text-sm text-gray-500">Send SMS notifications to members</p>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={data.sms_enabled || false}
-              onChange={(e) => onChange('sms_enabled', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+          <ToggleSwitch
+            checked={data.sms_enabled || false}
+            onChange={(v) => onChange('sms_enabled', v)}
+          />
         </div>
 
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
@@ -475,15 +478,10 @@ function NotificationsSettings({ data, onChange }) {
             <h3 className="font-medium text-gray-900">Class Reminders</h3>
             <p className="text-sm text-gray-500">Remind members about upcoming classes</p>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={data.class_reminders || false}
-              onChange={(e) => onChange('class_reminders', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+          <ToggleSwitch
+            checked={data.class_reminders || false}
+            onChange={(v) => onChange('class_reminders', v)}
+          />
         </div>
 
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
@@ -491,15 +489,10 @@ function NotificationsSettings({ data, onChange }) {
             <h3 className="font-medium text-gray-900">Payment Reminders</h3>
             <p className="text-sm text-gray-500">Remind members about upcoming payments</p>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={data.payment_reminders || false}
-              onChange={(e) => onChange('payment_reminders', e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+          <ToggleSwitch
+            checked={data.payment_reminders || false}
+            onChange={(v) => onChange('payment_reminders', v)}
+          />
         </div>
       </div>
     </div>
@@ -514,88 +507,41 @@ function IntegrationsSettings({ data, onChange }) {
       <div className="space-y-4">
         <div className="border border-gray-200 rounded-lg p-4">
           <h3 className="font-medium text-gray-900 mb-4">Stripe Payment Gateway</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Publishable Key
-              </label>
-              <input
-                type="text"
-                value={data.stripe_publishable_key || ''}
-                onChange={(e) => onChange('stripe_publishable_key', e.target.value)}
-                className="input"
-                placeholder="pk_test_..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Secret Key
-              </label>
-              <input
-                type="password"
-                value={data.stripe_secret_key || ''}
-                onChange={(e) => onChange('stripe_secret_key', e.target.value)}
-                className="input"
-                placeholder="sk_test_..."
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Publishable Key
+            </label>
+            <input
+              type="text"
+              value={data.stripe_publishable_key || ''}
+              onChange={(e) => onChange('stripe_publishable_key', e.target.value)}
+              className="input"
+              placeholder="pk_test_..."
+            />
           </div>
+          <p className="text-xs text-gray-400 mt-2">Secret keys are stored server-side only.</p>
         </div>
 
         <div className="border border-gray-200 rounded-lg p-4">
           <h3 className="font-medium text-gray-900 mb-4">Email Service (SendGrid)</h3>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              API Key
-            </label>
-            <input
-              type="password"
-              value={data.sendgrid_api_key || ''}
-              onChange={(e) => onChange('sendgrid_api_key', e.target.value)}
-              className="input"
-              placeholder="SG...."
-            />
-          </div>
+          <p className="text-sm text-gray-500">SendGrid API key is configured server-side for security.</p>
         </div>
 
         <div className="border border-gray-200 rounded-lg p-4">
           <h3 className="font-medium text-gray-900 mb-4">SMS Service (Twilio)</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Account SID
-              </label>
-              <input
-                type="text"
-                value={data.twilio_account_sid || ''}
-                onChange={(e) => onChange('twilio_account_sid', e.target.value)}
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Auth Token
-              </label>
-              <input
-                type="password"
-                value={data.twilio_auth_token || ''}
-                onChange={(e) => onChange('twilio_auth_token', e.target.value)}
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                value={data.twilio_phone_number || ''}
-                onChange={(e) => onChange('twilio_phone_number', e.target.value)}
-                className="input"
-                placeholder="+61400000000"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={data.twilio_phone_number || ''}
+              onChange={(e) => onChange('twilio_phone_number', e.target.value)}
+              className="input"
+              placeholder="+61400000000"
+            />
           </div>
+          <p className="text-xs text-gray-400 mt-2">Account credentials are stored server-side only.</p>
         </div>
       </div>
     </div>

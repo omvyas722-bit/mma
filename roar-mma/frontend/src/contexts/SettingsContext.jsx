@@ -1,6 +1,6 @@
 // Settings Context Provider - Application settings management
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { settingsApi } from '../lib/api';
 import { useNotifications } from './NotificationContext';
 import logger from '../lib/logger';
@@ -67,6 +67,8 @@ const DEFAULT_SETTINGS = {
 
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   const [locations, setLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,41 +76,63 @@ export function SettingsProvider({ children }) {
 
   // Load settings on mount
   useEffect(() => {
+    const controller = new AbortController();
+
+    const loadSettings = async () => {
+      try {
+        const data = await settingsApi.getAll({ signal: controller.signal });
+        setSettings({ ...DEFAULT_SETTINGS, ...data });
+        logger.info('Settings loaded');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          logger.error('Failed to load settings', err);
+          error('Failed to load settings');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const loadLocations = async () => {
+      try {
+        const data = await settingsApi.getLocations({ signal: controller.signal });
+        setLocations(data);
+        logger.info('Locations loaded', { count: data.length });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          logger.error('Failed to load locations', err);
+        }
+      }
+    };
+
     loadSettings();
     loadLocations();
-  }, []);
 
-  const loadSettings = async () => {
-    try {
-      const data = await settingsApi.getAll();
-      setSettings({ ...DEFAULT_SETTINGS, ...data });
-      logger.info('Settings loaded');
-    } catch (err) {
-      logger.error('Failed to load settings', err);
-      error('Failed to load settings');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadLocations = async () => {
-    try {
-      const data = await settingsApi.getLocations();
-      setLocations(data);
-      logger.info('Locations loaded', { count: data.length });
-    } catch (err) {
-      logger.error('Failed to load locations', err);
-    }
-  };
+    return () => {
+      controller.abort();
+    };
+  }, [error]);
 
   // Update settings
   const updateSettings = useCallback(async (updates) => {
     setIsSaving(true);
 
     try {
-      const updatedSettings = { ...settings, ...updates };
-      await settingsApi.update(updatedSettings);
-      setSettings(updatedSettings);
+      await settingsApi.update(updates);
+      setSettings(prev => {
+        const merged = { ...prev };
+        for (const [key, value] of Object.entries(updates)) {
+          if (
+            typeof value === 'object' && value !== null && !Array.isArray(value) &&
+            typeof prev[key] === 'object' && prev[key] !== null && !Array.isArray(prev[key])
+          ) {
+            merged[key] = { ...prev[key], ...value };
+          } else {
+            merged[key] = value;
+          }
+        }
+        return merged;
+      });
       success('Settings saved successfully');
       logger.info('Settings updated', { updates });
       return { success: true };
@@ -119,23 +143,17 @@ export function SettingsProvider({ children }) {
     } finally {
       setIsSaving(false);
     }
-  }, [settings, success, error]);
+  }, [success, error]);
 
   // Update specific section
   const updateSection = useCallback(async (section, updates) => {
-    const sectionUpdates = {
-      [section]: {
-        ...settings[section],
-        ...updates,
-      },
-    };
-    return updateSettings(sectionUpdates);
-  }, [settings, updateSettings]);
+    return updateSettings({ [section]: updates });
+  }, [updateSettings]);
 
   // Get setting value
   const getSetting = useCallback((path) => {
     const keys = path.split('.');
-    let value = settings;
+    let value = settingsRef.current;
 
     for (const key of keys) {
       value = value?.[key];
@@ -143,7 +161,7 @@ export function SettingsProvider({ children }) {
     }
 
     return value;
-  }, [settings]);
+  }, []);
 
   // Location management
   const addLocation = useCallback(async (locationData) => {
@@ -230,7 +248,7 @@ export function SettingsProvider({ children }) {
 
   // Export settings
   const exportSettings = useCallback(() => {
-    const dataStr = JSON.stringify(settings, null, 2);
+    const dataStr = JSON.stringify(settingsRef.current, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
@@ -239,7 +257,7 @@ export function SettingsProvider({ children }) {
     link.click();
     URL.revokeObjectURL(url);
     success('Settings exported successfully');
-  }, [settings, success]);
+  }, [success]);
 
   // Import settings
   const importSettings = useCallback(async (file) => {

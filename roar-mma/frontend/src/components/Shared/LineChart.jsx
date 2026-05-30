@@ -16,8 +16,10 @@ export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' 
     purple: { line: 'stroke-purple-500', fill: 'fill-purple-100', dot: 'fill-purple-500' },
   };
 
-  const maxValue = Math.max(...data.map(d => d.value));
-  const minValue = Math.min(...data.map(d => d.value));
+  const colorScheme = colors[color] || colors.blue;
+
+  const maxValue = data.reduce((max, d) => Math.max(max, d.value), -Infinity);
+  const minValue = data.reduce((min, d) => Math.min(min, d.value), Infinity);
   const range = maxValue - minValue || 1;
 
   const chartWidth = 600;
@@ -76,14 +78,14 @@ export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' 
           {/* Area fill */}
           <path
             d={areaPath}
-            className={colors[color].fill}
+            className={colorScheme.fill}
             opacity="0.3"
           />
 
           {/* Line */}
           <path
             d={linePath}
-            className={colors[color].line}
+            className={colorScheme.line}
             strokeWidth="2"
             fill="none"
           />
@@ -95,7 +97,7 @@ export default function LineChart({ data, title, xLabel, yLabel, color = 'blue' 
                 cx={point.x}
                 cy={point.y}
                 r="4"
-                className={colors[color].dot}
+                className={colorScheme.dot}
               />
               <circle
                 cx={point.x}

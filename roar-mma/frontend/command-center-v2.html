@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - AI Command Center v2</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
     <style>
         * {
             margin: 0;
@@ -365,14 +371,14 @@
                         placeholder="Ask anything... e.g., 'show revenue trends', 'who are my top performers', 'what needs attention'"
                         autocomplete="off"
                     >
-                    <button class="command-submit" onclick="executeCommand()">Execute</button>
+                    <button class="command-submit" >Execute</button>
                 </div>
                 <div class="suggestions">
-                    <div class="suggestion-chip" onclick="setCommand('show revenue trends')">Revenue Trends</div>
-                    <div class="suggestion-chip" onclick="setCommand('conversion funnel')">Conversion Funnel</div>
-                    <div class="suggestion-chip" onclick="setCommand('top performers')">Top Performers</div>
-                    <div class="suggestion-chip" onclick="setCommand('at risk members')">At Risk</div>
-                    <div class="suggestion-chip" onclick="setCommand('stock alerts')">Stock Alerts</div>
+                    <div class="suggestion-chip" >Revenue Trends</div>
+                    <div class="suggestion-chip" >Conversion Funnel</div>
+                    <div class="suggestion-chip" >Top Performers</div>
+                    <div class="suggestion-chip" >At Risk</div>
+                    <div class="suggestion-chip" >Stock Alerts</div>
                 </div>
                 <div class="response-area" id="response-area">
                     <div style="text-align: center; color: #666; padding: 40px;">
@@ -416,8 +422,8 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
         let dashboardData = null;
 
         function updateTime() {
@@ -427,20 +433,9 @@
         updateTime();
 
         async function autoLogin() {
+            if (!RoarMMA.requireAuth()) return;
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: 'admin@roarmma.com.au',
-                        password: 'changeme123'
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    authToken = data.token;
-                    document.getElementById('server-status').textContent = 'Connected';
+                document.getElementById('server-status').textContent = 'Connected';
                     await loadDashboard();
                 } else {
                     throw new Error('Login failed');
@@ -462,7 +457,7 @@
         async function loadMetrics() {
             try {
                 const response = await fetch(`${API_BASE}/analytics/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
 
                 if (!response.ok) throw new Error('Failed to load metrics');
@@ -667,7 +662,7 @@
             // Revenue commands
             if (command.includes('revenue') || command.includes('money') || command.includes('income')) {
                 const response = await fetch(`${API_BASE}/analytics/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const data = await response.json();
                 return {
@@ -680,7 +675,7 @@
             // Lead commands
             if (command.includes('lead') || command.includes('prospect')) {
                 const response = await fetch(`${API_BASE}/leads`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const leads = await response.json();
                 return {
@@ -693,7 +688,7 @@
             // Performance commands
             if (command.includes('perform') || command.includes('top') || command.includes('best')) {
                 const response = await fetch(`${API_BASE}/analytics/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const data = await response.json();
                 return {
@@ -706,7 +701,7 @@
             // Stock commands
             if (command.includes('stock') || command.includes('inventory') || command.includes('product')) {
                 const response = await fetch(`${API_BASE}/stock/alerts`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const alerts = await response.json();
                 return {
@@ -719,7 +714,7 @@
             // Member commands
             if (command.includes('member') || command.includes('customer') || command.includes('risk')) {
                 const response = await fetch(`${API_BASE}/analytics/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const data = await response.json();
                 return {
@@ -732,7 +727,7 @@
             // Funnel commands
             if (command.includes('funnel') || command.includes('conversion')) {
                 const response = await fetch(`${API_BASE}/analytics/funnel`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const funnel = await response.json();
                 return {

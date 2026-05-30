@@ -102,8 +102,11 @@ export default function Calendar() {
 
             return (
               <div
-                key={index}
+                key={format(day, 'yyyy-MM-dd')}
                 onClick={() => setSelectedDate(day)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDate(day); } }}
                 className={`min-h-32 border-r border-b border-gray-200 p-2 cursor-pointer hover:bg-gray-50 ${
                   !isCurrentMonth ? 'bg-gray-50' : ''
                 } ${isSelected ? 'bg-blue-50' : ''}`}

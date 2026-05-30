@@ -1,3 +1,4 @@
+// TEST CREDENTIALS - Not used in production
 // Mock Service Worker handlers for API mocking
 import { http, HttpResponse } from 'msw';
 

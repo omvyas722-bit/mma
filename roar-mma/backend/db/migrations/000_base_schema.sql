@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS staff (
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('owner', 'gm', 'front_desk', 'coach', 'sales', 'social', 'staff')),
   phone TEXT,
-  active INTEGER DEFAULT 1,
+  active INTEGER DEFAULT 1 CHECK(active IN (0,1)),
   created_at DATETIME DEFAULT (datetime('now')),
   updated_at DATETIME DEFAULT (datetime('now'))
 );
@@ -61,9 +61,9 @@ CREATE TABLE IF NOT EXISTS leads (
   notes TEXT,
   created_at DATETIME DEFAULT (datetime('now')),
   updated_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (assigned_to) REFERENCES staff(id),
-  FOREIGN KEY (referrer_member_id) REFERENCES members(id),
-  FOREIGN KEY (converted_member_id) REFERENCES members(id)
+  FOREIGN KEY (assigned_to) REFERENCES staff(id) ON DELETE CASCADE,
+  FOREIGN KEY (referrer_member_id) REFERENCES members(id) ON DELETE CASCADE,
+  FOREIGN KEY (converted_member_id) REFERENCES members(id) ON DELETE CASCADE
 );
 
 -- Classes table
@@ -78,10 +78,10 @@ CREATE TABLE IF NOT EXISTS classes (
   end_time TIME NOT NULL,
   max_capacity INTEGER DEFAULT 20,
   location TEXT,
-  active INTEGER DEFAULT 1,
+  active INTEGER DEFAULT 1 CHECK(active IN (0,1)),
   created_at DATETIME DEFAULT (datetime('now')),
   updated_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (instructor_id) REFERENCES staff(id)
+  FOREIGN KEY (instructor_id) REFERENCES staff(id) ON DELETE CASCADE
 );
 
 -- Bookings table
@@ -93,8 +93,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   status TEXT DEFAULT 'confirmed' CHECK(status IN ('confirmed', 'cancelled', 'attended', 'no_show')),
   created_at DATETIME DEFAULT (datetime('now')),
   updated_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (member_id) REFERENCES members(id),
-  FOREIGN KEY (class_id) REFERENCES classes(id)
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+  UNIQUE(member_id, class_id, booking_date)
 );
 
 -- Transactions table
@@ -102,13 +103,13 @@ CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('membership', 'pt', 'product', 'other')),
-  amount REAL NOT NULL,
+  amount REAL NOT NULL CHECK(amount > 0),
   description TEXT,
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'completed', 'failed', 'refunded')),
   payment_method TEXT,
   created_at DATETIME DEFAULT (datetime('now')),
   updated_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (member_id) REFERENCES members(id)
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
 );
 
 -- Attendance table
@@ -120,8 +121,8 @@ CREATE TABLE IF NOT EXISTS attendance (
   check_out_time DATETIME,
   notes TEXT,
   created_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (member_id) REFERENCES members(id),
-  FOREIGN KEY (class_id) REFERENCES classes(id)
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
 );
 
 -- Indexes for performance
@@ -137,3 +138,7 @@ CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_transactions_member ON transactions(member_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_member ON attendance(member_id);
 CREATE INDEX IF NOT EXISTS idx_staff_email ON staff(email);
+CREATE INDEX IF NOT EXISTS idx_leads_referrer_member ON leads(referrer_member_id);
+CREATE INDEX IF NOT EXISTS idx_leads_converted_member ON leads(converted_member_id);
+CREATE INDEX IF NOT EXISTS idx_classes_instructor ON classes(instructor_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_class ON attendance(class_id);

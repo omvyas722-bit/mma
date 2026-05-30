@@ -3,20 +3,11 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import Modal from '../Shared/Modal';
+import { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadSourceFields, LeadNotesFields } from './LeadFormFields';
 
 export default function AddLeadModal({ isOpen, onClose }) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    source: 'website',
-    location: 'rockingham',
-    interests: '',
-    notes: '',
-  });
-
+  const [formData, setFormData] = useState(initialLeadForm);
   const [errors, setErrors] = useState({});
 
   const createLead = useMutation({
@@ -28,54 +19,32 @@ export default function AddLeadModal({ isOpen, onClose }) {
       queryClient.invalidateQueries(['leads']);
       queryClient.invalidateQueries(['dashboard']);
       onClose();
-      resetForm();
+      setFormData(initialLeadForm);
+      setErrors({});
     },
-    onError: (error) => {
-      if (error.response?.data?.error) {
-        setErrors({ submit: error.response.data.error });
+    onError: (err) => {
+      if (err.response?.data?.error) {
+        setErrors({ submit: err.response.data.error });
+      } else {
+        setErrors({ submit: 'Failed to create lead. Please try again.' });
       }
     },
   });
 
-  function resetForm() {
-    setFormData({
-      first_name: '',
-      last_name: '',
-      email: '',
-      phone: '',
-      source: 'website',
-      location: 'rockingham',
-      interests: '',
-      notes: '',
-    });
-    setErrors({});
-  }
-
-  function handleChange(e) {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
-    }
-  }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+  };
 
-  function validate() {
-    const newErrors = {};
-
-    if (!formData.first_name.trim()) newErrors.first_name = 'First name is required';
-    if (!formData.last_name.trim()) newErrors.last_name = 'Last name is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }
-
-  function handleSubmit(e) {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (validate()) {
+    const newErrors = validateLeadForm(formData);
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length === 0) {
       createLead.mutate(formData);
     }
-  }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Lead" size="md">
@@ -86,149 +55,20 @@ export default function AddLeadModal({ isOpen, onClose }) {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              First Name *
-            </label>
-            <input
-              type="text"
-              name="first_name"
-              value={formData.first_name}
-              onChange={handleChange}
-              className={`input ${errors.first_name ? 'border-red-500' : ''}`}
-            />
-            {errors.first_name && (
-              <p className="text-red-500 text-xs mt-1">{errors.first_name}</p>
-            )}
-          </div>
+        <LeadNameFields formData={formData} errors={errors} handleChange={handleChange} />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Last Name *
-            </label>
-            <input
-              type="text"
-              name="last_name"
-              value={formData.last_name}
-              onChange={handleChange}
-              className={`input ${errors.last_name ? 'border-red-500' : ''}`}
-            />
-            {errors.last_name && (
-              <p className="text-red-500 text-xs mt-1">{errors.last_name}</p>
-            )}
-          </div>
-        </div>
+        <LeadContactFields formData={formData} errors={errors} handleChange={handleChange} showEmail />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="input"
-          />
-        </div>
+        <LeadSourceFields formData={formData} handleChange={handleChange} />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Phone *
-          </label>
-          <input
-            type="tel"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            placeholder="0400123456"
-            className={`input ${errors.phone ? 'border-red-500' : ''}`}
-          />
-          {errors.phone && (
-            <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Source
-            </label>
-            <select
-              name="source"
-              value={formData.source}
-              onChange={handleChange}
-              className="input"
-            >
-              <option value="website">Website</option>
-              <option value="facebook">Facebook</option>
-              <option value="instagram">Instagram</option>
-              <option value="referral">Referral</option>
-              <option value="walk_in">Walk-in</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Preferred Location
-            </label>
-            <select
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="input"
-            >
-              <option value="rockingham">Rockingham</option>
-              <option value="bibra_lake">Bibra Lake</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Interests
-          </label>
-          <textarea
-            name="interests"
-            value={formData.interests}
-            onChange={handleChange}
-            rows="2"
-            className="input"
-            placeholder="What are they interested in? (BJJ, Muay Thai, MMA, etc.)"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes
-          </label>
-          <textarea
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-            rows="3"
-            className="input"
-            placeholder="Any additional notes..."
-          />
-        </div>
+        <LeadNotesFields formData={formData} handleChange={handleChange} />
 
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn btn-secondary"
-            disabled={createLead.isLoading}
-          >
+          <button type="button" onClick={onClose} className="btn btn-secondary" disabled={createLead.isPending}>
             Cancel
           </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={createLead.isLoading}
-          >
-            {createLead.isLoading ? 'Creating...' : 'Create Lead'}
+          <button type="submit" className="btn btn-primary" disabled={createLead.isPending}>
+            {createLead.isPending ? 'Creating...' : 'Create Lead'}
           </button>
         </div>
       </form>

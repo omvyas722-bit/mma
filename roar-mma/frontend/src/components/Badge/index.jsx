@@ -1,7 +1,5 @@
 // Badge and Tag Components Library - Status indicators and labels
 
-import React from 'react';
-
 // Badge Component
 export function Badge({
   children,
@@ -36,7 +34,7 @@ export function Badge({
   const roundedStyle = rounded ? 'rounded-full' : 'rounded';
 
   return (
-    <span
+    <div
       className={`
         ${baseStyles}
         ${variantStyles[variant]}
@@ -61,7 +59,7 @@ export function Badge({
           </svg>
         </button>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -191,7 +189,7 @@ export function Tag({
     lg: 'px-3 py-1.5 text-base',
   };
 
-  const Component = onClick ? 'button' : 'span';
+  const Component = onClick ? 'button' : 'div';
 
   return (
     <Component

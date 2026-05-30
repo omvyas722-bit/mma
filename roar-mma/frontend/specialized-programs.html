@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Specialized Programs</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -89,42 +95,42 @@
     <div class="sidebar">
         <div class="logo">⚡ ROAR MMA</div>
         <div class="nav-menu">
-            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
-            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
-            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
-            <div class="nav-item" onclick="window.location.href='locations.html'">📍 Locations</div>
-            <div class="nav-item" onclick="window.location.href='trial-bookings.html'">🎯 Trial Bookings</div>
-            <div class="nav-item" onclick="window.location.href='membership-tiers.html'">💎 Membership Tiers</div>
-            <div class="nav-item" onclick="window.location.href='instructors.html'">👨‍🏫 Instructors</div>
+            <div class="nav-item" >📊 Dashboard</div>
+            <div class="nav-item" >🤖 AI Command</div>
+            <div class="nav-item" >⚙️ Workflows</div>
+            <div class="nav-item" >📍 Locations</div>
+            <div class="nav-item" >🎯 Trial Bookings</div>
+            <div class="nav-item" >💎 Membership Tiers</div>
+            <div class="nav-item" >👨‍🏫 Instructors</div>
             <div class="nav-item active">🎓 Specialized Programs</div>
-            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
-            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
-            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
-            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
-            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
-            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
-            <div class="nav-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
-            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
-            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
-            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
-            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+            <div class="nav-item" >📅 Classes</div>
+            <div class="nav-item" >🥋 Belt Progression</div>
+            <div class="nav-item" >✅ Check-In</div>
+            <div class="nav-item" >⚠️ Retention</div>
+            <div class="nav-item" >💳 Billing</div>
+            <div class="nav-item" >📈 Reports</div>
+            <div class="nav-item" >⚙️ Settings</div>
+            <div class="nav-item" >👥 Members</div>
+            <div class="nav-item" >📞 Leads</div>
+            <div class="nav-item" >🏋️ PT Sessions</div>
+            <div class="nav-item" >📦 Stock</div>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" role="main" aria-label="Main content">
         <div class="header">
             <div class="header-title">Specialized Programs</div>
             <div class="header-actions">
                 <button class="btn btn-secondary">View Schedule</button>
-                <button class="btn btn-primary" onclick="alert('Add program modal')">+ Add Program</button>
+                <button class="btn btn-primary" >+ Add Program</button>
             </div>
         </div>
 
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('overview')">Overview</div>
-            <div class="tab" onclick="switchTab('kids')">Kids Programs</div>
-            <div class="tab" onclick="switchTab('corporate')">Corporate</div>
-            <div class="tab" onclick="switchTab('competition')">Competition Team</div>
+            <div class="tab active" >Overview</div>
+            <div class="tab" >Kids Programs</div>
+            <div class="tab" >Corporate</div>
+            <div class="tab" >Competition Team</div>
         </div>
 
         <!-- Overview Tab -->
@@ -424,6 +430,7 @@
     </div>
 
     <script>
+        if (!RoarMMA.requireAuth()) return;
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));

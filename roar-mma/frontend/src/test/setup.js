@@ -46,19 +46,18 @@ global.ResizeObserver = class ResizeObserver {
 Element.prototype.scrollIntoView = vi.fn();
 
 // Suppress console errors in tests (optional)
-const originalError = console.error;
 beforeAll(() => {
-  console.error = (...args) => {
+  vi.spyOn(console, 'error').mockImplementation((...args) => {
     if (
       typeof args[0] === 'string' &&
       args[0].includes('Warning: ReactDOM.render')
     ) {
       return;
     }
-    originalError.call(console, ...args);
-  };
+    console.error(...args);
+  });
 });
 
 afterAll(() => {
-  console.error = originalError;
+  console.error.mockRestore();
 });

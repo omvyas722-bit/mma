@@ -16,7 +16,7 @@ const DEFAULT_AGENTS = [
 let startupTime = Date.now();
 let actionsCount = 0;
 
-function runMigration() {
+function ensureTables() {
   try {
     const db = getDatabase();
 
@@ -55,10 +55,8 @@ function runMigration() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
-    console.log('[AI-STATE] Database tables initialized');
   } catch (error) {
-    console.error('[AI-STATE] Migration error:', error.message);
+    console.error('[AI-STATE] Table initialization error:', error.message);
   }
 }
 
@@ -84,11 +82,19 @@ function seedDefaults() {
   }
 }
 
-runMigration();
-seedDefaults();
+let _initialized = false;
 
-async function logActivity({ agentName, actionType, summary, details, status }) {
+function ensureInitialized() {
+  if (!_initialized) {
+    _initialized = true;
+    ensureTables();
+    seedDefaults();
+  }
+}
+
+function logActivity({ agentName, actionType, summary, details, status }) {
   try {
+    ensureInitialized();
     const db = getDatabase();
 
     const stmt = db.prepare(`
@@ -114,8 +120,9 @@ async function logActivity({ agentName, actionType, summary, details, status }) 
   }
 }
 
-async function getActivityHistory({ agentName, limit, offset, status, actionType } = {}) {
+function getActivityHistory({ agentName, limit, offset, status, actionType } = {}) {
   try {
+    ensureInitialized();
     const db = getDatabase();
 
     let query = 'SELECT * FROM ai_activity_log WHERE 1=1';
@@ -159,8 +166,9 @@ async function getActivityHistory({ agentName, limit, offset, status, actionType
   }
 }
 
-async function getAgentConfig(agentName) {
+function getAgentConfig(agentName) {
   try {
+    ensureInitialized();
     const db = getDatabase();
 
     const row = db.prepare('SELECT * FROM ai_agent_config WHERE agent_name = ?').get(agentName);
@@ -177,8 +185,9 @@ async function getAgentConfig(agentName) {
   }
 }
 
-async function updateAgentConfig(agentName, config) {
+function updateAgentConfig(agentName, config) {
   try {
+    ensureInitialized();
     const db = getDatabase();
 
     const existing = db.prepare('SELECT * FROM ai_agent_config WHERE agent_name = ?').get(agentName);
@@ -211,8 +220,9 @@ async function updateAgentConfig(agentName, config) {
   }
 }
 
-async function getAllAgentConfigs() {
+function getAllAgentConfigs() {
   try {
+    ensureInitialized();
     const db = getDatabase();
 
     const rows = db.prepare('SELECT * FROM ai_agent_config ORDER BY agent_name').all();
@@ -227,8 +237,9 @@ async function getAllAgentConfigs() {
   }
 }
 
-async function getTaskQueue({ status, agentName, limit } = {}) {
+function getTaskQueue({ status, agentName, limit } = {}) {
   try {
+    ensureInitialized();
     const db = getDatabase();
 
     let query = 'SELECT * FROM ai_task_queue WHERE 1=1';
@@ -263,7 +274,7 @@ async function getTaskQueue({ status, agentName, limit } = {}) {
   }
 }
 
-async function createTask({ agentName, taskType, priority, payload, scheduledFor }) {
+function createTask({ agentName, taskType, priority, payload, scheduledFor }) {
   try {
     const db = getDatabase();
 
@@ -288,7 +299,7 @@ async function createTask({ agentName, taskType, priority, payload, scheduledFor
   }
 }
 
-async function updateTaskStatus(taskId, status, result) {
+function updateTaskStatus(taskId, status, result) {
   try {
     const db = getDatabase();
 
@@ -320,7 +331,7 @@ async function updateTaskStatus(taskId, status, result) {
   }
 }
 
-async function getStats() {
+function getStats() {
   try {
     const db = getDatabase();
 
@@ -367,6 +378,45 @@ async function getStats() {
   }
 }
 
+function updateActivityStatus(id, status) {
+  try {
+    const db = getDatabase();
+    db.prepare('UPDATE ai_activity_log SET status = ? WHERE id = ?').run(status, id);
+    return { id, status };
+  } catch (error) {
+    console.error('[AI-STATE] updateActivityStatus error:', error.message);
+    return { error: error.message };
+  }
+}
+
+function getFilteredLogCount({ agentName, status, actionType } = {}) {
+  try {
+    const db = getDatabase();
+    let query = 'SELECT COUNT(*) as count FROM ai_activity_log WHERE 1=1';
+    const params = [];
+
+    if (agentName) {
+      query += ' AND agent_name = ?';
+      params.push(agentName);
+    }
+
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    if (actionType) {
+      query += ' AND action_type = ?';
+      params.push(actionType);
+    }
+
+    return db.prepare(query).get(...params).count;
+  } catch (error) {
+    console.error('[AI-STATE] getFilteredLogCount error:', error.message);
+    return 0;
+  }
+}
+
 function tryParse(str) {
   try {
     return JSON.parse(str);
@@ -384,5 +434,7 @@ module.exports = {
   getTaskQueue,
   createTask,
   updateTaskStatus,
-  getStats
+  getStats,
+  updateActivityStatus,
+  getFilteredLogCount
 };

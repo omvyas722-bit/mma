@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - PT Session Details</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -87,25 +93,25 @@
     <div class="sidebar">
         <div class="logo">⚡ ROAR MMA</div>
         <div class="nav-menu">
-            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
-            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
-            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
-            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
-            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
-            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
-            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
-            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
-            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
-            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
-            <div class="nav-item active" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
-            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+            <div class="nav-item" >📊 Dashboard</div>
+            <div class="nav-item" >🤖 AI Command</div>
+            <div class="nav-item" >⚙️ Workflows</div>
+            <div class="nav-item" >📅 Classes</div>
+            <div class="nav-item" >🥋 Belt Progression</div>
+            <div class="nav-item" >✅ Check-In</div>
+            <div class="nav-item" >⚠️ Retention</div>
+            <div class="nav-item" >💳 Billing</div>
+            <div class="nav-item" >👥 Members</div>
+            <div class="nav-item" >📞 Leads</div>
+            <div class="nav-item active" >🏋️ PT Sessions</div>
+            <div class="nav-item" >📦 Stock</div>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" role="main" aria-label="Main content">
         <div class="header">
             <div class="header-left">
-                <button class="back-btn" onclick="window.location.href='pt-sessions.html'">← Back</button>
+                <button class="back-btn" >← Back</button>
                 <div class="header-title" id="page-title">PT Session Details</div>
             </div>
             <div class="header-actions" id="header-actions">
@@ -160,8 +166,8 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
         let sessionId = null;
         let sessionData = null;
 
@@ -169,15 +175,8 @@
             const params = new URLSearchParams(window.location.search);
             sessionId = params.get('id') || 1;
 
+            if (!RoarMMA.requireAuth()) return;
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
-                });
-                const data = await response.json();
-                authToken = data.token;
-
                 await Promise.all([
                     loadSessionHeader(),
                     loadParticipants(),
@@ -187,14 +186,14 @@
                     loadActivityLog()
                 ]);
             } catch (error) {
-                console.error('Init failed:', error);
+                // Log suppressed
             }
         }
 
         async function loadSessionHeader() {
             try {
                 const response = await fetch(`${API_BASE}/pt-sessions`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const sessions = await response.json();
                 sessionData = sessions.find(s => s.id == sessionId) || sessions[0];
@@ -225,20 +224,20 @@
                 let actionsHtml = '';
                 if (sessionData.status === 'scheduled') {
                     actionsHtml = `
-                        <button class="btn btn-success" onclick="completeSession()">✅ Mark Complete</button>
-                        <button class="btn btn-danger" onclick="cancelSession()">❌ Cancel</button>
-                        <button class="btn btn-secondary" onclick="rescheduleSession()">📅 Reschedule</button>
+                        <button class="btn btn-success" >✅ Mark Complete</button>
+                        <button class="btn btn-danger" >❌ Cancel</button>
+                        <button class="btn btn-secondary" >📅 Reschedule</button>
                     `;
                 } else if (sessionData.status === 'completed') {
                     actionsHtml = `
-                        <button class="btn btn-secondary" onclick="alert('View receipt')">📄 Receipt</button>
-                        <button class="btn btn-secondary" onclick="alert('Book follow-up')">🔄 Book Follow-up</button>
+                        <button class="btn btn-secondary" >📄 Receipt</button>
+                        <button class="btn btn-secondary" >🔄 Book Follow-up</button>
                     `;
                 }
                 document.getElementById('header-actions').innerHTML = actionsHtml;
 
             } catch (error) {
-                console.error('Failed to load session header:', error);
+                // Log suppressed
             }
         }
 
@@ -267,7 +266,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load participants:', error);
+                // Log suppressed
             }
         }
 
@@ -303,7 +302,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load session details:', error);
+                // Log suppressed
             }
         }
 
@@ -315,18 +314,18 @@
                     document.getElementById('session-notes').innerHTML = `
                         <div class="notes-header">
                             <div class="notes-title">Session Notes</div>
-                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="editNotes()">✏️ Edit</button>
+                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" >✏️ Edit</button>
                         </div>
                         <div class="notes-content">${notes}</div>
                     `;
                 } else {
                     document.getElementById('session-notes').innerHTML = `
                         <div class="notes-empty">No notes for this session</div>
-                        <button class="btn btn-secondary" style="margin-top: 15px; width: 100%;" onclick="addNotes()">+ Add Notes</button>
+                        <button class="btn btn-secondary" style="margin-top: 15px; width: 100%;" >+ Add Notes</button>
                     `;
                 }
             } catch (error) {
-                console.error('Failed to load session notes:', error);
+                // Log suppressed
             }
         }
 
@@ -359,7 +358,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load payment info:', error);
+                // Log suppressed
             }
         }
 
@@ -391,7 +390,7 @@
 
                 document.getElementById('activity-log').innerHTML = html;
             } catch (error) {
-                console.error('Failed to load activity log:', error);
+                // Log suppressed
             }
         }
 
@@ -402,7 +401,7 @@
                 const response = await fetch(`${API_BASE}/pt-sessions/${sessionId}/complete`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
+                        'Authorization': 'Bearer ' + RoarMMA.getToken(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ notes: 'Session completed via dashboard' })
@@ -415,7 +414,7 @@
                     alert('Failed to complete session');
                 }
             } catch (error) {
-                console.error('Failed to complete session:', error);
+                // Log suppressed
                 alert('Error completing session');
             }
         }
@@ -427,7 +426,7 @@
                 const response = await fetch(`${API_BASE}/pt-sessions/${sessionId}`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
+                        'Authorization': 'Bearer ' + RoarMMA.getToken(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ status: 'cancelled' })
@@ -440,7 +439,7 @@
                     alert('Failed to cancel session');
                 }
             } catch (error) {
-                console.error('Failed to cancel session:', error);
+                // Log suppressed
                 alert('Error cancelling session');
             }
         }

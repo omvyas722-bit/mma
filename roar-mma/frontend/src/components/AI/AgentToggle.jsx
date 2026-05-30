@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../lib/api';
+import logger from '../../lib/logger';
 
 const AGENT_ICONS = {
   leads: '🎯',
@@ -18,6 +19,10 @@ export default function AgentToggle({ agentName, enabled, description, lastActio
   const [isEnabled, setIsEnabled] = useState(enabled);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  useEffect(() => {
+    setIsEnabled(enabled);
+  }, [enabled]);
+
   const handleToggle = async () => {
     setIsUpdating(true);
     try {
@@ -26,7 +31,7 @@ export default function AgentToggle({ agentName, enabled, description, lastActio
       setIsEnabled(newState);
       if (onChange) onChange(agentName, newState);
     } catch (error) {
-      console.error('Failed to toggle agent:', error);
+      logger.error('Failed to toggle agent:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -37,6 +42,7 @@ export default function AgentToggle({ agentName, enabled, description, lastActio
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now - date;
+    if (diff < 0) return 'Just now';
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;

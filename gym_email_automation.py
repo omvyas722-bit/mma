@@ -7,31 +7,38 @@ Sends personalized sales emails to martial arts gyms from CSV data
 import csv
 import smtplib
 import time
+import os
+import sys
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import re
 
 # ============================================================================
-# CONFIGURATION - UPDATE THESE VALUES
+# CONFIGURATION - Override via environment variables
 # ============================================================================
 
-GMAIL_ADDRESS = "omvyas722@gmail.com"  # Your Gmail address
-GMAIL_APP_PASSWORD = "puqs uilt jjll eqhv"  # Gmail App Password (not regular password)
-YOUR_NAME = "Om Vyas"  # Your name for email signature
-YOUR_PHONE = "+610404184298"  # Optional: Your phone number
+GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "your-email@gmail.com")
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "your-gmail-app-password")
+YOUR_NAME = os.environ.get("YOUR_NAME", "Your Name")
+YOUR_PHONE = os.environ.get("YOUR_PHONE", "")  # Optional
+
+# SMTP provider configuration (override via environment variables)
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() == "true"
 
 # Email sending settings
 DELAY_BETWEEN_EMAILS = 30  # Seconds between emails (avoid spam filters)
-DRY_RUN = False  # Set to False to actually send emails
-TEST_MODE = False  # Set to True to send all emails to yourself for testing
-TEST_EMAIL = "omvyas722@gmail.com"  # Your email for testing
+DRY_RUN = True  # Set to False to actually send emails
+TEST_MODE = True  # Set to True to send all emails to yourself for testing
+TEST_EMAIL = "your-email@gmail.com"  # Your email for testing
 
 # ============================================================================
 # PERSONALIZATION LOGIC
 # ============================================================================
 
-def analyze_gym_description(description, gym_name, styles, address):
+def analyze_gym_description(description, gym_name, styles, address=None):
     """
     Deeply analyze gym description and create truly personalized insights
     """
@@ -142,6 +149,8 @@ def generate_email_body(gym_name, contact_name, insights):
     # Extract first name if possible
     first_name = contact_name if contact_name else "there"
 
+    phone_line = f"\n{YOUR_PHONE}" if YOUR_PHONE else ""
+
     email_body = f"""Hi {first_name},
 
 {insights['personalized_opener']}
@@ -153,8 +162,7 @@ def generate_email_body(gym_name, contact_name, insights):
 Happy to jump on a quick call if you want to see how it works - 15 minutes, no pressure. I can walk you through exactly what it would look like for {gym_name}.
 
 Cheers,
-{YOUR_NAME}
-{YOUR_PHONE}
+{YOUR_NAME}{phone_line}
 
 P.S. The system has AI-powered comms built in - payment reminders, class notifications, trial follow-ups all happen automatically. Most gyms we work with get back 10-15 hours a week."""
 
@@ -166,7 +174,7 @@ P.S. The system has AI-powered comms built in - payment reminders, class notific
 # ============================================================================
 
 def send_email(to_email, subject, body, gym_name):
-    """Send email via Gmail SMTP"""
+    """Send email via configurable SMTP"""
 
     if DRY_RUN:
         print(f"\n{'='*80}")
@@ -183,20 +191,23 @@ def send_email(to_email, subject, body, gym_name):
         to_email = TEST_EMAIL
         subject = f"[TEST - {gym_name}] {subject}"
 
+    # Create message
+    msg = MIMEMultipart('alternative')
+    msg['From'] = GMAIL_ADDRESS
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
     try:
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['From'] = GMAIL_ADDRESS
-        msg['To'] = to_email
-        msg['Subject'] = subject
-
-        # Attach body
-        msg.attach(MIMEText(body, 'plain'))
-
-        # Connect to Gmail SMTP
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
-            server.send_message(msg)
+        if SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
+                server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.starttls()
+                server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+                server.send_message(msg)
 
         if TEST_MODE:
             print(f"[OK] Test email sent for {gym_name} (to {to_email}, originally {original_email})")
@@ -204,8 +215,20 @@ def send_email(to_email, subject, body, gym_name):
             print(f"[OK] Email sent to {gym_name} ({to_email})")
         return True
 
-    except Exception as e:
-        print(f"[FAIL] Failed to send to {gym_name} ({to_email}): {str(e)}")
+    except smtplib.SMTPAuthenticationError:
+        print(f"[FAIL] SMTP authentication failed for {gym_name} ({to_email}): check GMAIL_ADDRESS and GMAIL_APP_PASSWORD")
+        return False
+    except smtplib.SMTPRecipientsRefused:
+        print(f"[FAIL] Recipient refused for {gym_name} ({to_email})")
+        return False
+    except (smtplib.SMTPServerDisconnected, ConnectionRefusedError, TimeoutError) as e:
+        print(f"[FAIL] Cannot connect to SMTP server {SMTP_HOST}:{SMTP_PORT} - {e}")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"[FAIL] SMTP error sending to {gym_name} ({to_email}): {e}")
+        return False
+    except OSError as e:
+        print(f"[FAIL] Network error sending to {gym_name} ({to_email}): {e}")
         return False
 
 
@@ -241,16 +264,20 @@ def main():
     print("="*80)
 
     if not DRY_RUN:
-        if TEST_MODE:
-            confirm = input(f"\n[TEST MODE] All emails will be sent to {TEST_EMAIL}. Continue? (yes/no): ")
-        else:
-            confirm = input("\n[WARNING] You are in LIVE mode. Emails will be sent to actual gyms. Continue? (yes/no): ")
-        if confirm.lower() != 'yes':
-            print("Aborted.")
+        if sys.stdin.isatty():
+            if TEST_MODE:
+                confirm = input(f"\n[TEST MODE] All emails will be sent to {TEST_EMAIL}. Continue? (yes/no): ")
+            else:
+                confirm = input("\n[WARNING] You are in LIVE mode. Emails will be sent to actual gyms. Continue? (yes/no): ")
+            if confirm.lower() != 'yes':
+                print("Aborted.")
+                return
+        elif '--confirm' not in sys.argv:
+            print("[ABORTED] Non-interactive shell detected. Use --confirm flag to force execution.")
             return
 
-    # Read CSV file
-    csv_file = 'perth_martial_arts_gyms.csv'
+    # Read CSV file (accept as command-line argument or use default)
+    csv_file = sys.argv[1] if len(sys.argv) > 1 else 'perth_martial_arts_gyms.csv'
 
     try:
         with open(csv_file, 'r', encoding='utf-8') as file:

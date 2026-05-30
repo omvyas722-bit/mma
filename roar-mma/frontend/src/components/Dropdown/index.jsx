@@ -1,6 +1,6 @@
 // Dropdown and Menu Component System - Navigation and action menus
 
-import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
+import React, { useState, useRef, useEffect, createContext, useContext, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 // Dropdown Context
@@ -23,16 +23,16 @@ export function Dropdown({
   const triggerRef = useRef(null);
   const contentRef = useRef(null);
 
-  const handleOpenChange = (newIsOpen) => {
+  const handleOpenChange = useCallback((newIsOpen) => {
     if (!isControlled) {
       setInternalIsOpen(newIsOpen);
     }
     onOpenChange?.(newIsOpen);
-  };
+  }, [isControlled, onOpenChange]);
 
-  const open = () => handleOpenChange(true);
-  const close = () => handleOpenChange(false);
-  const toggle = () => handleOpenChange(!isOpen);
+  const open = useCallback(() => handleOpenChange(true), [handleOpenChange]);
+  const close = useCallback(() => handleOpenChange(false), [handleOpenChange]);
+  const toggle = useCallback(() => handleOpenChange(!isOpen), [handleOpenChange, isOpen]);
 
   // Close on outside click
   useEffect(() => {
@@ -51,7 +51,7 @@ export function Dropdown({
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, close]);
 
   // Close on escape key
   useEffect(() => {
@@ -65,7 +65,7 @@ export function Dropdown({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
+  }, [isOpen, close]);
 
   return (
     <DropdownContext.Provider
@@ -124,7 +124,7 @@ export function DropdownContent({
   useEffect(() => {
     if (isOpen && triggerRef.current) {
       const triggerRect = triggerRef.current.getBoundingClientRect();
-      const contentWidth = 200; // Approximate width
+      const contentWidth = contentRef.current?.offsetWidth || 200;
 
       let left = triggerRect.left;
       if (align === 'end') {

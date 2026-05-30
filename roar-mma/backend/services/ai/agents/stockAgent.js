@@ -9,31 +9,35 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const dbConn = db || getDatabase();
 
     // Get all active products
-    const allProducts = stockData.getAllProducts({ active: true });
+    const allProducts = (stockData.getAllProducts({ active: true }) || []).slice(0, 1000);
 
     // 1. Find items where stock < reorder_level (min_stock_level)
     const lowStockItems = allProducts.filter(p => {
-      return p.stock_quantity <= p.min_stock_level;
+      return p && p.stock_quantity <= (p.min_stock_level || 0);
     });
 
-    const outOfStock = allProducts.filter(p => p.stock_quantity <= 0);
+    const outOfStock = allProducts.filter(p => p && p.stock_quantity <= 0);
 
     for (const item of lowStockItems) {
-      // Check if alert already exists
-      const existingAlert = dbConn.prepare(`
-        SELECT id FROM stock_alerts
-        WHERE product_id = ? AND status = 'active'
-      `).get(item.id);
+      if (!item || !item.id) continue;
+      try {
+        const existingAlert = dbConn.prepare(`
+          SELECT id FROM stock_alerts
+          WHERE product_id = ? AND status = 'active'
+        `).get(item.id);
 
-      if (!existingAlert) {
-        stockData.createStockAdjustment({
-          product_id: item.id,
-          adjustment_type: item.stock_quantity <= 0 ? 'theft' : 'remove',
-          quantity: 0,
-          reason: `[AUTO] Low stock alert triggered by stock agent (stock: ${item.stock_quantity}, min: ${item.min_stock_level})`,
-          adjusted_by: null
-        });
-        console.log(`[STOCK-AGENT] Low stock alert for ${item.name} (qty: ${item.stock_quantity}, min: ${item.min_stock_level})`);
+        if (!existingAlert) {
+          stockData.createStockAdjustment({
+            product_id: item.id,
+            adjustment_type: 'correction',
+            quantity: item.stock_quantity,
+            reason: `[AUTO] Low stock alert: ${item.name || 'Unknown'} has ${item.stock_quantity} remaining (min: ${item.min_stock_level})`,
+            adjusted_by: null
+          });
+          console.log(`[STOCK-AGENT] Low stock alert for ${item.name || 'Unknown'} (qty: ${item.stock_quantity}, min: ${item.min_stock_level})`);
+        }
+      } catch (loopErr) {
+        console.error(`[STOCK-AGENT] Error processing low stock item #${item.id}:`, loopErr.message);
       }
     }
 
@@ -62,14 +66,16 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       broadcast({ type: 'stock_agent_update', summary, lowStockCount: lowStockItems.length });
     }
   } catch (err) {
-    console.error('[STOCK-AGENT] Error:', err.message);
+    console.error('[STOCK-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'stock_check_error',
         details: { error: err.message },
         summary: `Stock agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[STOCK-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 

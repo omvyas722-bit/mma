@@ -7,12 +7,20 @@ const membersData = require('../data/members');
 
 const router = express.Router();
 
-const WEBHOOK_SECRET = process.env.LIGHTSPEED_WEBHOOK_SECRET || 'your_lightspeed_webhook_secret';
+const WEBHOOK_SECRET = process.env.LIGHTSPEED_WEBHOOK_SECRET;
+if (!WEBHOOK_SECRET) {
+  console.error('[WEBHOOKS] LIGHTSPEED_WEBHOOK_SECRET environment variable is not set. Webhook verification will reject all requests.');
+}
 
 // Verify webhook signature
 function verifyWebhookSignature(payload, signature) {
+  if (!WEBHOOK_SECRET) return false;
   const hmac = crypto.createHmac('sha256', WEBHOOK_SECRET);
   const digest = hmac.update(payload).digest('hex');
+  if (typeof signature !== 'string' || typeof digest !== 'string' ||
+      signature.length !== digest.length) {
+    return false;
+  }
   return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest));
 }
 
@@ -44,7 +52,7 @@ router.post('/lightspeed', express.raw({ type: 'application/json' }), async (req
 
     // Handle different event types
     switch (event.type) {
-      case 'payment.succeeded':
+      case 'payment.completed':
         await handlePaymentSucceeded(event.data);
         break;
 
@@ -82,9 +90,7 @@ router.post('/lightspeed', express.raw({ type: 'application/json' }), async (req
 async function handlePaymentSucceeded(data) {
   console.log('Processing successful payment:', data.id);
 
-  // Find member by Lightspeed customer ID
-  const member = membersData.getMemberByEmail(data.customer_email) ||
-                 getDatabase().prepare('SELECT * FROM members WHERE lightspeed_customer_id = ?').get(data.customer_id);
+  const member = findMember(data);
 
   if (!member) {
     console.error('Member not found for payment:', data.customer_email);
@@ -94,10 +100,10 @@ async function handlePaymentSucceeded(data) {
   // Create transaction record
   const transaction = transactionsData.createTransaction({
     member_id: member.id,
-    amount: data.amount / 100, // Convert cents to dollars
+    amount: (data.amount || 0) / 100, // Convert cents to dollars
     currency: data.currency,
     type: determineTransactionType(data.description),
-    status: 'succeeded',
+    status: 'completed',
     payment_method: data.payment_method,
     lightspeed_transaction_id: data.id,
     description: data.description,
@@ -119,8 +125,7 @@ async function handlePaymentSucceeded(data) {
 async function handlePaymentFailed(data) {
   console.log('Processing failed payment:', data.id);
 
-  const member = membersData.getMemberByEmail(data.customer_email) ||
-                 getDatabase().prepare('SELECT * FROM members WHERE lightspeed_customer_id = ?').get(data.customer_id);
+  const member = findMember(data);
 
   if (!member) {
     console.error('Member not found for failed payment:', data.customer_email);
@@ -130,7 +135,7 @@ async function handlePaymentFailed(data) {
   // Create failed transaction record
   const transaction = transactionsData.createTransaction({
     member_id: member.id,
-    amount: data.amount / 100,
+    amount: (data.amount || 0) / 100,
     currency: data.currency,
     type: determineTransactionType(data.description),
     status: 'failed',
@@ -152,7 +157,7 @@ async function handlePaymentFailed(data) {
     'payment_failed',
     'transaction',
     transaction.id,
-    JSON.stringify({ member_id: member.id, amount: data.amount / 100, reason: data.failure_reason }),
+    JSON.stringify({ member_id: member.id, amount: (data.amount || 0) / 100, reason: data.failure_reason }),
     'MIDAS',
     1 // Requires human approval before taking action
   );
@@ -160,10 +165,16 @@ async function handlePaymentFailed(data) {
   console.log('Payment failure queued for MIDAS agent');
 }
 
+function findMember(data) {
+  const db = getDatabase();
+  return membersData.getMemberByEmail(data.customer_email) ||
+         db.prepare('SELECT * FROM members WHERE lightspeed_customer_id = ?').get(data.customer_id);
+}
+
 async function handleSubscriptionCreated(data) {
   console.log('Processing subscription created:', data.id);
 
-  const member = membersData.getMemberByEmail(data.customer_email);
+  const member = findMember(data);
 
   if (member) {
     membersData.updateMember(member.id, {
@@ -177,7 +188,7 @@ async function handleSubscriptionCreated(data) {
 async function handleSubscriptionCancelled(data) {
   console.log('Processing subscription cancelled:', data.id);
 
-  const member = getDatabase().prepare('SELECT * FROM members WHERE lightspeed_customer_id = ?').get(data.customer_id);
+  const member = findMember(data);
 
   if (member) {
     membersData.updateMember(member.id, {

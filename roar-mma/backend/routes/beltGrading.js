@@ -6,7 +6,7 @@ const beltGradingData = require('../data/beltGrading');
 const router = express.Router();
 
 // Belt levels
-router.get('/belts', authenticateToken, (req, res) => {
+router.get('/belts', authenticateToken, requirePermission('grading:read'), (req, res) => {
   try {
     const belts = beltGradingData.getAllBeltLevels();
     res.json(belts);
@@ -16,7 +16,7 @@ router.get('/belts', authenticateToken, (req, res) => {
   }
 });
 
-router.get('/belts/:id/requirements', authenticateToken, (req, res) => {
+router.get('/belts/:id/requirements', authenticateToken, requirePermission('grading:read'), (req, res) => {
   try {
     const requirements = beltGradingData.getRequirementsForBelt(req.params.id);
     res.json(requirements);
@@ -30,6 +30,9 @@ router.get('/belts/:id/requirements', authenticateToken, (req, res) => {
 router.get('/members/:memberId/progress', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
     const progress = beltGradingData.getMemberBeltProgress(req.params.memberId);
+    if (!progress) {
+      return res.status(404).json({ error: 'No belt progress found and white belt level is not configured' });
+    }
     res.json(progress);
   } catch (error) {
     console.error('Error fetching member progress:', error);
@@ -58,7 +61,7 @@ router.post('/members/:memberId/assign-belt', authenticateToken, requirePermissi
     res.json(progress);
   } catch (error) {
     console.error('Error assigning belt:', error);
-    res.status(500).json({ error: error.message || 'Failed to assign belt' });
+    res.status(500).json({ error: 'Failed to assign belt' });
   }
 });
 
@@ -76,7 +79,7 @@ router.post('/members/:memberId/award-stripe', authenticateToken, requirePermiss
     res.json(progress);
   } catch (error) {
     console.error('Error awarding stripe:', error);
-    res.status(500).json({ error: error.message || 'Failed to award stripe' });
+    res.status(500).json({ error: 'Failed to award stripe' });
   }
 });
 
@@ -136,10 +139,11 @@ router.get('/sessions', authenticateToken, requirePermission('grading:read'), (r
 
 router.post('/sessions', authenticateToken, requirePermission('grading:write'), (req, res) => {
   try {
-    const session = beltGradingData.createGradingSession({
-      ...req.body,
-      grading_coach_id: req.body.grading_coach_id || req.user.id
-    });
+    const allowedFields = ['session_date', 'session_time', 'location', 'grading_coach_id', 'notes'];
+    const sessionData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) sessionData[f] = req.body[f]; });
+    sessionData.grading_coach_id = sessionData.grading_coach_id || req.user.id;
+    const session = beltGradingData.createGradingSession(sessionData);
 
     res.status(201).json(session);
   } catch (error) {
@@ -159,7 +163,7 @@ router.post('/sessions/:sessionId/participants', authenticateToken, requirePermi
     res.status(201).json(participant);
   } catch (error) {
     console.error('Error adding participant:', error);
-    res.status(500).json({ error: error.message || 'Failed to add participant' });
+    res.status(500).json({ error: 'Failed to add participant' });
   }
 });
 

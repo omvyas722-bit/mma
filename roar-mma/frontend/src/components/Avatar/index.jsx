@@ -15,6 +15,10 @@ export function Avatar({
 }) {
   const [imageError, setImageError] = React.useState(false);
 
+  React.useEffect(() => {
+    setImageError(false);
+  }, [src]);
+
   const sizeStyles = {
     xs: 'w-6 h-6 text-xs',
     sm: 'w-8 h-8 text-sm',
@@ -73,7 +77,7 @@ export function Avatar({
         ) : (
           <img
             src={src}
-            alt={alt || name || 'Avatar'}
+            alt={alt || (name ? `Photo of ${name}` : 'Avatar')}
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}
           />
@@ -208,6 +212,7 @@ export function AvatarUpload({
       {/* Upload button */}
       <button
         onClick={() => fileInputRef.current?.click()}
+        type="button"
         className="absolute bottom-0 right-0 p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
         aria-label="Upload photo"
       >
@@ -231,6 +236,7 @@ export function AvatarUpload({
       {src && onRemove && (
         <button
           onClick={onRemove}
+          type="button"
           className="absolute top-0 right-0 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
           aria-label="Remove photo"
         >

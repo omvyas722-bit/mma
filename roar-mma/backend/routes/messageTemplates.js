@@ -72,7 +72,10 @@ router.put('/:id', authenticateToken, requirePermission('settings:write'), (req,
       return res.status(404).json({ error: 'Template not found' });
     }
 
-    const updatedTemplate = templatesData.updateTemplate(req.params.id, req.body);
+    const allowedFields = ['name', 'type', 'trigger_event', 'subject', 'body', 'active'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    const updatedTemplate = templatesData.updateTemplate(req.params.id, updateData);
 
     res.json(updatedTemplate);
   } catch (error) {

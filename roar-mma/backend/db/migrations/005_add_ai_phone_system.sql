@@ -7,39 +7,39 @@ CREATE TABLE IF NOT EXISTS phone_calls (
   call_sid TEXT UNIQUE, -- Twilio call SID
   from_number TEXT NOT NULL,
   to_number TEXT NOT NULL,
-  direction TEXT NOT NULL, -- 'inbound', 'outbound'
-  status TEXT NOT NULL, -- 'queued', 'ringing', 'in-progress', 'completed', 'busy', 'failed', 'no-answer'
-  duration INTEGER, -- seconds
+  direction TEXT NOT NULL CHECK(direction IN ('inbound', 'outbound')),
+  status TEXT NOT NULL CHECK(status IN ('queued', 'ringing', 'in-progress', 'completed', 'busy', 'failed', 'no-answer')),
+  duration INTEGER CHECK(duration >= 0), -- seconds
   recording_url TEXT,
   transcription TEXT,
-  call_type TEXT, -- 'trial_inquiry', 'membership_question', 'schedule_question', 'complaint', 'other'
-  handled_by TEXT DEFAULT 'ai', -- 'ai', 'staff', 'voicemail'
+  call_type TEXT CHECK(call_type IN ('trial_inquiry', 'membership_question', 'schedule_question', 'complaint', 'other')),
+  handled_by TEXT DEFAULT 'ai' CHECK(handled_by IN ('ai', 'staff', 'voicemail')),
   staff_id INTEGER,
   member_id INTEGER,
   lead_id INTEGER,
-  sentiment TEXT, -- 'positive', 'neutral', 'negative'
+  sentiment TEXT CHECK(sentiment IN ('positive', 'neutral', 'negative')),
   intent_detected TEXT, -- JSON array of detected intents
   actions_taken TEXT, -- JSON array of actions (trial_booked, lead_created, etc)
-  ai_confidence REAL, -- 0-1 confidence score
-  requires_followup INTEGER DEFAULT 0,
+  ai_confidence REAL CHECK(ai_confidence BETWEEN 0 AND 1),
+  requires_followup INTEGER DEFAULT 0 CHECK(requires_followup IN (0,1)),
   followup_reason TEXT,
   started_at DATETIME,
   ended_at DATETIME,
   created_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (staff_id) REFERENCES staff(id),
-  FOREIGN KEY (member_id) REFERENCES members(id),
-  FOREIGN KEY (lead_id) REFERENCES leads(id)
+  FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE,
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+  FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 );
 
 -- Call transcripts (detailed turn-by-turn)
 CREATE TABLE IF NOT EXISTS call_transcripts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   call_id INTEGER NOT NULL,
-  speaker TEXT NOT NULL, -- 'caller', 'ai', 'staff'
+  speaker TEXT NOT NULL CHECK(speaker IN ('caller', 'ai', 'staff')),
   message TEXT NOT NULL,
   timestamp DATETIME DEFAULT (datetime('now')),
-  confidence REAL, -- transcription confidence
-  FOREIGN KEY (call_id) REFERENCES phone_calls(id)
+  confidence REAL CHECK(confidence BETWEEN 0 AND 1),
+  FOREIGN KEY (call_id) REFERENCES phone_calls(id) ON DELETE CASCADE
 );
 
 -- AI phone settings
@@ -54,11 +54,11 @@ CREATE TABLE IF NOT EXISTS ai_phone_settings (
 -- Call routing rules
 CREATE TABLE IF NOT EXISTS call_routing_rules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  priority INTEGER DEFAULT 0, -- higher = checked first
-  condition_type TEXT NOT NULL, -- 'time_of_day', 'day_of_week', 'caller_type', 'keyword'
+  priority INTEGER DEFAULT 0 CHECK(priority >= 0), -- higher = checked first
+  condition_type TEXT NOT NULL CHECK(condition_type IN ('time_of_day', 'day_of_week', 'caller_type', 'keyword')),
   condition_value TEXT NOT NULL, -- JSON with condition details
-  route_to TEXT NOT NULL, -- 'ai', 'staff', 'voicemail', 'specific_staff_id'
-  active INTEGER DEFAULT 1,
+  route_to TEXT NOT NULL CHECK(route_to IN ('ai', 'staff', 'voicemail', 'specific_staff_id')),
+  active INTEGER DEFAULT 1 CHECK(active IN (0,1)),
   created_at DATETIME DEFAULT (datetime('now'))
 );
 
@@ -69,15 +69,15 @@ CREATE TABLE IF NOT EXISTS voicemails (
   from_number TEXT NOT NULL,
   recording_url TEXT NOT NULL,
   transcription TEXT,
-  duration INTEGER,
-  status TEXT DEFAULT 'new', -- 'new', 'listened', 'returned', 'archived'
+  duration INTEGER CHECK(duration >= 0),
+  status TEXT DEFAULT 'new' CHECK(status IN ('new', 'listened', 'returned', 'archived')),
   listened_by INTEGER,
   listened_at DATETIME,
   returned_at DATETIME,
   notes TEXT,
   created_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (call_id) REFERENCES phone_calls(id),
-  FOREIGN KEY (listened_by) REFERENCES staff(id)
+  FOREIGN KEY (call_id) REFERENCES phone_calls(id) ON DELETE CASCADE,
+  FOREIGN KEY (listened_by) REFERENCES staff(id) ON DELETE CASCADE
 );
 
 -- AI conversation context (for multi-turn conversations)
@@ -90,24 +90,25 @@ CREATE TABLE IF NOT EXISTS ai_conversation_context (
   next_expected_input TEXT,
   created_at DATETIME DEFAULT (datetime('now')),
   updated_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (call_id) REFERENCES phone_calls(id)
+  FOREIGN KEY (call_id) REFERENCES phone_calls(id) ON DELETE CASCADE,
+  UNIQUE(call_id)
 );
 
 -- Call analytics aggregation
 CREATE TABLE IF NOT EXISTS call_analytics (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   date DATE NOT NULL,
-  total_calls INTEGER DEFAULT 0,
-  ai_handled INTEGER DEFAULT 0,
-  staff_handled INTEGER DEFAULT 0,
-  voicemails INTEGER DEFAULT 0,
-  trials_booked INTEGER DEFAULT 0,
-  leads_created INTEGER DEFAULT 0,
-  avg_duration INTEGER DEFAULT 0,
-  avg_ai_confidence REAL DEFAULT 0,
-  positive_sentiment INTEGER DEFAULT 0,
-  neutral_sentiment INTEGER DEFAULT 0,
-  negative_sentiment INTEGER DEFAULT 0,
+  total_calls INTEGER DEFAULT 0 CHECK(total_calls >= 0),
+  ai_handled INTEGER DEFAULT 0 CHECK(ai_handled >= 0),
+  staff_handled INTEGER DEFAULT 0 CHECK(staff_handled >= 0),
+  voicemails INTEGER DEFAULT 0 CHECK(voicemails >= 0),
+  trials_booked INTEGER DEFAULT 0 CHECK(trials_booked >= 0),
+  leads_created INTEGER DEFAULT 0 CHECK(leads_created >= 0),
+  avg_duration INTEGER DEFAULT 0 CHECK(avg_duration >= 0),
+  avg_ai_confidence REAL DEFAULT 0 CHECK(avg_ai_confidence BETWEEN 0 AND 1),
+  positive_sentiment INTEGER DEFAULT 0 CHECK(positive_sentiment >= 0),
+  neutral_sentiment INTEGER DEFAULT 0 CHECK(neutral_sentiment >= 0),
+  negative_sentiment INTEGER DEFAULT 0 CHECK(negative_sentiment >= 0),
   created_at DATETIME DEFAULT (datetime('now')),
   UNIQUE(date)
 );
@@ -116,12 +117,17 @@ CREATE TABLE IF NOT EXISTS call_analytics (
 CREATE INDEX IF NOT EXISTS idx_phone_calls_from ON phone_calls(from_number);
 CREATE INDEX IF NOT EXISTS idx_phone_calls_status ON phone_calls(status);
 CREATE INDEX IF NOT EXISTS idx_phone_calls_type ON phone_calls(call_type);
-CREATE INDEX IF NOT EXISTS idx_phone_calls_date ON phone_calls(DATE(started_at));
+CREATE INDEX IF NOT EXISTS idx_phone_calls_started_at ON phone_calls(started_at);
+-- NOTE: SQLite does not support function-based indexes.
+-- Date filtering should use: WHERE started_at >= ? AND started_at < ?
+-- A composite index on started_at is sufficient for range queries.
 CREATE INDEX IF NOT EXISTS idx_phone_calls_member ON phone_calls(member_id);
 CREATE INDEX IF NOT EXISTS idx_phone_calls_lead ON phone_calls(lead_id);
 CREATE INDEX IF NOT EXISTS idx_call_transcripts_call ON call_transcripts(call_id);
 CREATE INDEX IF NOT EXISTS idx_voicemails_status ON voicemails(status);
 CREATE INDEX IF NOT EXISTS idx_call_analytics_date ON call_analytics(date);
+CREATE INDEX IF NOT EXISTS idx_phone_calls_staff ON phone_calls(staff_id);
+CREATE INDEX IF NOT EXISTS idx_voicemails_listened_by ON voicemails(listened_by);
 
 -- Default AI phone settings
 INSERT INTO ai_phone_settings (setting_key, setting_value, description) VALUES

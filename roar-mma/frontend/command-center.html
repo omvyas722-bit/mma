@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - AI Command Center</title>
     <style>
         * {
@@ -335,14 +341,14 @@
                     placeholder="Ask anything... e.g., 'show all leads', 'revenue this month', 'members at risk'"
                     autocomplete="off"
                 >
-                <button class="command-submit" onclick="executeCommand()">Execute</button>
+                <button class="command-submit" >Execute</button>
             </div>
             <div class="suggestions">
-                <div class="suggestion-chip" onclick="setCommand('show all leads')">Show all leads</div>
-                <div class="suggestion-chip" onclick="setCommand('revenue this month')">Revenue this month</div>
-                <div class="suggestion-chip" onclick="setCommand('members at risk')">Members at risk</div>
-                <div class="suggestion-chip" onclick="setCommand('stock alerts')">Stock alerts</div>
-                <div class="suggestion-chip" onclick="setCommand('pt sessions today')">PT sessions today</div>
+                <div class="suggestion-chip" >Show all leads</div>
+                <div class="suggestion-chip" >Revenue this month</div>
+                <div class="suggestion-chip" >Members at risk</div>
+                <div class="suggestion-chip" >Stock alerts</div>
+                <div class="suggestion-chip" >PT sessions today</div>
             </div>
             <div class="response-area" id="response-area">
                 <div style="text-align: center; color: #666; padding: 40px;">
@@ -369,8 +375,8 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
 
         // Update time
         function updateTime() {
@@ -382,20 +388,9 @@
 
         // Auto-login
         async function autoLogin() {
+            if (!RoarMMA.requireAuth()) return;
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: 'admin@roarmma.com.au',
-                        password: 'changeme123'
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    authToken = data.token;
-                    document.getElementById('server-status').textContent = 'Connected';
+                document.getElementById('server-status').textContent = 'Connected';
                     loadDashboard();
                 } else {
                     throw new Error('Login failed');
@@ -418,7 +413,7 @@
         async function loadMetrics() {
             try {
                 const response = await fetch(`${API_BASE}/analytics/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
 
                 if (!response.ok) throw new Error('Failed to load metrics');
@@ -469,8 +464,8 @@
 
             for (const system of systems) {
                 try {
-                    const response = await fetch(`${API_BASE}${system.endpoint}`, {
-                        headers: { 'Authorization': `Bearer ${authToken}` }
+                const response = await fetch(`${API_BASE}${system.endpoint}`, {
+                        headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                     });
 
                     const data = await response.json();
@@ -532,7 +527,7 @@
             // Lead commands
             if (command.includes('lead')) {
                 const response = await fetch(`${API_BASE}/leads`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 return await response.json();
             }
@@ -540,7 +535,7 @@
             // Revenue commands
             if (command.includes('revenue')) {
                 const response = await fetch(`${API_BASE}/analytics/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const data = await response.json();
                 return data.revenue;
@@ -549,7 +544,7 @@
             // Stock commands
             if (command.includes('stock')) {
                 const response = await fetch(`${API_BASE}/stock/alerts`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 return await response.json();
             }
@@ -557,7 +552,7 @@
             // PT commands
             if (command.includes('pt') || command.includes('session')) {
                 const response = await fetch(`${API_BASE}/pt-sessions`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 return await response.json();
             }
@@ -565,7 +560,7 @@
             // Member commands
             if (command.includes('member')) {
                 const response = await fetch(`${API_BASE}/analytics/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const data = await response.json();
                 return data.members;

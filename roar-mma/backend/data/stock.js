@@ -84,7 +84,7 @@ function updateProduct(id, data) {
     }
   });
 
-  if (updates.length === 0) return getProduct(id);
+  if (updates.length === 0) throw new Error('No valid fields to update');
 
   updates.push('updated_at = datetime(\'now\')');
   values.push(id);
@@ -114,7 +114,7 @@ function createStockAdjustment(data) {
   const result = db.prepare(`
     INSERT INTO stock_adjustments (product_id, adjustment_type, quantity, reason, adjusted_by)
     VALUES (?, ?, ?, ?, ?)
-  `).run(data.product_id, data.adjustment_type, data.quantity, data.reason || null, data.adjusted_by);
+  `).run(data.product_id, data.adjustment_type, quantityChange, data.reason || null, data.adjusted_by);
 
   // Update product stock
   db.prepare('UPDATE products SET stock_quantity = ?, updated_at = datetime(\'now\') WHERE id = ?')
@@ -224,31 +224,28 @@ function checkLowStockAlert(productId) {
   const product = getProduct(productId);
   if (!product) return;
 
-  // Check if alert already exists
-  const existingAlert = db.prepare(`
-    SELECT * FROM stock_alerts
-    WHERE product_id = ? AND status = 'active'
-  `).get(productId);
-
-  if (product.stock_quantity <= 0 && !existingAlert) {
-    // Out of stock
+  if (product.stock_quantity <= 0) {
     db.prepare(`
-      INSERT INTO stock_alerts (product_id, alert_type, current_quantity, min_quantity)
+      INSERT OR IGNORE INTO stock_alerts (product_id, alert_type, current_quantity, min_quantity)
       VALUES (?, 'out_of_stock', ?, ?)
     `).run(productId, product.stock_quantity, product.min_stock_level);
-  } else if (product.stock_quantity <= product.min_stock_level && product.stock_quantity > 0 && !existingAlert) {
-    // Low stock
+  } else if (product.stock_quantity <= product.min_stock_level) {
     db.prepare(`
-      INSERT INTO stock_alerts (product_id, alert_type, current_quantity, min_quantity)
+      INSERT OR IGNORE INTO stock_alerts (product_id, alert_type, current_quantity, min_quantity)
       VALUES (?, 'low_stock', ?, ?)
     `).run(productId, product.stock_quantity, product.min_stock_level);
-  } else if (product.stock_quantity > product.min_stock_level && existingAlert) {
-    // Resolve alert
-    db.prepare(`
-      UPDATE stock_alerts
-      SET status = 'resolved', resolved_at = datetime('now')
-      WHERE id = ?
-    `).run(existingAlert.id);
+  } else {
+    const existingAlert = db.prepare(`
+      SELECT id FROM stock_alerts
+      WHERE product_id = ? AND status = 'active'
+    `).get(productId);
+    if (existingAlert) {
+      db.prepare(`
+        UPDATE stock_alerts
+        SET status = 'resolved', resolved_at = datetime('now')
+        WHERE id = ?
+      `).run(existingAlert.id);
+    }
   }
 }
 

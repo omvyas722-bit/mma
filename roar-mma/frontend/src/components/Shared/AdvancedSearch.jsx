@@ -1,5 +1,5 @@
 // Advanced Search Component with Filters
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDebounce } from '../../hooks/useCommon';
 
 export default function AdvancedSearch({
@@ -13,13 +13,15 @@ export default function AdvancedSearch({
   const [activeFilters, setActiveFilters] = useState({});
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const debouncedQuery = useDebounce(searchQuery, debounceDelay);
+  const onSearchRef = useRef();
+  onSearchRef.current = onSearch;
 
   useEffect(() => {
-    onSearch({
+    onSearchRef.current({
       query: debouncedQuery,
       filters: activeFilters,
     });
-  }, [debouncedQuery, activeFilters, onSearch]);
+  }, [debouncedQuery, activeFilters]);
 
   const handleFilterChange = (filterKey, value) => {
     setActiveFilters(prev => ({
@@ -114,7 +116,7 @@ export default function AdvancedSearch({
             .filter(([_, value]) => value !== '' && value !== null)
             .map(([key, value]) => {
               const filter = filters.find(f => f.key === key);
-              const label = filter?.getLabel ? filter.getLabel(value) : value;
+              const label = typeof filter?.getLabel === 'function' ? filter.getLabel(value) : value;
               return (
                 <span
                   key={key}
@@ -137,7 +139,10 @@ export default function AdvancedSearch({
   );
 }
 
+FilterField.displayName = 'FilterField';
+
 function FilterField({ filter, value, onChange }) {
+  FilterField.displayName = 'FilterField';
   switch (filter.type) {
     case 'select':
       return (

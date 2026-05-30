@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
+import { formatDate, formatCurrency } from '../lib/formatters';
 
 export default function Billing() {
   const [statusFilter, setStatusFilter] = useState('');
@@ -34,25 +35,25 @@ export default function Billing() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Billing & Transactions</h1>
-        <button className="btn btn-primary">Record Payment</button>
+        <button type="button" className="btn btn-primary">Record Payment</button>
       </div>
 
       {/* Stats cards */}
       {!statsLoading && stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <StatCard label="Today's Revenue" value={`$${stats.today.toFixed(2)}`} color="green" />
-          <StatCard label="This Month" value={`$${stats.this_month.toFixed(2)}`} color="blue" />
-          <StatCard label="MRR" value={`$${stats.mrr.toFixed(2)}`} color="purple" />
+          <StatCard label="Today's Revenue" value={formatCurrency(stats.today)} color="green" />
+          <StatCard label="This Month" value={formatCurrency(stats.this_month)} color="blue" />
+          <StatCard label="MRR" value={formatCurrency(stats.mrr)} color="purple" />
           <StatCard
             label="Failed This Month"
-            value={`${stats.failed_this_month.count} ($${stats.failed_this_month.total.toFixed(2)})`}
+            value={`${stats.failed_this_month?.count || 0} ($${stats.failed_this_month?.total?.toFixed?.(2) || '0.00'})`}
             color="red"
           />
         </div>
       )}
 
       {/* Revenue by type */}
-      {!statsLoading && stats && stats.by_type.length > 0 && (
+      {!statsLoading && stats && stats.by_type?.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Revenue by Type (This Month)</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -135,7 +136,7 @@ export default function Billing() {
                 {transactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(transaction.created_at).toLocaleDateString()}
+                      {formatDate(transaction.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{transaction.member_name}</div>
@@ -147,7 +148,7 @@ export default function Billing() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ${transaction.amount.toFixed(2)}
+                      {formatCurrency(transaction.amount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={transaction.status} />

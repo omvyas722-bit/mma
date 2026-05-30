@@ -61,6 +61,7 @@ export default function ChatPanel({ messages, onSend, isLoading, placeholder, su
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const msgIdCounter = useRef(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -82,9 +83,10 @@ export default function ChatPanel({ messages, onSend, isLoading, placeholder, su
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow">
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} message={msg} />
-        ))}
+        {messages.map((msg) => {
+          if (!msg._key) msg._key = `msg-${++msgIdCounter.current}`;
+          return <MessageBubble key={msg._key} message={msg} />;
+        })}
         {isLoading && <TypingIndicator />}
         <div ref={messagesEndRef} />
       </div>

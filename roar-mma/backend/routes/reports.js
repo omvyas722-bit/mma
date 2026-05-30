@@ -64,9 +64,11 @@ router.get('/leads', authenticateToken, requirePermission('reports:read'), (req,
     const report = reportsData.getLeadsReport(filters);
 
     // Calculate conversion rate
-    const total = report.summary.total_leads;
-    const converted = report.summary.converted;
-    report.summary.conversion_rate = total > 0 ? ((converted / total) * 100).toFixed(1) : 0;
+    if (report && report.summary) {
+      const total = report.summary.total_leads || 0;
+      const converted = report.summary.converted || 0;
+      report.summary.conversion_rate = total > 0 ? ((converted / total) * 100).toFixed(1) : 0;
+    }
 
     res.json(report);
   } catch (error) {

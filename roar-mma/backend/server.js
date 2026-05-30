@@ -2,8 +2,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const http = require('http');
 const WebSocket = require('ws');
+const jwt = require('jsonwebtoken');
 const { getDatabase, closeDatabase } = require('./db/connection');
 
 // Import routes
@@ -32,6 +35,7 @@ const analyticsRoutes = require('./routes/analytics');
 const stockRoutes = require('./routes/stock');
 const beltGradingRoutes = require('./routes/beltGrading');
 const aiRoutes = require('./routes/ai');
+const agentsRoutes = require('./routes/agents');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
@@ -49,6 +53,12 @@ const stockAgent = require('./services/ai/agents/stockAgent');
 const staffAgent = require('./services/ai/agents/staffAgent');
 const messagingAgent = require('./services/ai/agents/messagingAgent');
 
+// Import LLM-powered team agents
+const salesTeamAgent = require('./services/ai/agents/salesTeamAgent');
+const memberSuccessTeamAgent = require('./services/ai/agents/memberSuccessTeamAgent');
+const operationsTeamAgent = require('./services/ai/agents/operationsTeamAgent');
+const financeTeamAgent = require('./services/ai/agents/financeTeamAgent');
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -56,26 +66,77 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || 'localhost';
 
-// Middleware
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "ws://localhost:*", "https://api.openrouter.ai", "https://openrouter.ai"],
+      fontSrc: ["'self'", "data:", "https:"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"]
+    }
+  }
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' }
+});
+app.use('/api/', limiter);
+
+// CORS
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000').split(',');
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow all localhost origins for development
-    if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('file://')) {
+    if (!origin || ALLOWED_ORIGINS.some(o => { try { return new URL(origin).origin === o.trim(); } catch { return false; } })) {
       callback(null, true);
     } else {
-      callback(null, origin);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Request body field validation middleware
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && typeof req.body === 'object') {
+    for (const [key, value] of Object.entries(req.body)) {
+      if (typeof value === 'string' && value.length > 10000) {
+        return res.status(413).json({ error: `Field "${key}" exceeds maximum length of 10000 characters` });
+      }
+    }
+  }
+  next();
+});
+
+// Security headers middleware
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  const safePath = req.path;
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(`[${timestamp}] ${req.method} ${safePath}`);
+  }
   next();
 });
 
@@ -98,7 +159,7 @@ app.get('/api/health', (req, res) => {
     res.status(503).json({
       status: 'error',
       timestamp: new Date().toISOString(),
-      error: error.message
+      error: 'Health check failed'
     });
   }
 });
@@ -129,6 +190,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/grading', beltGradingRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/agents', agentsRoutes.router);
 
 // 404 handler
 app.use((req, res) => {
@@ -138,24 +200,118 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+
+  if (err.name === 'ValidationError' || err.status === 400) {
+    return res.status(400).json({ error: err.message || 'Bad request' });
+  }
+  if (err.status === 401 || err.name === 'UnauthorizedError') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (err.status === 403) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  if (err.status === 404) {
+    return res.status(404).json({ error: err.message || 'Not found' });
+  }
+  if (err.status === 422) {
+    return res.status(422).json({ error: err.message || 'Unprocessable entity' });
+  }
+
   res.status(500).json({ error: 'Internal server error' });
+});
+
+// Global unhandled promise rejection handler (don't crash on recoverable errors)
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED PROMISE REJECTION:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  // Give time for logging before exit
+  setTimeout(() => process.exit(1), 1000);
 });
 
 // WebSocket connection handling
 const wsClients = new Map();
+const wsMessageLimits = new Map();
 
 wss.on('connection', (ws, req) => {
-  const clientId = Math.random().toString(36).substr(2, 9);
-  wsClients.set(clientId, ws);
+  // Validate origin (consistent with CORS ALLOWED_ORIGINS logic)
+  try {
+    const origin = req.headers.origin;
+    if (origin) {
+      const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000').split(',');
+      const originValid = ALLOWED_ORIGINS.some(o => { try { return new URL(origin).origin === o.trim(); } catch { return false; } });
+      if (!originValid) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Origin not allowed' }));
+        ws.close();
+        return;
+      }
+    }
+  } catch (err) {
+    console.error('WebSocket origin validation error:', err.message);
+    ws.close();
+    return;
+  }
 
-  console.log(`WebSocket client connected: ${clientId} (${wsClients.size} total)`);
+  let authenticated = false;
+  let clientId = null;
+
+  const authTimer = setTimeout(() => {
+    if (!authenticated) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Authentication timeout' }));
+      ws.close();
+    }
+  }, 10000);
 
   ws.on('message', (message) => {
+    // Handle authentication via auth message (not query string)
+    if (!authenticated) {
+      clearTimeout(authTimer);
+      try {
+        const data = JSON.parse(message);
+        if (data.type === 'auth' && data.token) {
+          jwt.verify(data.token, process.env.JWT_SECRET);
+          authenticated = true;
+          clientId = require('crypto').randomUUID();
+          wsClients.set(clientId, ws);
+          console.log(`WebSocket client authenticated: ${clientId} (${wsClients.size} total)`);
+          ws.send(JSON.stringify({
+            type: 'connected',
+            clientId,
+            timestamp: new Date().toISOString()
+          }));
+        } else {
+          ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+          ws.close();
+        }
+      } catch {
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid authentication' }));
+        ws.close();
+      }
+      return;
+    }
+
+    const now = Date.now();
+    if (!wsMessageLimits.has(clientId)) {
+      wsMessageLimits.set(clientId, { count: 0, resetAt: now + 60000 });
+    }
+    const limit = wsMessageLimits.get(clientId);
+    if (now > limit.resetAt) {
+      limit.count = 0;
+      limit.resetAt = now + 60000;
+    }
+    limit.count++;
+    if (limit.count > 60) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }));
+      ws.close();
+      return;
+    }
+
     try {
       const data = JSON.parse(message);
-      console.log('WebSocket message received:', data);
-
-      // Handle different message types
+      const safeData = data.type === 'auth' ? { ...data, token: '[REDACTED]' } : data;
+      console.log('WebSocket message received:', safeData);
       if (data.type === 'ping') {
         ws.send(JSON.stringify({ type: 'pong' }));
       }
@@ -165,20 +321,19 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
-    wsClients.delete(clientId);
-    console.log(`WebSocket client disconnected: ${clientId} (${wsClients.size} remaining)`);
+    clearTimeout(authTimer);
+    if (clientId) {
+      wsClients.delete(clientId);
+      wsMessageLimits.delete(clientId);
+    }
+    if (clientId) {
+      console.log(`WebSocket client disconnected: ${clientId} (${wsClients.size} remaining)`);
+    }
   });
 
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
   });
-
-  // Send welcome message
-  ws.send(JSON.stringify({
-    type: 'connected',
-    clientId,
-    timestamp: new Date().toISOString()
-  }));
 });
 
 // Broadcast function for real-time updates
@@ -187,43 +342,21 @@ function broadcast(message) {
 
   wsClients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(data);
+      try {
+        client.send(data);
+      } catch (err) {
+        console.error('Broadcast error:', err);
+      }
     }
   });
 }
 
-// Make broadcast available globally
-global.wsBroadcast = broadcast;
-
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, closing server...');
+function shutdownServer(signal) {
+  console.log(`${signal} received, shutting down...`);
 
-  // Stop message scheduler
-  messageScheduler.stop();
-  aiDaemon.stop();
-
-  server.close(() => {
-    console.log('HTTP server closed');
-
-    // Close all WebSocket connections
-    wsClients.forEach((client) => {
-      client.close();
-    });
-
-    // Close database connection
-    closeDatabase();
-
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, closing server...');
-
-  // Stop message scheduler
-  messageScheduler.stop();
-  aiDaemon.stop();
+  if (messageScheduler && typeof messageScheduler.stop === 'function') messageScheduler.stop();
+  if (aiDaemon && typeof aiDaemon.stop === 'function') aiDaemon.stop();
 
   server.close(() => {
     console.log('HTTP server closed');
@@ -236,9 +369,21 @@ process.on('SIGINT', () => {
 
     process.exit(0);
   });
-});
+}
+
+process.on('SIGTERM', () => shutdownServer('SIGTERM'));
+process.on('SIGINT', () => shutdownServer('SIGINT'));
 
 // Start server
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  } else {
+    console.error('Server error:', err);
+  }
+  process.exit(1);
+});
+
 server.listen(PORT, HOST, () => {
   console.log('=================================');
   console.log('ROAR MMA Management System');
@@ -263,8 +408,21 @@ server.listen(PORT, HOST, () => {
   aiDaemon.registerAgent('stock', stockAgent.handler);
   aiDaemon.registerAgent('staff', staffAgent.handler);
   aiDaemon.registerAgent('messaging', messagingAgent.handler);
+
+  // Register LLM-powered team agents
+  aiDaemon.registerAgent('sales_team', salesTeamAgent.handler);
+  aiDaemon.registerAgent('member_success_team', memberSuccessTeamAgent.handler);
+  aiDaemon.registerAgent('operations_team', operationsTeamAgent.handler);
+  aiDaemon.registerAgent('finance_team', financeTeamAgent.handler);
+
+  // Register with agents route for manual runs
+  agentsRoutes.registerTeamAgent('sales_team', salesTeamAgent.handler);
+  agentsRoutes.registerTeamAgent('member_success_team', memberSuccessTeamAgent.handler);
+  agentsRoutes.registerTeamAgent('operations_team', operationsTeamAgent.handler);
+  agentsRoutes.registerTeamAgent('finance_team', financeTeamAgent.handler);
+
   aiDaemon.start();
   console.log('AI daemon started');
 });
 
-module.exports = { app, server, broadcast };
+module.exports = { broadcast };

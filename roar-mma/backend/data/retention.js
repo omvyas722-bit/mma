@@ -1,6 +1,8 @@
 // Retention system data layer
 const { getDatabase } = require('../db/connection');
 
+const DEFAULT_PT_PACKAGE_ID = 1;
+
 // Create cancellation request
 function createCancellationRequest(data) {
   const db = getDatabase();
@@ -20,7 +22,7 @@ function createCancellationRequest(data) {
   const request = db.prepare('SELECT * FROM cancellation_requests WHERE id = ?').get(result.lastInsertRowid);
 
   // Log retention event
-  logRetentionEvent(data.member_id, 'cancellation_requested', result.lastInsertRowid);
+  logRetentionEvent({ memberId: data.member_id, eventType: 'cancellation_requested', relatedId: result.lastInsertRowid });
 
   // Auto-generate retention offers based on reason
   generateRetentionOffers(result.lastInsertRowid, data.reason_category);
@@ -199,6 +201,9 @@ function acceptRetentionOffer(offerId, memberId) {
   const offer = db.prepare('SELECT * FROM retention_offers WHERE id = ?').get(offerId);
   if (!offer) throw new Error('Offer not found');
 
+  if (offer.status === 'accepted') throw new Error('Offer already accepted');
+  if (offer.expires_at && new Date(offer.expires_at) < new Date()) throw new Error('Offer has expired');
+
   const request = db.prepare('SELECT * FROM cancellation_requests WHERE id = ?').get(offer.cancellation_request_id);
   if (!request) throw new Error('Cancellation request not found');
 
@@ -220,8 +225,8 @@ function acceptRetentionOffer(offerId, memberId) {
   applyRetentionOffer(offer, memberId);
 
   // Log retention event
-  logRetentionEvent(memberId, 'offer_accepted', offerId);
-  logRetentionEvent(memberId, 'member_retained', offer.cancellation_request_id);
+  logRetentionEvent({ memberId, eventType: 'offer_accepted', relatedId: offerId });
+  logRetentionEvent({ memberId, eventType: 'member_retained', relatedId: offer.cancellation_request_id });
 
   return { success: true, offer };
 }
@@ -248,7 +253,8 @@ function applyRetentionOffer(offer, memberId) {
 
   if (offer.offer_type === 'discount') {
     // Create transaction record for discount
-    const details = JSON.parse(offer.offer_details);
+    let details = {};
+    try { details = JSON.parse(offer.offer_details); } catch { /* ignore */ }
     db.prepare(`
       INSERT INTO transactions (member_id, type, amount, description, status)
       VALUES (?, 'discount', 0, ?, 'completed')
@@ -267,8 +273,8 @@ function applyRetentionOffer(offer, memberId) {
     // Create PT package with free sessions
     db.prepare(`
       INSERT INTO member_pt_packages (member_id, package_id, sessions_remaining, purchase_date, expiry_date, amount_paid)
-      VALUES (?, 1, ?, date('now'), date('now', '+60 days'), 0)
-    `).run(memberId, offer.free_pt_sessions);
+      VALUES (?, ?, ?, date('now'), date('now', '+60 days'), 0)
+    `).run(memberId, DEFAULT_PT_PACKAGE_ID, offer.free_pt_sessions);
   }
 }
 
@@ -285,7 +291,7 @@ function rejectRetentionOffer(offerId) {
   const offer = db.prepare('SELECT * FROM retention_offers WHERE id = ?').get(offerId);
   const request = db.prepare('SELECT * FROM cancellation_requests WHERE id = ?').get(offer.cancellation_request_id);
 
-  logRetentionEvent(request.member_id, 'offer_rejected', offerId);
+  logRetentionEvent({ memberId: request.member_id, eventType: 'offer_rejected', relatedId: offerId });
 
   return { success: true };
 }
@@ -301,11 +307,10 @@ function processCancellation(cancellationRequestId) {
   db.prepare(`
     UPDATE members
     SET status = 'cancelled',
-        cancellation_request_id = ?,
-        cancelled_date = date('now'),
+        cancellation_date = date('now'),
         cancellation_reason = ?
     WHERE id = ?
-  `).run(cancellationRequestId, request.cancellation_reason, request.member_id);
+  `).run(request.cancellation_reason, request.member_id);
 
   // Update request status
   db.prepare(`
@@ -315,7 +320,7 @@ function processCancellation(cancellationRequestId) {
   `).run(cancellationRequestId);
 
   // Log event
-  logRetentionEvent(request.member_id, 'member_cancelled', cancellationRequestId);
+  logRetentionEvent({ memberId: request.member_id, eventType: 'member_cancelled', relatedId: cancellationRequestId });
 
   // Create win-back campaign
   createWinbackCampaign(request.member_id, request.reason_category);
@@ -358,7 +363,7 @@ function getActiveWinbackCampaigns() {
   const db = getDatabase();
 
   return db.prepare(`
-    SELECT wc.*, m.name, m.email, m.phone
+    SELECT wc.*, m.first_name || ' ' || m.last_name as name, m.email, m.phone
     FROM winback_campaigns wc
     JOIN members m ON wc.member_id = m.id
     WHERE wc.status = 'active'
@@ -367,7 +372,7 @@ function getActiveWinbackCampaigns() {
 }
 
 // Log retention event
-function logRetentionEvent(memberId, eventType, relatedId = null, metadata = null) {
+function logRetentionEvent({ memberId, eventType, relatedId = null, metadata = null } = {}) {
   const db = getDatabase();
 
   db.prepare(`

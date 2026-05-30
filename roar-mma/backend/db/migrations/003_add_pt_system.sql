@@ -4,12 +4,12 @@
 CREATE TABLE IF NOT EXISTS pt_packages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    sessions_count INTEGER NOT NULL,
-    price REAL NOT NULL,
+    sessions_count INTEGER NOT NULL CHECK(sessions_count > 0),
+    price REAL NOT NULL CHECK(price > 0),
     currency TEXT DEFAULT 'AUD',
-    validity_days INTEGER, -- How many days package is valid for
+    validity_days INTEGER CHECK(validity_days > 0),
     description TEXT,
-    active INTEGER DEFAULT 1,
+    active INTEGER DEFAULT 1 CHECK(active IN (0,1)),
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -17,34 +17,35 @@ CREATE TABLE IF NOT EXISTS pt_packages (
 -- Member PT packages (purchased packages)
 CREATE TABLE IF NOT EXISTS member_pt_packages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    member_id INTEGER NOT NULL REFERENCES members(id),
-    package_id INTEGER NOT NULL REFERENCES pt_packages(id),
-    sessions_total INTEGER NOT NULL,
-    sessions_used INTEGER DEFAULT 0,
-    sessions_remaining INTEGER NOT NULL,
+    member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    package_id INTEGER NOT NULL REFERENCES pt_packages(id) ON DELETE CASCADE,
+    sessions_total INTEGER NOT NULL CHECK(sessions_total > 0),
+    sessions_used INTEGER DEFAULT 0 CHECK(sessions_used >= 0),
+    sessions_remaining INTEGER NOT NULL CHECK(sessions_remaining >= 0),
     purchase_date TEXT NOT NULL,
     expiry_date TEXT,
-    amount_paid REAL NOT NULL,
+    amount_paid REAL NOT NULL CHECK(amount_paid > 0),
     status TEXT CHECK(status IN ('active', 'expired', 'exhausted', 'cancelled')) DEFAULT 'active',
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (datetime('now')),
+    CHECK(sessions_used <= sessions_total)
 );
 
 -- PT sessions table
 CREATE TABLE IF NOT EXISTS pt_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    member_id INTEGER NOT NULL REFERENCES members(id),
-    coach_id INTEGER NOT NULL REFERENCES staff(id),
-    member_package_id INTEGER REFERENCES member_pt_packages(id),
+    member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    coach_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    member_package_id INTEGER REFERENCES member_pt_packages(id) ON DELETE CASCADE,
     scheduled_date TEXT NOT NULL,
     scheduled_time TEXT NOT NULL,
-    duration_minutes INTEGER DEFAULT 60,
+    duration_minutes INTEGER DEFAULT 60 CHECK(duration_minutes > 0),
     status TEXT NOT NULL CHECK(status IN ('scheduled', 'completed', 'cancelled', 'no_show')) DEFAULT 'scheduled',
     session_type TEXT CHECK(session_type IN ('pt', 'assessment', 'trial')),
-    amount REAL,
-    commission_rate REAL, -- Percentage (e.g., 50 for 50%)
-    commission_amount REAL,
-    commission_paid INTEGER DEFAULT 0,
+    amount REAL CHECK(amount > 0),
+    commission_rate REAL CHECK(commission_rate BETWEEN 0 AND 100),
+    commission_amount REAL CHECK(commission_amount > 0),
+    commission_paid INTEGER DEFAULT 0 CHECK(commission_paid IN (0,1)),
     notes TEXT,
     cancelled_reason TEXT,
     cancelled_at TEXT,
@@ -56,9 +57,9 @@ CREATE TABLE IF NOT EXISTS pt_sessions (
 -- PT session notes (progress tracking)
 CREATE TABLE IF NOT EXISTS pt_session_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER NOT NULL REFERENCES pt_sessions(id),
-    member_id INTEGER NOT NULL REFERENCES members(id),
-    coach_id INTEGER NOT NULL REFERENCES staff(id),
+    session_id INTEGER NOT NULL REFERENCES pt_sessions(id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    coach_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
     session_date TEXT NOT NULL,
     goals TEXT,
     exercises TEXT,
@@ -69,24 +70,26 @@ CREATE TABLE IF NOT EXISTS pt_session_notes (
     measurements TEXT, -- JSON: weight, body_fat, etc.
     achievements TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(session_id)
 );
 
 -- Coach commission tracking
 CREATE TABLE IF NOT EXISTS coach_commissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    coach_id INTEGER NOT NULL REFERENCES staff(id),
+    coach_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
     period_start TEXT NOT NULL,
     period_end TEXT NOT NULL,
-    sessions_count INTEGER NOT NULL,
-    total_revenue REAL NOT NULL,
-    total_commission REAL NOT NULL,
+    sessions_count INTEGER NOT NULL CHECK(sessions_count > 0),
+    total_revenue REAL NOT NULL CHECK(total_revenue > 0),
+    total_commission REAL NOT NULL CHECK(total_commission >= 0),
     status TEXT CHECK(status IN ('pending', 'approved', 'paid')) DEFAULT 'pending',
     paid_date TEXT,
-    paid_amount REAL,
+    paid_amount REAL CHECK(paid_amount > 0),
     notes TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (datetime('now')),
+    CHECK(period_end > period_start)
 );
 
 -- Indexes
@@ -100,6 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_pt_session_notes_member ON pt_session_notes(membe
 CREATE INDEX IF NOT EXISTS idx_pt_session_notes_coach ON pt_session_notes(coach_id);
 CREATE INDEX IF NOT EXISTS idx_coach_commissions_coach ON coach_commissions(coach_id);
 CREATE INDEX IF NOT EXISTS idx_coach_commissions_status ON coach_commissions(status);
+CREATE INDEX IF NOT EXISTS idx_pt_sessions_member_package ON pt_sessions(member_package_id);
 
 -- Seed default PT packages
 INSERT INTO pt_packages (name, sessions_count, price, validity_days, description) VALUES

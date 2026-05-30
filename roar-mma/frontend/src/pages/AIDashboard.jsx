@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import ActivityFeed from '../components/AI/ActivityFeed';
@@ -75,8 +75,12 @@ export default function AIDashboard() {
     refetchInterval: 30000
   });
 
-  const handleToggle = useCallback((agentName, enabled) => {
-    // UI already updated by AgentToggle
+  const handleToggle = useCallback(async (agentName, enabled) => {
+    try {
+      await api.post(`/api/ai/agents/${agentName}/toggle`);
+    } catch (err) {
+      console.error('Failed to toggle agent:', err);
+    }
   }, []);
 
   const agentNames = [...new Set((history || []).map(h => h.agent_name))];

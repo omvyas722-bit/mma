@@ -25,13 +25,13 @@ describe('Button Component', () => {
   it('applies primary variant class', () => {
     render(<Button variant="primary">Click me</Button>);
     const button = screen.getByText('Click me');
-    expect(button).toHaveClass('btn-primary');
+    expect(button).toHaveClass('bg-blue-600', 'text-white');
   });
 
   it('applies secondary variant class', () => {
     render(<Button variant="secondary">Click me</Button>);
     const button = screen.getByText('Click me');
-    expect(button).toHaveClass('btn-secondary');
+    expect(button).toHaveClass('bg-gray-600', 'text-white');
   });
 
   it('shows loading state', () => {
@@ -41,7 +41,7 @@ describe('Button Component', () => {
 
   it('renders with icon', () => {
     const Icon = () => <span data-testid="icon">🔥</span>;
-    render(<Button icon={<Icon />}>Click me</Button>);
+    render(<Button leftIcon={<Icon />}>Click me</Button>);
     expect(screen.getByTestId('icon')).toBeInTheDocument();
   });
 });

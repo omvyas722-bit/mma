@@ -1,6 +1,6 @@
 // Custom Hooks for API Operations and Data Management
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useState, useCallback, useRef } from 'react';
 import api from '../lib/api';
 
 // Hook for fetching paginated data
@@ -8,6 +8,7 @@ export function usePaginatedData(endpoint, options = {}) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(options.pageSize || 20);
   const [filters, setFilters] = useState(options.initialFilters || {});
+  const dataRef = useRef(null);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: [endpoint, page, pageSize, filters],
@@ -23,11 +24,13 @@ export function usePaginatedData(endpoint, options = {}) {
     ...options.queryOptions,
   });
 
+  dataRef.current = data;
+
   const nextPage = useCallback(() => {
-    if (data?.has_next) {
+    if (dataRef.current?.has_next) {
       setPage(prev => prev + 1);
     }
-  }, [data]);
+  }, []);
 
   const previousPage = useCallback(() => {
     if (page > 1) {
@@ -70,7 +73,7 @@ export function useResource(resourceName, options = {}) {
   const endpoint = options.endpoint || `/api/${resourceName}`;
 
   // Fetch all
-  const useList = (queryOptions = {}) => {
+  const useList = useCallback((queryOptions = {}) => {
     return useQuery({
       queryKey: [resourceName],
       queryFn: async () => {
@@ -79,10 +82,10 @@ export function useResource(resourceName, options = {}) {
       },
       ...queryOptions,
     });
-  };
+  }, [resourceName, endpoint]);
 
   // Fetch one
-  const useOne = (id, queryOptions = {}) => {
+  const useOne = useCallback((id, queryOptions = {}) => {
     return useQuery({
       queryKey: [resourceName, id],
       queryFn: async () => {
@@ -92,64 +95,71 @@ export function useResource(resourceName, options = {}) {
       enabled: !!id,
       ...queryOptions,
     });
-  };
+  }, [resourceName, endpoint]);
 
   // Create
-  const useCreate = (mutationOptions = {}) => {
+  const useCreate = useCallback((mutationOptions = {}) => {
+    const { onSuccess: customOnSuccess, ...restOptions } = mutationOptions;
     return useMutation({
       mutationFn: async (data) => {
         const response = await api.post(endpoint, data);
         return response.data;
       },
-      onSuccess: () => {
-        queryClient.invalidateQueries([resourceName]);
+      onSuccess: (...args) => {
+        queryClient.invalidateQueries({ queryKey: [resourceName] });
         if (options.invalidateRelated) {
           options.invalidateRelated.forEach(key => {
-            queryClient.invalidateQueries([key]);
+            queryClient.invalidateQueries({ queryKey: [key] });
           });
         }
+        customOnSuccess?.(...args);
       },
-      ...mutationOptions,
+      ...restOptions,
     });
-  };
+  }, [resourceName, endpoint, queryClient, options.invalidateRelated]);
 
   // Update
-  const useUpdate = (mutationOptions = {}) => {
+  const useUpdate = useCallback((mutationOptions = {}) => {
+    const { onSuccess: customOnSuccess, ...restOptions } = mutationOptions;
     return useMutation({
       mutationFn: async ({ id, data }) => {
         const response = await api.put(`${endpoint}/${id}`, data);
         return response.data;
       },
-      onSuccess: (_, variables) => {
-        queryClient.invalidateQueries([resourceName]);
-        queryClient.invalidateQueries([resourceName, variables.id]);
+      onSuccess: (...args) => {
+        const [data, variables] = args;
+        queryClient.invalidateQueries({ queryKey: [resourceName] });
+        queryClient.invalidateQueries({ queryKey: [resourceName, variables.id] });
         if (options.invalidateRelated) {
           options.invalidateRelated.forEach(key => {
-            queryClient.invalidateQueries([key]);
+            queryClient.invalidateQueries({ queryKey: [key] });
           });
         }
+        customOnSuccess?.(...args);
       },
-      ...mutationOptions,
+      ...restOptions,
     });
-  };
+  }, [resourceName, endpoint, queryClient, options.invalidateRelated]);
 
   // Delete
-  const useDelete = (mutationOptions = {}) => {
+  const useDelete = useCallback((mutationOptions = {}) => {
+    const { onSuccess: customOnSuccess, ...restOptions } = mutationOptions;
     return useMutation({
       mutationFn: async (id) => {
         await api.delete(`${endpoint}/${id}`);
       },
-      onSuccess: () => {
-        queryClient.invalidateQueries([resourceName]);
+      onSuccess: (...args) => {
+        queryClient.invalidateQueries({ queryKey: [resourceName] });
         if (options.invalidateRelated) {
           options.invalidateRelated.forEach(key => {
-            queryClient.invalidateQueries([key]);
+            queryClient.invalidateQueries({ queryKey: [key] });
           });
         }
+        customOnSuccess?.(...args);
       },
-      ...mutationOptions,
+      ...restOptions,
     });
-  };
+  }, [resourceName, endpoint, queryClient, options.invalidateRelated]);
 
   return {
     useList,
@@ -196,8 +206,8 @@ export function useOptimisticMutation(mutationFn, options = {}) {
 
 // Hook for infinite scroll
 export function useInfiniteScroll(endpoint, options = {}) {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useQuery({
-    queryKey: [endpoint, options.filters],
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+    queryKey: [endpoint, JSON.stringify(options.filters)],
     queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams({
         page: pageParam,
@@ -210,6 +220,7 @@ export function useInfiniteScroll(endpoint, options = {}) {
     getNextPageParam: (lastPage) => {
       return lastPage.has_next ? lastPage.page + 1 : undefined;
     },
+    initialPageParam: 1,
     ...options.queryOptions,
   });
 
@@ -227,6 +238,7 @@ export function useInfiniteScroll(endpoint, options = {}) {
 // Hook for real-time data with polling
 export function usePolling(endpoint, interval = 5000, options = {}) {
   return useQuery({
+    ...options,
     queryKey: [endpoint, 'polling'],
     queryFn: async () => {
       const response = await api.get(endpoint);
@@ -234,7 +246,6 @@ export function usePolling(endpoint, interval = 5000, options = {}) {
     },
     refetchInterval: interval,
     refetchIntervalInBackground: options.refetchInBackground || false,
-    ...options,
   });
 }
 
@@ -263,7 +274,7 @@ export function useBatchMutation(mutationFn, options = {}) {
     onSuccess: () => {
       if (options.invalidateQueries) {
         options.invalidateQueries.forEach(key => {
-          queryClient.invalidateQueries([key]);
+          queryClient.invalidateQueries({ queryKey: [key] });
         });
       }
     },
@@ -280,15 +291,18 @@ export function useBatchMutation(mutationFn, options = {}) {
 export function useFormSubmit(submitFn, options = {}) {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const submit = useCallback(async (data) => {
     setErrors({});
     setIsSubmitting(true);
 
+    const { validate, onSuccess, onError } = optionsRef.current;
+
     try {
-      // Run validation if provided
-      if (options.validate) {
-        const validationErrors = options.validate(data);
+      if (validate) {
+        const validationErrors = validate(data);
         if (Object.keys(validationErrors).length > 0) {
           setErrors(validationErrors);
           setIsSubmitting(false);
@@ -296,19 +310,18 @@ export function useFormSubmit(submitFn, options = {}) {
         }
       }
 
-      // Submit
       const result = await submitFn(data);
       setIsSubmitting(false);
-      options.onSuccess?.(result);
+      await onSuccess?.(result);
       return { success: true, data: result };
     } catch (error) {
       setIsSubmitting(false);
       const errorMessage = error.response?.data?.message || 'An error occurred';
       setErrors({ submit: errorMessage });
-      options.onError?.(error);
+      onError?.(error);
       return { success: false, error: errorMessage };
     }
-  }, [submitFn, options]);
+  }, [submitFn]);
 
   return {
     submit,

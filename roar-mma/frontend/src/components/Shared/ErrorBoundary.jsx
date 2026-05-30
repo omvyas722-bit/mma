@@ -12,12 +12,11 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
     this.setState({
-      error,
       errorInfo,
     });
 
@@ -27,7 +26,7 @@ class ErrorBoundary extends React.Component {
     }
 
     // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('Error caught by boundary:', error, errorInfo);
     }
   }
@@ -84,7 +83,7 @@ class ErrorBoundary extends React.Component {
                 'An unexpected error occurred. Please try refreshing the page or contact support if the problem persists.'}
             </p>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mb-4 p-4 bg-gray-50 rounded border border-gray-200">
                 <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-2">
                   Error Details

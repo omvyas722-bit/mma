@@ -37,8 +37,7 @@ export const Input = forwardRef(({
         `}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
-        {...props}
-      />
+      />  
       {error && (
         <p id={`${inputId}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400">
           {error}
@@ -361,7 +360,7 @@ export function FileInput({
 
   const handleChange = (e) => {
     const files = Array.from(e.target.files || []);
-    onChange(multiple ? files : files[0]);
+    onChange(files);
   };
 
   return (
@@ -392,12 +391,13 @@ export function FileInput({
           ${error ? 'border-red-500' : ''}
         `}
         aria-invalid={error ? 'true' : 'false'}
+        aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
       />
       {error && (
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p id={`${inputId}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+        <p id={`${inputId}-helper`} className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
       )}
     </div>
   );

@@ -1,8 +1,7 @@
 // Alert Component System - Display important messages and notifications
 
-import React from 'react';
-
 // Base Alert Component
+
 export function Alert({
   children,
   variant = 'info',
@@ -78,8 +77,8 @@ export function Alert({
     ),
   };
 
-  const styles = variantStyles[variant];
-  const displayIcon = icon || defaultIcons[variant];
+  const styles = variantStyles[variant] || variantStyles.info;
+  const displayIcon = icon || defaultIcons[variant] || defaultIcons.info;
 
   return (
     <div
@@ -244,6 +243,8 @@ export function InlineAlert({
 
 // Alert List (for multiple alerts)
 export function AlertList({ alerts, onDismiss, className = '' }) {
+  const handleDismiss = (alertId, alertIndex) => () => onDismiss?.(alertId || alertIndex);
+
   return (
     <div className={`space-y-3 ${className}`}>
       {alerts.map((alert, index) => (
@@ -252,7 +253,7 @@ export function AlertList({ alerts, onDismiss, className = '' }) {
           variant={alert.variant}
           title={alert.title}
           dismissible={alert.dismissible}
-          onDismiss={() => onDismiss?.(alert.id || index)}
+          onDismiss={handleDismiss(alert.id, index)}
         >
           {alert.message}
         </Alert>

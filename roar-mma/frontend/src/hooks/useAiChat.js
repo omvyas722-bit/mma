@@ -1,23 +1,18 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import api from '../lib/api';
 
-const WELCOME_MESSAGE = {
-  role: 'ai',
-  content: "Hi! I'm your AI gym assistant. Ask me anything about members, leads, classes, revenue, or tasks.",
-  timestamp: new Date().toISOString()
-};
+function createWelcomeMessage() {
+  return {
+    role: 'ai',
+    content: "Hi! I'm your AI gym assistant. Ask me anything about members, leads, classes, revenue, or tasks.",
+    timestamp: new Date().toISOString()
+  };
+}
 
 export default function useAiChat() {
-  const [messages, setMessages] = useState([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState(() => [createWelcomeMessage()]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const welcomeAdded = useRef(false);
-
-  useEffect(() => {
-    if (!welcomeAdded.current) {
-      welcomeAdded.current = true;
-    }
-  }, []);
 
   const sendMessage = useCallback(async (query) => {
     if (!query || typeof query !== 'string' || query.trim().length === 0) return;
@@ -56,7 +51,7 @@ export default function useAiChat() {
   }, []);
 
   const clearMessages = useCallback(() => {
-    setMessages([WELCOME_MESSAGE]);
+    setMessages([createWelcomeMessage()]);
     setError(null);
   }, []);
 

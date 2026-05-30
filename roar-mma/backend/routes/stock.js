@@ -39,7 +39,10 @@ router.get('/products/:id', authenticateToken, requirePermission('stock:read'), 
 
 router.post('/products', authenticateToken, requirePermission('stock:write'), (req, res) => {
   try {
-    const product = stockData.createProduct(req.body);
+    const allowedFields = ['name', 'description', 'category', 'sku', 'barcode', 'cost_price', 'sell_price', 'stock_quantity', 'min_stock_level', 'max_stock_level', 'size', 'color', 'brand', 'supplier_id', 'active', 'image_url'];
+    const productData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) productData[f] = req.body[f]; });
+    const product = stockData.createProduct(productData);
     res.status(201).json(product);
   } catch (error) {
     console.error('Error creating product:', error);
@@ -49,7 +52,11 @@ router.post('/products', authenticateToken, requirePermission('stock:write'), (r
 
 router.put('/products/:id', authenticateToken, requirePermission('stock:write'), (req, res) => {
   try {
-    const product = stockData.updateProduct(req.params.id, req.body);
+    const allowedFields = ['name', 'description', 'category', 'sku', 'barcode', 'cost_price', 'sell_price', 'stock_quantity', 'min_stock_level', 'max_stock_level', 'size', 'color', 'brand', 'supplier_id', 'active', 'image_url'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+
+    const product = stockData.updateProduct(req.params.id, updateData);
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -60,10 +67,10 @@ router.put('/products/:id', authenticateToken, requirePermission('stock:write'),
 // Stock adjustments
 router.post('/adjustments', authenticateToken, requirePermission('stock:write'), (req, res) => {
   try {
-    const adjustment = stockData.createStockAdjustment({
-      ...req.body,
-      adjusted_by: req.user.id
-    });
+    const allowedAdjustmentFields = ['product_id', 'quantity_change', 'reason', 'reference_type', 'reference_id'];
+    const adjustmentData = { adjusted_by: req.user.id };
+    allowedAdjustmentFields.forEach(f => { if (req.body[f] !== undefined) adjustmentData[f] = req.body[f]; });
+    const adjustment = stockData.createStockAdjustment(adjustmentData);
 
     if (global.wsBroadcast) {
       global.wsBroadcast({
@@ -75,17 +82,17 @@ router.post('/adjustments', authenticateToken, requirePermission('stock:write'),
     res.status(201).json(adjustment);
   } catch (error) {
     console.error('Error creating stock adjustment:', error);
-    res.status(500).json({ error: error.message || 'Failed to create stock adjustment' });
+    res.status(500).json({ error: 'Failed to create stock adjustment' });
   }
 });
 
 // Product sales
 router.post('/sales', authenticateToken, requirePermission('stock:write'), (req, res) => {
   try {
-    const sale = stockData.createProductSale({
-      ...req.body,
-      sold_by: req.user.id
-    });
+    const allowedSaleFields = ['product_id', 'quantity', 'unit_price', 'total_price', 'member_id', 'payment_method', 'notes'];
+    const saleData = { sold_by: req.user.id };
+    allowedSaleFields.forEach(f => { if (req.body[f] !== undefined) saleData[f] = req.body[f]; });
+    const sale = stockData.createProductSale(saleData);
 
     if (global.wsBroadcast) {
       global.wsBroadcast({
@@ -97,7 +104,7 @@ router.post('/sales', authenticateToken, requirePermission('stock:write'), (req,
     res.status(201).json(sale);
   } catch (error) {
     console.error('Error creating product sale:', error);
-    res.status(500).json({ error: error.message || 'Failed to create product sale' });
+    res.status(500).json({ error: 'Failed to create product sale' });
   }
 });
 
@@ -162,7 +169,16 @@ router.get('/suppliers', authenticateToken, requirePermission('stock:read'), (re
 
 router.post('/suppliers', authenticateToken, requirePermission('stock:write'), (req, res) => {
   try {
-    const supplier = stockData.createSupplier(req.body);
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Supplier name is required' });
+    }
+
+    const allowedFields = ['name', 'contact_person', 'email', 'phone', 'address', 'notes'];
+    const supplierData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) supplierData[f] = req.body[f]; });
+
+    const supplier = stockData.createSupplier(supplierData);
     res.status(201).json(supplier);
   } catch (error) {
     console.error('Error creating supplier:', error);

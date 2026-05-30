@@ -115,11 +115,11 @@ class UnifiedAnalytics {
     `).all(dateFrom, dateTo);
 
     // High priority leads (score 70+)
-    const highPriority = db.prepare(`
-      SELECT COUNT(*) as count
-      FROM leads l
-      WHERE DATE(l.created_at) BETWEEN ? AND ?
-    `).get(dateFrom, dateTo).count;
+    const leadsInRange = db.prepare(`
+      SELECT * FROM leads
+      WHERE DATE(created_at) BETWEEN ? AND ?
+    `).all(dateFrom, dateTo);
+    const highPriority = leadsInRange.filter(l => leadScoringData.calculateLeadScore(l) >= 70).length;
 
     // Conversion rate
     const converted = byStage.find(s => s.stage === 'converted')?.count || 0;

@@ -4,8 +4,8 @@ import { describe, it, expect, vi } from 'vitest';
 import ChatPanel from './ChatPanel';
 
 const sampleMessages = [
-  { role: 'ai', content: 'Hello! How can I help?', timestamp: new Date().toISOString() },
-  { role: 'user', content: 'Show me members', timestamp: new Date().toISOString() },
+  { role: 'ai', content: 'Hello! How can I help?', timestamp: '2025-01-01T00:00:00.000Z' },
+  { role: 'user', content: 'Show me members', timestamp: '2025-01-01T00:01:00.000Z' },
 ];
 
 describe('ChatPanel Component', () => {
@@ -27,7 +27,7 @@ describe('ChatPanel Component', () => {
 
     const input = screen.getByPlaceholderText('Ask me anything...');
     await userEvent.type(input, 'test query');
-    fireEvent.click(screen.getByText('Send'));
+    await userEvent.click(screen.getByText('Send'));
 
     expect(handleSend).toHaveBeenCalledWith('test query');
   });
@@ -38,7 +38,7 @@ describe('ChatPanel Component', () => {
 
     const input = screen.getByPlaceholderText('Ask me anything...');
     await userEvent.type(input, 'enter query');
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+    await userEvent.keyboard('{Enter}');
 
     expect(handleSend).toHaveBeenCalledWith('enter query');
   });
@@ -62,7 +62,7 @@ describe('ChatPanel Component', () => {
     const suggestions = ['How many members?'];
     render(<ChatPanel messages={[sampleMessages[0]]} onSend={() => {}} isLoading={false} suggestions={suggestions} />);
 
-    fireEvent.click(screen.getByText('How many members?'));
+    await userEvent.click(screen.getByText('How many members?'));
     const input = screen.getByPlaceholderText('Ask me anything...');
     expect(input.value).toBe('How many members?');
   });

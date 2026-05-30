@@ -7,7 +7,7 @@ const mockPost = vi.fn();
 vi.mock('../hooks/useAiChat', () => ({
   default: () => ({
     messages: [
-      { role: 'ai', content: "Hi! I'm your AI gym assistant.", timestamp: new Date().toISOString() },
+      { role: 'ai', content: "Hi! I'm your AI gym assistant.", timestamp: '2025-01-01T00:00:00.000Z' },
     ],
     sendMessage: mockPost,
     isLoading: false,

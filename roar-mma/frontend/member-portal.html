@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Member Portal</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -101,7 +107,7 @@
         <div class="logo">⚡ ROAR MMA</div>
         <div class="user-info">
             <span class="user-name" id="user-name">Loading...</span>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <button class="logout-btn" >Logout</button>
         </div>
     </div>
 
@@ -135,11 +141,11 @@
         </div>
 
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('schedule')">Book Classes</div>
-            <div class="tab" onclick="switchTab('attendance')">My Attendance</div>
-            <div class="tab" onclick="switchTab('progression')">Belt Progression</div>
-            <div class="tab" onclick="switchTab('payments')">Payments</div>
-            <div class="tab" onclick="switchTab('profile')">Profile</div>
+            <div class="tab active" >Book Classes</div>
+            <div class="tab" >My Attendance</div>
+            <div class="tab" >Belt Progression</div>
+            <div class="tab" >Payments</div>
+            <div class="tab" >Profile</div>
         </div>
 
         <!-- Schedule Tab -->
@@ -196,7 +202,7 @@
         <div class="tab-content" id="profile-tab">
             <div class="card">
                 <div class="card-title">My Profile</div>
-                <form class="profile-form" id="profile-form" onsubmit="updateProfile(event)">
+                <form class="profile-form" id="profile-form" >
                     <div class="form-field">
                         <label class="form-label">First Name</label>
                         <input type="text" class="form-input" name="first_name" value="John">
@@ -231,10 +237,9 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
-
         async function init() {
+            if (!RoarMMA.requireAuth()) return;
+            document.getElementById('profile-form')?.addEventListener('submit', updateProfile);
             // Mock member data
             document.getElementById('user-name').textContent = 'John Smith';
             document.getElementById('welcome-name').textContent = 'John';

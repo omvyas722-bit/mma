@@ -25,24 +25,29 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
 
     // Today's metrics
-    const todayMetrics = unifiedAnalytics.getDashboardOverview(todayStr, todayStr);
-    // Yesterday's for comparison
-    const yesterdayMetrics = unifiedAnalytics.getDashboardOverview(yesterday, yesterday);
+    const todayMetrics = unifiedAnalytics.getDashboardOverview(todayStr, todayStr) || {};
+    const yesterdayMetrics = unifiedAnalytics.getDashboardOverview(yesterday, yesterday) || {};
 
-    const leadsToday = todayMetrics.leads.total_leads;
-    const leadsYesterday = yesterdayMetrics.leads.total_leads;
+    const lToday = todayMetrics.leads || {};
+    const lYesterday = yesterdayMetrics.leads || {};
+    const rToday = todayMetrics.revenue || {};
+    const rYesterday = yesterdayMetrics.revenue || {};
+    const tToday = todayMetrics.trials || {};
+    const tYesterday = yesterdayMetrics.trials || {};
 
-    const revenueToday = todayMetrics.revenue.total_revenue;
-    const revenueYesterday = yesterdayMetrics.revenue.total_revenue;
-
-    const signupsToday = todayMetrics.revenue.new_signups;
-    const signupsYesterday = yesterdayMetrics.revenue.new_signups;
-
-    const trialsToday = todayMetrics.trials.trials_booked;
-    const trialsYesterday = yesterdayMetrics.trials.trials_booked;
+    const leadsToday = lToday.total_leads || 0;
+    const leadsYesterday = lYesterday.total_leads || 0;
+    const revenueToday = rToday.total_revenue || 0;
+    const revenueYesterday = rYesterday.total_revenue || 0;
+    const signupsToday = rToday.new_signups || 0;
+    const signupsYesterday = rYesterday.new_signups || 0;
+    const trialsToday = tToday.trials_booked || 0;
+    const trialsYesterday = tYesterday.trials_booked || 0;
 
     // Calculate percentage changes
     const pct = (curr, prev) => {
@@ -87,18 +92,20 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[ANALYTICS-AGENT] ${briefing}`);
 
-    if (anomalies.length > 0) {
+    if (anomalies.length > 0 && broadcast) {
       broadcast({ type: 'analytics_anomaly', anomalies, summary: briefing });
     }
   } catch (err) {
-    console.error('[ANALYTICS-AGENT] Error:', err.message);
+    console.error('[ANALYTICS-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'daily_analytics_error',
         details: { error: err.message },
         summary: `Analytics agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[ANALYTICS-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 

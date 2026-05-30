@@ -1,5 +1,5 @@
 // Stats Card Component for displaying key metrics
-export default function StatsCard({ title, value, change, icon, color = 'blue' }) {
+export default function StatsCard({ title, value, change, icon, color = 'blue', trend, className = '' }) {
   const colors = {
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
@@ -8,10 +8,10 @@ export default function StatsCard({ title, value, change, icon, color = 'blue' }
     purple: 'bg-purple-50 text-purple-600',
   };
 
-  const isPositive = change >= 0;
+  const isPositive = trend ? trend === 'up' : change >= 0;
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className={`bg-white rounded-lg shadow p-6 ${className}`}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>

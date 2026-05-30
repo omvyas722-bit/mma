@@ -57,7 +57,7 @@ async function healthCheck() {
 
   // 3. Database connection
   if (serverCheck.ok && serverCheck.data.database) {
-    process.stdout.write('Database connection. ');
+    process.stdout.write('Database connection... ');
     console.log(`✅ ${serverCheck.data.database}`);
   }
 

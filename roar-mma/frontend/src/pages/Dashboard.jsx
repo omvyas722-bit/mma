@@ -15,7 +15,7 @@ export default function Dashboard() {
   });
 
   // Fetch analytics data
-  const { data: analyticsData } = useQuery({
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery({
     queryKey: ['dashboard-analytics'],
     queryFn: async () => {
       const response = await api.get('/api/analytics/dashboard');
@@ -25,7 +25,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64" role="status" aria-label="Loading">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -120,8 +120,8 @@ export default function Dashboard() {
             <p className="text-gray-500">No recent activity</p>
           ) : (
             <div className="space-y-3">
-              {recentActivity.map((activity, index) => (
-                <ActivityItem key={index} activity={activity} />
+              {recentActivity.map((activity) => (
+                <ActivityItem key={activity.id || activity.timestamp || activity.description} activity={activity} />
               ))}
             </div>
           )}
@@ -131,28 +131,8 @@ export default function Dashboard() {
   );
 }
 
-function KPICard({ title, value, delta }) {
-  const isPositive = delta >= 0;
-  const deltaColor = isPositive ? 'text-green-600' : 'text-red-600';
-  const deltaIcon = isPositive ? '▲' : '▼';
-
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-sm font-medium text-gray-500 mb-2">{title}</h3>
-      <div className="flex items-baseline justify-between">
-        <p className="text-3xl font-semibold text-gray-900">{value}</p>
-        {delta !== 0 && (
-          <span className={`text-sm font-medium ${deltaColor}`}>
-            {deltaIcon} {Math.abs(delta).toFixed(1)}%
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function ClassCard({ classItem }) {
-  const fillPercentage = (classItem.booked_count / classItem.capacity) * 100;
+  const fillPercentage = classItem.capacity ? (classItem.booked_count / classItem.capacity) * 100 : 0;
   const fillColor =
     fillPercentage >= 90
       ? 'bg-red-500'

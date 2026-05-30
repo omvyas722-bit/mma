@@ -142,15 +142,19 @@ export default function DataTable({
             ) : (
               paginatedData.map((row, rowIndex) => (
                 <tr
-                  key={rowIndex}
+                  key={row.id || row._id || rowIndex}
                   onClick={() => onRowClick && onRowClick(row)}
                   className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                 >
                   {columns.map((column) => (
                     <td key={column.key} className="px-6 py-4 whitespace-nowrap">
-                      {column.render
-                        ? column.render(row[column.key], row)
-                        : row[column.key]}
+                      {column.render ? (() => {
+                        try {
+                          return column.render(row[column.key], row);
+                        } catch {
+                          return <span className="text-red-500">Error</span>;
+                        }
+                      })() : row[column.key]}
                     </td>
                   ))}
                 </tr>

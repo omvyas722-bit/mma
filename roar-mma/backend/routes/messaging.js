@@ -1,10 +1,17 @@
 // Messaging management routes
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const messagingProviders = require('../services/messagingProviders');
 const { getDatabase } = require('../db/connection');
 
 const router = express.Router();
+
+const unsubscribeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many unsubscribe requests' }
+});
 
 // Get messaging stats
 router.get('/stats', authenticateToken, requirePermission('reports:read'), (req, res) => {
@@ -125,13 +132,24 @@ router.post('/unsubscribes', authenticateToken, requirePermission('members:write
 });
 
 // Public unsubscribe endpoint (no auth required)
-router.get('/unsubscribe/:contactValue', (req, res) => {
+router.get('/unsubscribe/:contactValue', unsubscribeLimiter, (req, res) => {
   try {
     const contactValue = decodeURIComponent(req.params.contactValue);
     const channel = req.query.channel || 'all';
 
     // Determine contact type
     const contactType = contactValue.includes('@') ? 'email' : 'phone';
+
+    // Validate email or phone format
+    if (contactType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactValue)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    if (contactType === 'phone' && !/^\+?[\d\s\-().]{7,20}$/.test(contactValue)) {
+      return res.status(400).json({ error: 'Invalid phone format' });
+    }
+
+    const safeChannel = String(channel).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const channelDisplay = safeChannel === 'all' ? 'any messages' : safeChannel + ' messages';
 
     messagingProviders.addUnsubscribe(
       contactValue,
@@ -153,14 +171,14 @@ router.get('/unsubscribe/:contactValue', (req, res) => {
       </head>
       <body>
         <h1>You've been unsubscribed</h1>
-        <p>You will no longer receive ${channel === 'all' ? 'any messages' : channel + ' messages'} from ROAR MMA.</p>
+        <p>You will no longer receive ${channelDisplay} from ROAR MMA.</p>
         <p>If this was a mistake, please contact us at info@roarmma.com.au</p>
       </body>
       </html>
     `);
   } catch (error) {
     console.error('Error processing unsubscribe:', error);
-    res.status(500).send('Error processing unsubscribe request');
+    res.status(500).json({ error: 'Error processing unsubscribe request' });
   }
 });
 
@@ -236,11 +254,25 @@ router.put('/providers/settings/:provider/:key', authenticateToken, requirePermi
   }
 });
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidPhone(phone) {
+  return /^\+?[\d\s\-().]{7,20}$/.test(phone);
+}
+
 // Test SMS sending
 router.post('/test/sms', authenticateToken, requirePermission('settings:write'), async (req, res) => {
   try {
+    const { phone } = req.body;
+
+    if (!phone || !isValidPhone(phone)) {
+      return res.status(400).json({ error: 'Valid phone number is required' });
+    }
+
     const result = await messagingProviders.sendSMS(
-      req.body.phone,
+      phone,
       req.body.message || 'Test message from ROAR MMA'
     );
 
@@ -254,8 +286,14 @@ router.post('/test/sms', authenticateToken, requirePermission('settings:write'),
 // Test email sending
 router.post('/test/email', authenticateToken, requirePermission('settings:write'), async (req, res) => {
   try {
+    const { email } = req.body;
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ error: 'Valid email address is required' });
+    }
+
     const result = await messagingProviders.sendEmail(
-      req.body.email,
+      email,
       req.body.subject || 'Test Email from ROAR MMA',
       req.body.body || 'This is a test email.'
     );

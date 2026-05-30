@@ -60,7 +60,10 @@ router.post('/', authenticateToken, requirePermission('staff:write'), (req, res)
       return res.status(400).json({ error: 'task_type and title required' });
     }
 
-    const task = staffTasksData.createTask(req.body);
+    const allowedFields = ['lead_id', 'member_id', 'assigned_to', 'task_type', 'priority', 'title', 'description', 'due_date', 'status'];
+    const taskData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) taskData[f] = req.body[f]; });
+    const task = staffTasksData.createTask(taskData);
     res.status(201).json(task);
   } catch (error) {
     console.error('Error creating task:', error);
@@ -77,7 +80,10 @@ router.put('/:id', authenticateToken, requirePermission('staff:write'), (req, re
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    const updated = staffTasksData.updateTask(req.params.id, req.body);
+    const allowedFields = ['lead_id', 'member_id', 'assigned_to', 'task_type', 'priority', 'title', 'description', 'due_date', 'status'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    const updated = staffTasksData.updateTask(req.params.id, updateData);
     res.json(updated);
   } catch (error) {
     console.error('Error updating task:', error);

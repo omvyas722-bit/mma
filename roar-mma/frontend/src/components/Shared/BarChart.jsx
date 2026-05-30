@@ -9,7 +9,7 @@ export default function BarChart({ data, title, xLabel, yLabel }) {
     );
   }
 
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = data.reduce((max, d) => Math.max(max, d.value), -Infinity);
   const chartHeight = 200;
 
   return (
@@ -31,7 +31,7 @@ export default function BarChart({ data, title, xLabel, yLabel }) {
           {data.map((item, index) => {
             const height = (item.value / maxValue) * chartHeight;
             return (
-              <div key={index} className="flex-1 flex flex-col items-center">
+              <div key={item.label || item.key || index} className="flex-1 flex flex-col items-center">
                 <div
                   className="w-full bg-blue-500 hover:bg-blue-600 transition-all rounded-t cursor-pointer relative group"
                   style={{ height: `${height}px` }}

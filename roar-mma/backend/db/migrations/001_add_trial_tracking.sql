@@ -7,7 +7,7 @@ ALTER TABLE leads ADD COLUMN trial_notes TEXT;
 ALTER TABLE leads ADD COLUMN trial_experience_rating INTEGER CHECK(trial_experience_rating BETWEEN 1 AND 5);
 ALTER TABLE leads ADD COLUMN trial_interest_level TEXT CHECK(trial_interest_level IN ('hot', 'warm', 'cold'));
 ALTER TABLE leads ADD COLUMN trial_class_type TEXT CHECK(trial_class_type IN ('bjj', 'muay_thai', 'mma', 'boxing', 'other'));
-ALTER TABLE leads ADD COLUMN trial_coach_id INTEGER REFERENCES staff(id);
+ALTER TABLE leads ADD COLUMN trial_coach_id INTEGER REFERENCES staff(id) ON DELETE CASCADE;
 
 -- Add follow-up tracking fields to leads table
 ALTER TABLE leads ADD COLUMN follow_up_status TEXT CHECK(follow_up_status IN ('pending', 'in_progress', 'completed', 'no_response')) DEFAULT 'pending';
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS message_templates (
     trigger_event TEXT NOT NULL CHECK(trigger_event IN ('trial_2hr', 'trial_next_day', 'trial_day3', 'trial_day7', 'trial_day14', 'lead_new', 'lead_no_response', 'member_inactive')),
     subject TEXT,
     body TEXT NOT NULL,
-    active INTEGER DEFAULT 1,
+    active INTEGER DEFAULT 1 CHECK(active IN (0,1)),
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -31,10 +31,10 @@ CREATE TABLE IF NOT EXISTS message_templates (
 -- Create scheduled messages table
 CREATE TABLE IF NOT EXISTS scheduled_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    lead_id INTEGER REFERENCES leads(id),
-    member_id INTEGER REFERENCES members(id),
+    lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+    member_id INTEGER REFERENCES members(id) ON DELETE CASCADE,
     message_type TEXT NOT NULL CHECK(message_type IN ('sms', 'email')),
-    template_id INTEGER REFERENCES message_templates(id),
+    template_id INTEGER REFERENCES message_templates(id) ON DELETE CASCADE,
     scheduled_for TEXT NOT NULL,
     sent_at TEXT,
     status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed', 'cancelled')) DEFAULT 'pending',
@@ -42,11 +42,12 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     recipient_email TEXT,
     subject TEXT,
     body TEXT NOT NULL,
-    response_received INTEGER DEFAULT 0,
+    response_received INTEGER DEFAULT 0 CHECK(response_received IN (0,1)),
     response_text TEXT,
     error_message TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (datetime('now')),
+    CHECK(lead_id IS NOT NULL OR member_id IS NOT NULL)
 );
 
 -- Create indexes for performance
@@ -56,3 +57,6 @@ CREATE INDEX IF NOT EXISTS idx_leads_next_follow_up_date ON leads(next_follow_up
 CREATE INDEX IF NOT EXISTS idx_scheduled_messages_status ON scheduled_messages(status);
 CREATE INDEX IF NOT EXISTS idx_scheduled_messages_scheduled_for ON scheduled_messages(scheduled_for);
 CREATE INDEX IF NOT EXISTS idx_scheduled_messages_lead_id ON scheduled_messages(lead_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_messages_member_id ON scheduled_messages(member_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_messages_template_id ON scheduled_messages(template_id);
+CREATE INDEX IF NOT EXISTS idx_leads_trial_coach ON leads(trial_coach_id);

@@ -2,13 +2,14 @@
 const express = require('express');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const bookingsData = require('../data/bookings');
+const { getDatabase } = require('../db/connection');
 
 const router = express.Router();
 
 // Delete attendance (remove member from class)
 router.delete('/:id', authenticateToken, requirePermission('attendance:update'), (req, res) => {
   try {
-    const db = require('../db/connection').getDatabase();
+    const db = getDatabase();
 
     // Check if attendance exists
     const attendance = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);

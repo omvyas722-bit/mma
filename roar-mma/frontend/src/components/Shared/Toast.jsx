@@ -1,16 +1,19 @@
 // Toast notification component
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function Toast({ message, type = 'success', onClose, duration = 3000 }) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(() => {
-        onClose();
+        onCloseRef.current?.();
       }, duration);
 
       return () => clearTimeout(timer);
     }
-  }, [duration, onClose]);
+  }, [duration]);
 
   const types = {
     success: 'bg-green-500',

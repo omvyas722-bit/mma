@@ -50,7 +50,7 @@ router.get('/:id', authenticateToken, requirePermission('staff:read'), (req, res
 });
 
 // Create new staff member
-router.post('/', authenticateToken, requirePermission('staff:create'), (req, res) => {
+router.post('/', authenticateToken, requirePermission('staff:create'), async (req, res) => {
   try {
     const { name, email, password, role, phone } = req.body;
 
@@ -71,7 +71,7 @@ router.post('/', authenticateToken, requirePermission('staff:create'), (req, res
     }
 
     // Hash password
-    const passwordHash = bcrypt.hashSync(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     const staff = staffData.createStaff({
       name,
@@ -110,7 +110,10 @@ router.put('/:id', authenticateToken, requirePermission('staff:update'), (req, r
       }
     }
 
-    const updatedStaff = staffData.updateStaff(req.params.id, req.body);
+    const allowedFields = ['name', 'email', 'role', 'phone', 'active'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    const updatedStaff = staffData.updateStaff(req.params.id, updateData);
 
     res.json(updatedStaff);
   } catch (error) {
@@ -125,7 +128,7 @@ router.put('/:id', authenticateToken, requirePermission('staff:update'), (req, r
 });
 
 // Update staff password
-router.post('/:id/password', authenticateToken, (req, res) => {
+router.post('/:id/password', authenticateToken, requirePermission('staff:update'), async (req, res) => {
   try {
     const { new_password } = req.body;
 
@@ -135,6 +138,11 @@ router.post('/:id/password', authenticateToken, (req, res) => {
 
     if (new_password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    // Password strength: require at least one uppercase, one lowercase, and one digit
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(new_password)) {
+      return res.status(400).json({ error: 'Password must contain at least one uppercase letter, one lowercase letter, and one digit' });
     }
 
     // Only allow users to change their own password, or owner to change anyone's
@@ -148,7 +156,7 @@ router.post('/:id/password', authenticateToken, (req, res) => {
       return res.status(404).json({ error: 'Staff member not found' });
     }
 
-    const passwordHash = bcrypt.hashSync(new_password, 10);
+    const passwordHash = await bcrypt.hash(new_password, 10);
     staffData.updateStaffPassword(req.params.id, passwordHash);
 
     res.json({ message: 'Password updated successfully' });

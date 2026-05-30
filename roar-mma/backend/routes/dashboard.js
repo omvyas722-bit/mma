@@ -8,7 +8,7 @@ const bookingsData = require('../data/bookings');
 const router = express.Router();
 
 // Get dashboard overview
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, res) => {
   try {
     const db = getDatabase();
     const today = new Date().toISOString().split('T')[0];
@@ -23,7 +23,7 @@ router.get('/', authenticateToken, (req, res) => {
     const todayRevenue = db.prepare(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE DATE(created_at) = ? AND status = 'succeeded'
+      WHERE DATE(created_at) = ? AND status = 'completed'
     `).get(today).total;
 
     // Get monthly revenue
@@ -34,7 +34,7 @@ router.get('/', authenticateToken, (req, res) => {
     const monthlyRevenue = db.prepare(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE DATE(created_at) >= ? AND status = 'succeeded'
+      WHERE DATE(created_at) >= ? AND status = 'completed'
     `).get(monthStartStr).total;
 
     // Get trial conversions this month
@@ -76,9 +76,9 @@ router.get('/', authenticateToken, (req, res) => {
       FROM bookings
       WHERE DATE(booked_at) >= date('now', '-7 days')
       UNION ALL
-      SELECT 'payment_succeeded' as type, 'Payment received: $' || amount as description, created_at as timestamp
+      SELECT 'payment_completed' as type, 'Payment received: $' || amount as description, created_at as timestamp
       FROM transactions
-      WHERE status = 'succeeded' AND DATE(created_at) >= date('now', '-7 days')
+      WHERE status = 'completed' AND DATE(created_at) >= date('now', '-7 days')
       ORDER BY timestamp DESC
       LIMIT 10
     `).all();
@@ -121,14 +121,14 @@ router.get('/', authenticateToken, (req, res) => {
     const previousPeriodRevenue = db.prepare(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE status = 'succeeded'
+      WHERE status = 'completed'
         AND DATE(created_at) BETWEEN ? AND ?
     `).get(sixtyDaysAgoStr, thirtyDaysAgoStr).total;
 
     const currentPeriodRevenue = db.prepare(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE status = 'succeeded'
+      WHERE status = 'completed'
         AND DATE(created_at) >= ?
     `).get(thirtyDaysAgoStr).total;
 
@@ -186,7 +186,7 @@ router.get('/revenue-chart', authenticateToken, requirePermission('reports:read'
         DATE(created_at) as date,
         SUM(amount) as revenue
       FROM transactions
-      WHERE status = 'succeeded'
+      WHERE status = 'completed'
         AND DATE(created_at) >= date('now', '-' || ? || ' days')
       GROUP BY DATE(created_at)
       ORDER BY date

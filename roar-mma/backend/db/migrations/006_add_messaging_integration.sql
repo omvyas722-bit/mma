@@ -6,76 +6,76 @@ CREATE TABLE IF NOT EXISTS message_deliveries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   scheduled_message_id INTEGER,
   external_id TEXT, -- Twilio SID or Brevo message ID
-  channel TEXT NOT NULL, -- 'sms', 'email'
+  channel TEXT NOT NULL CHECK(channel IN ('sms', 'email')),
   recipient TEXT NOT NULL,
-  status TEXT DEFAULT 'sending', -- 'sending', 'sent', 'delivered', 'failed', 'bounced', 'unsubscribed'
+  status TEXT DEFAULT 'sending' CHECK(status IN ('sending', 'sent', 'delivered', 'failed', 'bounced', 'unsubscribed')),
   status_detail TEXT, -- detailed error or delivery info
   sent_at DATETIME,
   delivered_at DATETIME,
   failed_at DATETIME,
-  cost REAL, -- cost in dollars
-  segments INTEGER, -- SMS segments (for cost calculation)
-  provider TEXT, -- 'twilio', 'brevo'
+  cost REAL CHECK(cost >= 0), -- cost in dollars
+  segments INTEGER CHECK(segments > 0), -- SMS segments (for cost calculation)
+  provider TEXT CHECK(provider IN ('twilio', 'brevo')),
   created_at DATETIME DEFAULT (datetime('now')),
   updated_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (scheduled_message_id) REFERENCES scheduled_messages(id)
+  FOREIGN KEY (scheduled_message_id) REFERENCES scheduled_messages(id) ON DELETE CASCADE
 );
 
 -- Unsubscribe list
 CREATE TABLE IF NOT EXISTS unsubscribes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  contact_type TEXT NOT NULL, -- 'phone', 'email'
+  contact_type TEXT NOT NULL CHECK(contact_type IN ('phone', 'email')),
   contact_value TEXT NOT NULL UNIQUE,
-  channel TEXT, -- 'sms', 'email', 'all'
+  channel TEXT CHECK(channel IN ('sms', 'email', 'all')),
   reason TEXT,
   unsubscribed_at DATETIME DEFAULT (datetime('now')),
   member_id INTEGER,
   lead_id INTEGER,
-  FOREIGN KEY (member_id) REFERENCES members(id),
-  FOREIGN KEY (lead_id) REFERENCES leads(id)
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+  FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 );
 
 -- Bounce tracking
 CREATE TABLE IF NOT EXISTS message_bounces (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   delivery_id INTEGER NOT NULL,
-  bounce_type TEXT, -- 'hard', 'soft', 'complaint'
+  bounce_type TEXT CHECK(bounce_type IN ('hard', 'soft', 'complaint')),
   bounce_reason TEXT,
   bounced_at DATETIME DEFAULT (datetime('now')),
-  FOREIGN KEY (delivery_id) REFERENCES message_deliveries(id)
+  FOREIGN KEY (delivery_id) REFERENCES message_deliveries(id) ON DELETE CASCADE
 );
 
 -- Rate limiting tracking
 CREATE TABLE IF NOT EXISTS rate_limits (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   contact_value TEXT NOT NULL,
-  channel TEXT NOT NULL,
-  messages_sent INTEGER DEFAULT 1,
+  channel TEXT NOT NULL CHECK(channel IN ('sms', 'email')),
+  messages_sent INTEGER DEFAULT 1 CHECK(messages_sent >= 0),
   window_start DATETIME DEFAULT (datetime('now')),
   window_end DATETIME,
-  blocked INTEGER DEFAULT 0,
-  UNIQUE(contact_value, channel, window_start)
+  blocked INTEGER DEFAULT 0 CHECK(blocked IN (0,1)),
+  UNIQUE(contact_value, channel)
 );
 
 -- Message cost tracking (daily aggregation)
 CREATE TABLE IF NOT EXISTS message_costs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   date DATE NOT NULL UNIQUE,
-  sms_sent INTEGER DEFAULT 0,
-  sms_cost REAL DEFAULT 0,
-  email_sent INTEGER DEFAULT 0,
-  email_cost REAL DEFAULT 0,
-  total_cost REAL DEFAULT 0,
+  sms_sent INTEGER DEFAULT 0 CHECK(sms_sent >= 0),
+  sms_cost REAL DEFAULT 0 CHECK(sms_cost >= 0),
+  email_sent INTEGER DEFAULT 0 CHECK(email_sent >= 0),
+  email_cost REAL DEFAULT 0 CHECK(email_cost >= 0),
+  total_cost REAL DEFAULT 0 CHECK(total_cost >= 0),
   created_at DATETIME DEFAULT (datetime('now'))
 );
 
 -- Provider settings
 CREATE TABLE IF NOT EXISTS messaging_provider_settings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  provider TEXT NOT NULL UNIQUE, -- 'twilio', 'brevo'
+  provider TEXT NOT NULL CHECK(provider IN ('twilio', 'brevo')),
   setting_key TEXT NOT NULL,
   setting_value TEXT,
-  encrypted INTEGER DEFAULT 0,
+  encrypted INTEGER DEFAULT 0 CHECK(encrypted IN (0,1)),
   updated_at DATETIME DEFAULT (datetime('now')),
   UNIQUE(provider, setting_key)
 );

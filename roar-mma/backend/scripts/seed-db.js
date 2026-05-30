@@ -56,61 +56,38 @@ function seedDatabase() {
     const coachId = db.prepare('SELECT id FROM staff WHERE role = ?').get('coach').id;
 
     const classes = [
-      { name: 'BJJ Fundamentals', location: 'rockingham', day_of_week: 1, start_time: '18:00', class_type: 'bjj', coach_id: coachId, capacity: 20 },
-      { name: 'Muay Thai Basics', location: 'rockingham', day_of_week: 2, start_time: '19:00', class_type: 'muay_thai', coach_id: coachId, capacity: 15 },
-      { name: 'MMA Training', location: 'rockingham', day_of_week: 3, start_time: '18:30', class_type: 'mma', coach_id: coachId, capacity: 20 },
-      { name: 'BJJ Advanced', location: 'bibra_lake', day_of_week: 4, start_time: '19:00', class_type: 'bjj', coach_id: coachId, capacity: 15 },
-      { name: 'Kids BJJ', location: 'rockingham', day_of_week: 5, start_time: '16:00', class_type: 'kids', coach_id: coachId, capacity: 25 },
-      { name: 'Open Mat', location: 'rockingham', day_of_week: 6, start_time: '10:00', class_type: 'bjj', coach_id: coachId, capacity: 30 },
+      { name: 'BJJ Fundamentals', location: 'rockingham', day_of_week: 1, start_time: '18:00', class_type: 'bjj', instructor_id: coachId, max_capacity: 20 },
+      { name: 'Muay Thai Basics', location: 'rockingham', day_of_week: 2, start_time: '19:00', class_type: 'muay_thai', instructor_id: coachId, max_capacity: 15 },
+      { name: 'MMA Training', location: 'rockingham', day_of_week: 3, start_time: '18:30', class_type: 'mma', instructor_id: coachId, max_capacity: 20 },
+      { name: 'BJJ Advanced', location: 'bibra_lake', day_of_week: 4, start_time: '19:00', class_type: 'bjj', instructor_id: coachId, max_capacity: 15 },
+      { name: 'Kids BJJ', location: 'rockingham', day_of_week: 5, start_time: '16:00', class_type: 'kids', instructor_id: coachId, max_capacity: 25 },
+      { name: 'Open Mat', location: 'rockingham', day_of_week: 6, start_time: '10:00', class_type: 'bjj', instructor_id: coachId, max_capacity: 30 },
     ];
 
     classes.forEach(cls => {
       db.prepare(`
         INSERT OR IGNORE INTO classes (
-          name, location, day_of_week, start_time, class_type, coach_id, capacity
+          name, location, day_of_week, start_time, class_type, instructor_id, max_capacity
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(cls.name, cls.location, cls.day_of_week, cls.start_time, cls.class_type, cls.coach_id, cls.capacity);
-    });
-
-    // Generate class instances for this week
-    console.log('Generating class instances...');
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
-
-    const allClasses = db.prepare('SELECT * FROM classes WHERE active = 1').all();
-
-    allClasses.forEach(cls => {
-      for (let i = 0; i < 14; i++) { // 2 weeks
-        const date = new Date(startOfWeek);
-        date.setDate(startOfWeek.getDate() + i);
-
-        if (date.getDay() === cls.day_of_week) {
-          const dateStr = date.toISOString().split('T')[0];
-
-          db.prepare(`
-            INSERT OR IGNORE INTO class_instances (
-              class_id, date, start_time, coach_id, capacity, status
-            ) VALUES (?, ?, ?, ?, ?, ?)
-          `).run(cls.id, dateStr, cls.start_time, cls.coach_id, cls.capacity, 'scheduled');
-        }
-      }
+      `).run(cls.name, cls.location, cls.day_of_week, cls.start_time, cls.class_type, cls.instructor_id, cls.max_capacity);
     });
 
     // Add some bookings
     console.log('Adding bookings...');
     const memberIds = db.prepare('SELECT id FROM members WHERE status IN (?, ?)').all('active', 'trial').map(m => m.id);
-    const instanceIds = db.prepare("SELECT id FROM class_instances WHERE date >= date('now') LIMIT 10").all().map(i => i.id);
+    const classIds = db.prepare('SELECT id FROM classes WHERE active = 1 LIMIT 6').all().map(c => c.id);
 
-    // Book some members into classes
-    for (let i = 0; i < Math.min(memberIds.length, 15); i++) {
-      const memberId = memberIds[i % memberIds.length];
-      const instanceId = instanceIds[i % instanceIds.length];
+    if (classIds.length > 0) {
+      for (let i = 0; i < Math.min(memberIds.length, 15); i++) {
+        const memberId = memberIds[i % memberIds.length];
+        const classId = classIds[i % classIds.length];
+        const dayOffset = Math.floor(i / classIds.length);
 
-      db.prepare(`
-        INSERT OR IGNORE INTO bookings (member_id, class_instance_id, status)
-        VALUES (?, ?, ?)
-      `).run(memberId, instanceId, 'booked');
+        db.prepare(`
+          INSERT OR IGNORE INTO bookings (member_id, class_id, booking_date, status)
+          VALUES (?, ?, date('now', '+' || ? || ' days'), ?)
+        `).run(memberId, classId, dayOffset, 'confirmed');
+      }
     }
 
     // Add leads
@@ -141,14 +118,13 @@ function seedDatabase() {
     memberIds.slice(0, 5).forEach(memberId => {
       db.prepare(`
         INSERT INTO transactions (
-          member_id, amount, type, status, payment_method, processed_at
-        ) VALUES (?, ?, ?, ?, ?, datetime('now', '-' || ? || ' days'))
-      `).run(memberId, 200.00, 'membership', 'succeeded', 'card', Math.floor(Math.random() * 30));
+          member_id, amount, type, status, payment_method
+        ) VALUES (?, ?, ?, ?, ?)
+      `).run(memberId, 200.00, 'membership', 'completed', 'card');
     });
 
     console.log('Database seeded successfully!');
     console.log('\nTest accounts:');
-    console.log('Owner: owner@roarmma.com.au / admin123');
     console.log('GM: gm@roarmma.com.au / password123');
     console.log('Front Desk: frontdesk@roarmma.com.au / password123');
     console.log('Coach: kane@roarmma.com.au / password123');

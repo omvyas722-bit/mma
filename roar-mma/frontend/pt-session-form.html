@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Book PT Session</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -82,30 +88,30 @@
     <div class="sidebar">
         <div class="logo">⚡ ROAR MMA</div>
         <div class="nav-menu">
-            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
-            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
-            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
-            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
-            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
-            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
-            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
-            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
-            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
-            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
-            <div class="nav-item active" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
-            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+            <div class="nav-item" >📊 Dashboard</div>
+            <div class="nav-item" >🤖 AI Command</div>
+            <div class="nav-item" >⚙️ Workflows</div>
+            <div class="nav-item" >📅 Classes</div>
+            <div class="nav-item" >🥋 Belt Progression</div>
+            <div class="nav-item" >✅ Check-In</div>
+            <div class="nav-item" >⚠️ Retention</div>
+            <div class="nav-item" >💳 Billing</div>
+            <div class="nav-item" >👥 Members</div>
+            <div class="nav-item" >📞 Leads</div>
+            <div class="nav-item active" >🏋️ PT Sessions</div>
+            <div class="nav-item" >📦 Stock</div>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" role="main" aria-label="Main content">
         <div class="header">
             <div class="header-left">
-                <button class="back-btn" onclick="window.location.href='pt-sessions.html'">← Back</button>
+                <button class="back-btn" >← Back</button>
                 <div class="header-title">Book PT Session</div>
             </div>
         </div>
 
-        <form class="form-container" id="session-form" onsubmit="handleSubmit(event)">
+        <form class="form-container" id="session-form" >
             <div class="form-section">
                 <div class="section-title">Member Selection</div>
                 <div class="form-grid">
@@ -125,7 +131,7 @@
             <div class="form-section">
                 <div class="section-title">Select Coach</div>
                 <div class="coach-grid" id="coach-grid">
-                    <div class="coach-card" onclick="selectCoach(1, this)">
+                    <div class="coach-card" >
                         <div class="coach-name">Coach Mike</div>
                         <div class="coach-specialty">BJJ Black Belt • MMA</div>
                         <div class="coach-stats">
@@ -133,7 +139,7 @@
                             <span>📊 156 sessions</span>
                         </div>
                     </div>
-                    <div class="coach-card" onclick="selectCoach(2, this)">
+                    <div class="coach-card" >
                         <div class="coach-name">Coach Sarah</div>
                         <div class="coach-specialty">Boxing • Muay Thai</div>
                         <div class="coach-stats">
@@ -141,7 +147,7 @@
                             <span>📊 142 sessions</span>
                         </div>
                     </div>
-                    <div class="coach-card" onclick="selectCoach(3, this)">
+                    <div class="coach-card" >
                         <div class="coach-name">Coach Alex</div>
                         <div class="coach-specialty">Strength & Conditioning</div>
                         <div class="coach-stats">
@@ -149,7 +155,7 @@
                             <span>📊 98 sessions</span>
                         </div>
                     </div>
-                    <div class="coach-card" onclick="selectCoach(4, this)">
+                    <div class="coach-card" >
                         <div class="coach-name">Coach Emma</div>
                         <div class="coach-specialty">BJJ Purple Belt • Fitness</div>
                         <div class="coach-stats">
@@ -181,18 +187,18 @@
                     <div class="form-field full-width">
                         <label class="form-label required">Available Time Slots</label>
                         <div class="time-slots" id="time-slots">
-                            <div class="time-slot" onclick="selectTimeSlot('09:00', this)">9:00 AM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('10:00', this)">10:00 AM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('11:00', this)">11:00 AM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('12:00', this)">12:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('13:00', this)">1:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('14:00', this)">2:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('15:00', this)">3:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('16:00', this)">4:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('17:00', this)">5:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('18:00', this)">6:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('19:00', this)">7:00 PM</div>
-                            <div class="time-slot" onclick="selectTimeSlot('20:00', this)">8:00 PM</div>
+                            <div class="time-slot" >9:00 AM</div>
+                            <div class="time-slot" >10:00 AM</div>
+                            <div class="time-slot" >11:00 AM</div>
+                            <div class="time-slot" >12:00 PM</div>
+                            <div class="time-slot" >1:00 PM</div>
+                            <div class="time-slot" >2:00 PM</div>
+                            <div class="time-slot" >3:00 PM</div>
+                            <div class="time-slot" >4:00 PM</div>
+                            <div class="time-slot" >5:00 PM</div>
+                            <div class="time-slot" >6:00 PM</div>
+                            <div class="time-slot" >7:00 PM</div>
+                            <div class="time-slot" >8:00 PM</div>
                         </div>
                         <input type="hidden" name="scheduled_time" id="scheduled_time" required>
                         <div class="form-hint">Select date and coach to see available slots</div>
@@ -244,15 +250,15 @@
             </div>
 
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="window.location.href='pt-sessions.html'">Cancel</button>
+                <button type="button" class="btn btn-secondary" >Cancel</button>
                 <button type="submit" class="btn btn-primary">Book Session</button>
             </div>
         </form>
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
         let selectedCoach = null;
         let selectedTime = null;
 
@@ -264,16 +270,10 @@
         };
 
         async function init() {
-            try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
-                });
-                const data = await response.json();
-                authToken = data.token;
-            } catch (error) {
-                console.error('Init failed:', error);
+            if (!RoarMMA.requireAuth()) return;
+            document.getElementById('session-form')?.addEventListener('submit', handleSubmit);
+            try {            } catch (error) {
+                // Log suppressed
             }
         }
 
@@ -353,7 +353,7 @@
                 const response = await fetch(`${API_BASE}/pt-sessions`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
+                        'Authorization': 'Bearer ' + RoarMMA.getToken(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
@@ -367,7 +367,7 @@
                     alert(`Failed to book session: ${error.message || 'Unknown error'}`);
                 }
             } catch (error) {
-                console.error('Failed to book session:', error);
+                // Log suppressed
                 alert('Error booking session. Please try again.');
             }
         }

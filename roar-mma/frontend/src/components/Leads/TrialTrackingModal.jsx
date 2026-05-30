@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '../Shared/Modal';
 import api from '../../lib/api';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 export default function TrialTrackingModal({ isOpen, onClose, lead }) {
   const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
   const [formData, setFormData] = useState({
     trial_date: '',
     trial_class_type: '',
@@ -40,20 +42,25 @@ export default function TrialTrackingModal({ isOpen, onClose, lead }) {
 
       // Schedule automated follow-ups
       if (data.trial_date) {
-        await api.post('/api/leads/schedule-trial-followups', {
-          lead_id: lead.id,
-          trial_date: data.trial_date
-        });
+        try {
+          await api.post('/api/leads/schedule-trial-followups', {
+            lead_id: lead.id,
+            trial_date: data.trial_date
+          });
+        } catch {
+          // Follow-up scheduling failure is non-critical
+          console.warn('Failed to schedule follow-ups, but trial data was saved');
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['leads']);
       queryClient.invalidateQueries(['dashboard']);
       onClose();
-      alert('Trial tracked! Automated follow-ups scheduled.');
+      success('Trial tracked! Automated follow-ups scheduled.');
     },
-    onError: (error) => {
-      console.error('Error tracking trial:', error);
+    onError: (err) => {
+      console.error('Error tracking trial:', err);
       setErrors({ submit: 'Failed to track trial. Please try again.' });
     }
   });

@@ -101,7 +101,7 @@ function updateSession(id, updates) {
   const allowedFields = [
     'scheduled_date', 'scheduled_time', 'duration_minutes', 'status',
     'amount', 'commission_rate', 'commission_amount', 'commission_paid',
-    'notes', 'cancelled_reason', 'cancelled_at', 'completed_at'
+    'notes', 'cancelled_reason', 'cancelled_at', 'completed_at', 'completed_by'
   ];
 
   const fields = [];
@@ -127,7 +127,7 @@ function updateSession(id, updates) {
   return getSessionById(id);
 }
 
-function completeSession(id) {
+function completeSession(id, completedBy) {
   const db = getDatabase();
   const session = getSessionById(id);
 
@@ -145,6 +145,7 @@ function completeSession(id) {
   const updated = updateSession(id, {
     status: 'completed',
     completed_at: new Date().toISOString(),
+    completed_by: completedBy || null,
     commission_amount: commissionAmount
   });
 

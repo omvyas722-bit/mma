@@ -137,7 +137,7 @@ export function ChartSkeleton({ className = '' }) {
           <div key={i} className="flex items-end gap-2">
             <Skeleton
               width="100%"
-              height={`${Math.random() * 100 + 50}px`}
+              height={`${((i + 1) * 25 + 20) % 150 + 50}px`}
             />
           </div>
         ))}

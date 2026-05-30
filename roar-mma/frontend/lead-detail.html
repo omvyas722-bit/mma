@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Lead Profile</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -105,32 +111,32 @@
     <div class="sidebar">
         <div class="logo">⚡ ROAR MMA</div>
         <div class="nav-menu">
-            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
-            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
-            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
-            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
-            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
-            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
-            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
-            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
-            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
-            <div class="nav-item active" onclick="window.location.href='leads.html'">📞 Leads</div>
-            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
-            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+            <div class="nav-item" >📊 Dashboard</div>
+            <div class="nav-item" >🤖 AI Command</div>
+            <div class="nav-item" >⚙️ Workflows</div>
+            <div class="nav-item" >📅 Classes</div>
+            <div class="nav-item" >🥋 Belt Progression</div>
+            <div class="nav-item" >✅ Check-In</div>
+            <div class="nav-item" >⚠️ Retention</div>
+            <div class="nav-item" >💳 Billing</div>
+            <div class="nav-item" >👥 Members</div>
+            <div class="nav-item active" >📞 Leads</div>
+            <div class="nav-item" >🏋️ PT Sessions</div>
+            <div class="nav-item" >📦 Stock</div>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" role="main" aria-label="Main content">
         <div class="header">
             <div class="header-left">
-                <button class="back-btn" onclick="window.location.href='leads.html'">← Back</button>
+                <button class="back-btn" >← Back</button>
                 <div class="header-title" id="page-title">Lead Profile</div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="logInteraction('call')">📞 Call</button>
-                <button class="btn btn-secondary" onclick="logInteraction('email')">📧 Email</button>
-                <button class="btn btn-secondary" onclick="logInteraction('sms')">💬 SMS</button>
-                <button class="btn btn-success" onclick="convertLead()">✅ Convert to Member</button>
+                <button class="btn btn-secondary" >📞 Call</button>
+                <button class="btn btn-secondary" >📧 Email</button>
+                <button class="btn btn-secondary" >💬 SMS</button>
+                <button class="btn btn-success" >✅ Convert to Member</button>
             </div>
         </div>
 
@@ -159,8 +165,8 @@
                     <div class="add-note-form">
                         <textarea class="note-textarea" id="note-input" placeholder="Add a note about this lead..."></textarea>
                         <div class="form-actions">
-                            <button class="btn btn-primary" onclick="addNote()">Add Note</button>
-                            <button class="btn btn-secondary" onclick="document.getElementById('note-input').value=''">Clear</button>
+                            <button class="btn btn-primary" >Add Note</button>
+                            <button class="btn btn-secondary" >Clear</button>
                         </div>
                     </div>
                     <div class="notes-section" id="notes-list" style="margin-top: 20px;">
@@ -180,10 +186,10 @@
                 <div class="card">
                     <div class="card-title">Quick Actions</div>
                     <div class="action-grid">
-                        <button class="btn btn-secondary" onclick="updateStage('contacted')">Mark Contacted</button>
-                        <button class="btn btn-secondary" onclick="updateStage('trial_booked')">Book Trial</button>
-                        <button class="btn btn-secondary" onclick="updateStage('trial_completed')">Trial Done</button>
-                        <button class="btn btn-secondary" onclick="updateStage('lost')">Mark Lost</button>
+                        <button class="btn btn-secondary" >Mark Contacted</button>
+                        <button class="btn btn-secondary" >Book Trial</button>
+                        <button class="btn btn-secondary" >Trial Done</button>
+                        <button class="btn btn-secondary" >Mark Lost</button>
                     </div>
                 </div>
             </div>
@@ -191,8 +197,8 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
         let leadId = null;
         let leadData = null;
 
@@ -200,15 +206,8 @@
             const params = new URLSearchParams(window.location.search);
             leadId = params.get('id') || 1;
 
+            if (!RoarMMA.requireAuth()) return;
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
-                });
-                const data = await response.json();
-                authToken = data.token;
-
                 await Promise.all([
                     loadLeadProfile(),
                     loadLeadInfo(),
@@ -217,22 +216,22 @@
                     loadNotes()
                 ]);
             } catch (error) {
-                console.error('Init failed:', error);
+                // Log suppressed
             }
         }
 
         async function loadLeadProfile() {
             try {
                 const response = await fetch(`${API_BASE}/leads`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const leads = await response.json();
                 leadData = leads.find(l => l.id == leadId) || leads[0];
 
                 // Get score
                 try {
-                    const scoreResponse = await fetch(`${API_BASE}/lead-scoring/score-breakdown/${leadData.id}`, {
-                        headers: { 'Authorization': `Bearer ${authToken}` }
+                const scoreResponse = await fetch(`${API_BASE}/lead-scoring/score-breakdown/${leadData.id}`, {
+                        headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                     });
                     const scoreData = await scoreResponse.json();
                     leadData.score = scoreData.total_score || 0;
@@ -272,7 +271,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load profile:', error);
+                // Log suppressed
             }
         }
 
@@ -313,14 +312,14 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load lead info:', error);
+                // Log suppressed
             }
         }
 
         async function loadScoreBreakdown() {
             try {
                 const response = await fetch(`${API_BASE}/lead-scoring/score-breakdown/${leadData.id}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const breakdown = await response.json();
 
@@ -349,7 +348,7 @@
 
                 document.getElementById('score-breakdown').innerHTML = html;
             } catch (error) {
-                console.error('Failed to load score breakdown:', error);
+                // Log suppressed
                 document.getElementById('score-breakdown').innerHTML = `
                     <div class="empty-state">Score breakdown not available</div>
                 `;
@@ -384,7 +383,7 @@
 
                 document.getElementById('interaction-timeline').innerHTML = html;
             } catch (error) {
-                console.error('Failed to load interactions:', error);
+                // Log suppressed
             }
         }
 
@@ -418,7 +417,7 @@
 
                 document.getElementById('notes-list').innerHTML = html;
             } catch (error) {
-                console.error('Failed to load notes:', error);
+                // Log suppressed
             }
         }
 
@@ -435,7 +434,7 @@
                 document.getElementById('note-input').value = '';
                 await loadNotes();
             } catch (error) {
-                console.error('Failed to add note:', error);
+                // Log suppressed
                 alert('Failed to add note');
             }
         }
@@ -446,7 +445,7 @@
                 alert(`${type.toUpperCase()} interaction logged`);
                 await loadInteractionHistory();
             } catch (error) {
-                console.error('Failed to log interaction:', error);
+                // Log suppressed
             }
         }
 
@@ -455,7 +454,7 @@
                 const response = await fetch(`${API_BASE}/leads/${leadData.id}`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
+                        'Authorization': 'Bearer ' + RoarMMA.getToken(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ stage: newStage })
@@ -468,7 +467,7 @@
                     alert('Failed to update stage');
                 }
             } catch (error) {
-                console.error('Failed to update stage:', error);
+                // Log suppressed
                 alert('Error updating stage');
             }
         }
@@ -483,7 +482,7 @@
                 alert('Lead converted to member successfully!');
                 window.location.href = 'members.html';
             } catch (error) {
-                console.error('Failed to convert lead:', error);
+                // Log suppressed
                 alert('Error converting lead');
             }
         }

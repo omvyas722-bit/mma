@@ -8,10 +8,11 @@ const router = express.Router();
 // Create cancellation request
 router.post('/cancellation-requests', authenticateToken, requirePermission('members:write'), (req, res) => {
   try {
+    const allowedFields = ['member_id', 'reason', 'cancellation_date', 'notes', 'notice_period_days'];
     const requestData = {
-      ...req.body,
       requested_by: req.user.id
     };
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) requestData[f] = req.body[f]; });
     const request = retentionData.createCancellationRequest(requestData);
 
     // Broadcast to connected clients
@@ -71,7 +72,7 @@ router.post('/retention-offers/:id/accept', authenticateToken, requirePermission
     res.json(result);
   } catch (error) {
     console.error('Error accepting retention offer:', error);
-    res.status(500).json({ error: error.message || 'Failed to accept offer' });
+    res.status(500).json({ error: 'Failed to accept offer' });
   }
 });
 
@@ -101,7 +102,7 @@ router.post('/cancellation-requests/:id/process', authenticateToken, requirePerm
     res.json(result);
   } catch (error) {
     console.error('Error processing cancellation:', error);
-    res.status(500).json({ error: error.message || 'Failed to process cancellation' });
+    res.status(500).json({ error: 'Failed to process cancellation' });
   }
 });
 

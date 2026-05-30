@@ -15,42 +15,52 @@ class AIPhoneService {
 
   // Handle incoming call
   async handleIncomingCall(callSid, fromNumber, toNumber) {
-    if (!this.settings) this.loadSettings();
+    try {
+      if (!this.settings) this.loadSettings();
 
-    // Create call record
-    const call = phoneCallsData.createPhoneCall({
-      call_sid: callSid,
-      from_number: fromNumber,
-      to_number: toNumber,
-      direction: 'inbound',
-      status: 'in-progress',
-      started_at: new Date().toISOString()
-    });
+      // Create call record
+      const call = phoneCallsData.createPhoneCall({
+        call_sid: callSid,
+        from_number: fromNumber,
+        to_number: toNumber,
+        direction: 'inbound',
+        status: 'in-progress',
+        started_at: new Date().toISOString()
+      });
 
-    // Check if caller is existing member or lead
-    const caller = this.identifyCaller(fromNumber);
-    if (caller.member_id) {
-      phoneCallsData.updatePhoneCall(call.id, { member_id: caller.member_id });
+      if (!call || !call.id) {
+        console.error('[AI-PHONE] Failed to create call record');
+        return { action: 'voicemail', call_id: null };
+      }
+
+      // Check if caller is existing member or lead
+      const caller = this.identifyCaller(fromNumber);
+      if (caller.member_id) {
+        phoneCallsData.updatePhoneCall(call.id, { member_id: caller.member_id });
+      }
+      if (caller.lead_id) {
+        phoneCallsData.updatePhoneCall(call.id, { lead_id: caller.lead_id });
+      }
+
+      // Determine routing
+      const route = this.determineRouting(caller);
+
+      if (route === 'staff') {
+        return { action: 'transfer_to_staff', call_id: call.id };
+      } else if (route === 'voicemail') {
+        return { action: 'voicemail', call_id: call.id };
+      }
+
+      // AI handles call
+      return {
+        action: 'ai_handle',
+        call_id: call.id,
+        greeting: this.settings?.ai_greeting || 'Welcome to ROAR MMA. How can I help you today?'
+      };
+    } catch (err) {
+      console.error('[AI-PHONE] handleIncomingCall error:', err);
+      return { action: 'voicemail', call_id: null, error: err.message };
     }
-    if (caller.lead_id) {
-      phoneCallsData.updatePhoneCall(call.id, { lead_id: caller.lead_id });
-    }
-
-    // Determine routing
-    const route = this.determineRouting(caller);
-
-    if (route === 'staff') {
-      return { action: 'transfer_to_staff', call_id: call.id };
-    } else if (route === 'voicemail') {
-      return { action: 'voicemail', call_id: call.id };
-    }
-
-    // AI handles call
-    return {
-      action: 'ai_handle',
-      call_id: call.id,
-      greeting: this.settings.ai_greeting
-    };
   }
 
   // Identify caller
@@ -81,8 +91,12 @@ class AIPhoneService {
     const day = now.getDay(); // 0 = Sunday
 
     // Check business hours
-    const startHour = parseInt(this.settings.business_hours_start.split(':')[0]);
-    const endHour = parseInt(this.settings.business_hours_end.split(':')[0]);
+    const startHour = this.settings.business_hours_start
+      ? parseInt(this.settings.business_hours_start.split(':')[0], 10)
+      : 6;
+    const endHour = this.settings.business_hours_end
+      ? parseInt(this.settings.business_hours_end.split(':')[0], 10)
+      : 21;
     const businessDays = this.settings.business_days.split(',').map(d => parseInt(d));
 
     const isBusinessHours = hour >= startHour && hour < endHour && businessDays.includes(day);
@@ -111,7 +125,13 @@ class AIPhoneService {
     if (!context) {
       context = { collected_info: {} };
     } else {
-      context.collected_info = context.collected_info ? JSON.parse(context.collected_info) : {};
+      try {
+        context.collected_info = context.collected_info
+          ? (typeof context.collected_info === 'string' ? JSON.parse(context.collected_info) : context.collected_info)
+          : {};
+      } catch {
+        context.collected_info = {};
+      }
     }
 
     // Add transcript entry
@@ -191,7 +211,7 @@ class AIPhoneService {
     const lower = input.toLowerCase();
 
     // Trial inquiry
-    if (lower.match(/trial|try|first class|free class|visit/)) {
+    if (lower.match(/(?:^|\s)trial(?:\s|$)|(?:^|\s)try\b|first class|free class|visit/)) {
       return { type: 'trial_inquiry', confidence: 0.9 };
     }
 
@@ -273,6 +293,19 @@ class AIPhoneService {
       const info = context.collected_info;
 
       if (info.name && info.phone) {
+        // Deduplication: check if lead with this phone already exists
+        const db = getDatabase();
+        const existingLead = db.prepare('SELECT id FROM leads WHERE phone = ?').get(info.phone);
+        if (existingLead) {
+          phoneCallsData.updatePhoneCall(callId, {
+            lead_id: existingLead.id,
+            call_type: 'trial_inquiry',
+            actions_taken: JSON.stringify(['lead_already_exists'])
+          });
+          console.log(`[AI-PHONE] Lead already exists for phone ${info.phone}, linking to lead #${existingLead.id}`);
+          return { id: existingLead.id, already_existed: true };
+        }
+
         const nameParts = info.name.split(' ');
         const firstName = nameParts[0];
         const lastName = nameParts.slice(1).join(' ') || '';
@@ -303,18 +336,17 @@ class AIPhoneService {
 
   // Extract name from input
   extractName(input) {
-    const match = input.match(/(?:my name is|i'm|i am|this is)\s+([a-z\s]+)/i);
+    const match = input.match(/(?:my name is|i'm|i am|this is)\s+([a-záéíóúñüA-ZÁÉÍÓÚÑÜ'-]+(?:\s+[a-záéíóúñüA-ZÁÉÍÓÚÑÜ'-]+)?)/i);
     if (match) {
       return match[1].trim();
     }
 
-    // Try to extract just name (2 words)
-    const words = input.split(' ').filter(w => w.match(/^[a-z]+$/i));
+    const words = input.trim().split(/\s+/).filter(w => /^[a-záéíóúñüA-ZÁÉÍÓÚÑÜ'-]+$/.test(w));
     if (words.length >= 2) {
       return words.slice(0, 2).join(' ');
     }
 
-    return input.trim();
+    return '';
   }
 
   // Extract phone from input

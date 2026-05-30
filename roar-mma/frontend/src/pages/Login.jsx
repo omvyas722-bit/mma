@@ -12,12 +12,29 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
 
-    const result = await login(email, password);
-
-    if (!result.success) {
-      setError(result.error);
+    try {
+      const result = await login(email, password);
+      if (!result.success) {
+        setError(result.error);
+      }
+    } catch (err) {
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setError('Unable to connect to the server. Please check your internet connection.');
+      } else if (err.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError('Invalid email or password. Please try again.');
+      }
+    } finally {
       setLoading(false);
     }
   }
@@ -36,7 +53,7 @@ export default function Login() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-md bg-red-50 p-4" role="alert">
               <div className="text-sm text-red-800">{error}</div>
             </div>
           )}
@@ -86,11 +103,6 @@ export default function Login() {
             </button>
           </div>
 
-          <div className="text-xs text-center text-gray-500">
-            <p>Default credentials:</p>
-            <p>Email: owner@roarmma.com.au</p>
-            <p>Password: admin123</p>
-          </div>
         </form>
       </div>
     </div>

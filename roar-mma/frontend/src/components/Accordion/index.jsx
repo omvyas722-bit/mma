@@ -1,9 +1,9 @@
 // Accordion Component System - Collapsible content sections
 
-import React, { useState, createContext, useContext } from 'react';
+import React from 'react';
 
 // Accordion Context
-const AccordionContext = createContext(null);
+const AccordionContext = React.createContext(null);
 
 // Main Accordion Component
 export function Accordion({
@@ -15,7 +15,7 @@ export function Accordion({
   allowToggle = true,
   className = '',
 }) {
-  const [internalValue, setInternalValue] = useState(
+  const [internalValue, setInternalValue] = React.useState(
     defaultValue || (allowMultiple ? [] : null)
   );
   const isControlled = controlledValue !== undefined;
@@ -73,8 +73,9 @@ export function AccordionItem({
   disabled = false,
   className = '',
 }) {
-  const { isItemActive } = useContext(AccordionContext);
-  const isActive = isItemActive(value);
+  const accordionContext = React.useContext(AccordionContext);
+  const isItemActive = accordionContext?.isItemActive;
+  const isActive = isItemActive ? isItemActive(value) : false;
 
   return (
     <div
@@ -103,7 +104,8 @@ export function AccordionTrigger({
   icon,
   className = '',
 }) {
-  const { onItemToggle } = useContext(AccordionContext);
+  const accordionContext = React.useContext(AccordionContext);
+  const onItemToggle = accordionContext?.onItemToggle;
 
   return (
     <button
@@ -120,6 +122,7 @@ export function AccordionTrigger({
         ${className}
       `}
       aria-expanded={isActive}
+      aria-controls={`accordion-content-${value}`}
     >
       <div className="flex items-center gap-2">
         {icon && <span>{icon}</span>}
@@ -146,6 +149,7 @@ export function AccordionTrigger({
 
 // Accordion Content Component
 export function AccordionContent({
+  value,
   isActive,
   children,
   className = '',
@@ -154,6 +158,7 @@ export function AccordionContent({
 
   return (
     <div
+      id={`accordion-content-${value}`}
       className={`px-4 py-3 text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-gray-700 ${className}`}
     >
       {children}
@@ -163,6 +168,7 @@ export function AccordionContent({
 
 // Animated Accordion Content (with slide animation)
 export function AnimatedAccordionContent({
+  value,
   isActive,
   children,
   className = '',
@@ -185,6 +191,7 @@ export function AnimatedAccordionContent({
     >
       <div
         ref={contentRef}
+        id={`accordion-content-${value}`}
         className={`px-4 py-3 text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-gray-700 ${className}`}
       >
         {children}
@@ -220,7 +227,7 @@ export function FAQAccordion({ faqs, className = '' }) {
   return (
     <Accordion allowToggle className={className}>
       {faqs.map((faq, index) => (
-        <AccordionItem key={index} value={`faq-${index}`}>
+        <AccordionItem key={faq.id || `faq-${faq.question}`} value={`faq-${index}`}>
           <AccordionTrigger>
             <span className="font-semibold">{faq.question}</span>
           </AccordionTrigger>

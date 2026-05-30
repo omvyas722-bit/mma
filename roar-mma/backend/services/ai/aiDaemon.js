@@ -1,8 +1,9 @@
 const aiState = require('./aiState');
 const openRouter = require('./openRouterClient');
+const { getDatabase } = require('../../db/connection');
 
 const agentHandlers = new Map();
-let intervalId = null;
+let intervalMs = 60000;
 let isRunning = false;
 let startupTime = null;
 let lastTick = null;
@@ -27,13 +28,7 @@ async function tick() {
 
   console.log(`[AI-DAEMON] Tick #${ticksExecuted} starting — ${agentHandlers.size} agents registered`);
 
-  const db = (() => {
-    try {
-      return require('../../db/connection').getDatabase();
-    } catch {
-      return null;
-    }
-  })();
+  const db = getDatabase();
 
   const broadcast = typeof global.wsBroadcast === 'function' ? global.wsBroadcast : null;
 
@@ -48,7 +43,13 @@ async function tick() {
       }
 
       console.log(`[AI-DAEMON] Executing agent: ${name}`);
-      const result = await handler(db, aiState, openRouter, broadcast);
+      const agentTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Agent ${name} timed out after 120s`)), 120000)
+      );
+      const result = await Promise.race([
+        handler({ db, aiState, openRouter, broadcast, config }),
+        agentTimeout
+      ]);
       results.push({ agent: name, status: 'ok', result });
 
       await aiState.logActivity({
@@ -60,14 +61,21 @@ async function tick() {
     } catch (error) {
       console.error(`[AI-DAEMON] Agent "${name}" failed:`, error.message);
       daemonErrors.push({ agent: name, error: error.message, time: new Date().toISOString() });
+      if (daemonErrors.length > 200) {
+        daemonErrors.splice(0, daemonErrors.length - 200);
+      }
 
-      await aiState.logActivity({
-        agentName: name,
-        actionType: 'tick',
-        summary: `Agent ${name} failed: ${error.message}`,
-        status: 'failed',
-        details: { error: error.message }
-      });
+      try {
+        await aiState.logActivity({
+          agentName: name,
+          actionType: 'tick',
+          summary: `Agent ${name} failed: ${error.message}`,
+          status: 'failed',
+          details: { error: error.message }
+        });
+      } catch (logErr) {
+        console.error(`[AI-DAEMON] Failed to log activity for "${name}":`, logErr.message);
+      }
 
       results.push({ agent: name, status: 'error', error: error.message });
     }
@@ -93,6 +101,19 @@ async function tick() {
   }
 }
 
+async function runLoop() {
+  if (!isRunning) return;
+  try {
+    await tick();
+  } catch (err) {
+    console.error('[AI-DAEMON] Unhandled error in tick:', err);
+    daemonErrors.push({ agent: 'daemon', error: err.message, time: new Date().toISOString() });
+  }
+  if (isRunning) {
+    setTimeout(runLoop, intervalMs);
+  }
+}
+
 function start() {
   if (isRunning) {
     console.log('[AI-DAEMON] Already running');
@@ -105,13 +126,9 @@ function start() {
   lastTick = new Date().toISOString();
   daemonErrors = [];
 
-  const intervalMs = parseInt(process.env.AI_DAEMON_INTERVAL_MS || '60000', 10);
+  intervalMs = parseInt(process.env.AI_DAEMON_INTERVAL_MS || '60000', 10);
 
-  tick();
-
-  intervalId = setInterval(() => {
-    tick();
-  }, intervalMs);
+  runLoop();
 
   console.log(`[AI-DAEMON] Daemon started — interval=${intervalMs}ms`);
 }
@@ -124,11 +141,6 @@ function stop() {
   console.log('[AI-DAEMON] Stopping daemon...');
   isRunning = false;
 
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
-
   console.log('[AI-DAEMON] Daemon stopped');
 }
 
@@ -139,13 +151,7 @@ function getStatus() {
     lastTick,
     ticksExecuted,
     agentsRegistered: agentHandlers.size,
-    agentsActive: (() => {
-      let count = 0;
-      agentHandlers.forEach((_, name) => {
-        count++;
-      });
-      return count;
-    })(),
+    agentsActive: agentHandlers.size,
     errors: daemonErrors.slice(-50)
   };
 }

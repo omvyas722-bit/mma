@@ -1,14 +1,14 @@
 // Notification Context Provider - Toast notifications and alerts
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { NOTIFICATION_TYPES } from '../lib/constants';
 
 const NotificationContext = createContext(null);
 
-let notificationId = 0;
-
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
+  const notificationIdRef = useRef(0);
+  const timersRef = useRef({});
 
   // Remove notification
   const removeNotification = useCallback((id) => {
@@ -17,7 +17,7 @@ export function NotificationProvider({ children }) {
 
   // Add notification
   const addNotification = useCallback((notification) => {
-    const id = ++notificationId;
+    const id = ++notificationIdRef.current;
     const newNotification = {
       id,
       type: notification.type || NOTIFICATION_TYPES.INFO,
@@ -34,13 +34,22 @@ export function NotificationProvider({ children }) {
 
     // Auto-dismiss if duration is set
     if (newNotification.duration > 0) {
-      setTimeout(() => {
+      timersRef.current[id] = setTimeout(() => {
+        delete timersRef.current[id];
         removeNotification(id);
       }, newNotification.duration);
     }
 
     return id;
   }, [removeNotification]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   // Clear all notifications
   const clearAll = useCallback(() => {
@@ -50,34 +59,34 @@ export function NotificationProvider({ children }) {
   // Convenience methods for different notification types
   const success = useCallback((message, options = {}) => {
     return addNotification({
+      ...options,
       type: NOTIFICATION_TYPES.SUCCESS,
       message,
-      ...options,
     });
   }, [addNotification]);
 
   const error = useCallback((message, options = {}) => {
     return addNotification({
+      ...options,
       type: NOTIFICATION_TYPES.ERROR,
       message,
-      duration: options.duration ?? 7000, // Errors stay longer
-      ...options,
+      duration: options.duration ?? 7000,
     });
   }, [addNotification]);
 
   const warning = useCallback((message, options = {}) => {
     return addNotification({
+      ...options,
       type: NOTIFICATION_TYPES.WARNING,
       message,
-      ...options,
     });
   }, [addNotification]);
 
   const info = useCallback((message, options = {}) => {
     return addNotification({
+      ...options,
       type: NOTIFICATION_TYPES.INFO,
       message,
-      ...options,
     });
   }, [addNotification]);
 
@@ -95,10 +104,10 @@ export function NotificationProvider({ children }) {
       removeNotification(loadingId);
       success(messages.success || 'Success!');
       return result;
-    } catch (error) {
+    } catch (err) {
       removeNotification(loadingId);
       error(messages.error || 'An error occurred');
-      throw error;
+      throw err;
     }
   }, [addNotification, removeNotification, success, error]);
 
@@ -142,11 +151,20 @@ function NotificationContainer() {
 // Individual notification item
 function NotificationItem({ notification, onDismiss }) {
   const [isExiting, setIsExiting] = useState(false);
+  const exitTimerRef = useRef(null);
 
   const handleDismiss = () => {
     setIsExiting(true);
-    setTimeout(onDismiss, 300); // Wait for exit animation
+    exitTimerRef.current = setTimeout(onDismiss, 300);
   };
+
+  useEffect(() => {
+    return () => {
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleAction = () => {
     if (notification.onAction) {

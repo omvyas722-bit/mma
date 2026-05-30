@@ -11,32 +11,33 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     // 1. This week's performance
-    const weekPerformance = staffPerformanceData.getAllStaffPerformance(weekAgo, todayStr);
+    const weekPerformance = staffPerformanceData.getAllStaffPerformance(weekAgo, todayStr) || [];
 
     // 2. Top performers
-    const leaderboardBySignups = staffPerformanceData.getLeaderboard('signups', weekAgo, todayStr);
+    const leaderboardBySignups = staffPerformanceData.getLeaderboard('signups', weekAgo, todayStr) || [];
     const topPerformer = leaderboardBySignups[0];
 
     // 3. Find declining metrics (compare this week to last week)
-    const lastWeekPerformance = staffPerformanceData.getAllStaffPerformance(twoWeeksAgo, weekAgo);
+    const lastWeekPerformance = staffPerformanceData.getAllStaffPerformance(twoWeeksAgo, weekAgo) || [];
 
     const decliningStaff = [];
     for (const current of weekPerformance) {
+      if (!current || !current.metrics || !current.staff_id) continue;
       const previous = lastWeekPerformance.find(s => s.staff_id === current.staff_id);
-      if (!previous) continue;
+      if (!previous || !previous.metrics) continue;
 
       const declineReasons = [];
-      if (current.metrics.signups < previous.metrics.signups) {
-        declineReasons.push(`signups: ${previous.metrics.signups} -> ${current.metrics.signups}`);
+      if ((previous.metrics.signups || 0) > (current.metrics.signups || 0)) {
+        declineReasons.push(`signups: ${previous.metrics.signups || 0} -> ${current.metrics.signups || 0}`);
       }
-      if (current.metrics.trials_booked < previous.metrics.trials_booked) {
-        declineReasons.push(`trials: ${previous.metrics.trials_booked} -> ${current.metrics.trials_booked}`);
+      if ((previous.metrics.trials_booked || 0) > (current.metrics.trials_booked || 0)) {
+        declineReasons.push(`trials: ${previous.metrics.trials_booked || 0} -> ${current.metrics.trials_booked || 0}`);
       }
-      if (current.metrics.trial_conversion_rate < previous.metrics.trial_conversion_rate) {
-        declineReasons.push(`conversion: ${previous.metrics.trial_conversion_rate}% -> ${current.metrics.trial_conversion_rate}%`);
+      if ((previous.metrics.trial_conversion_rate || 0) > (current.metrics.trial_conversion_rate || 0)) {
+        declineReasons.push(`conversion: ${previous.metrics.trial_conversion_rate || 0}% -> ${current.metrics.trial_conversion_rate || 0}%`);
       }
-      if (current.metrics.avg_response_time_hours > previous.metrics.avg_response_time_hours * 1.5) {
-        declineReasons.push(`response time: ${Math.round(previous.metrics.avg_response_time_hours)}h -> ${Math.round(current.metrics.avg_response_time_hours)}h`);
+      if ((current.metrics.avg_response_time_hours || 0) > (previous.metrics.avg_response_time_hours || 0) * 1.5) {
+        declineReasons.push(`response time: ${Math.round(previous.metrics.avg_response_time_hours || 0)}h -> ${Math.round(current.metrics.avg_response_time_hours || 0)}h`);
       }
 
       if (declineReasons.length > 0) {
@@ -73,14 +74,16 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       broadcast({ type: 'staff_agent_update', summary, decliningStaff });
     }
   } catch (err) {
-    console.error('[STAFF-AGENT] Error:', err.message);
+    console.error('[STAFF-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'staff_performance_error',
         details: { error: err.message },
         summary: `Staff agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[STAFF-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 module.exports = { handler };

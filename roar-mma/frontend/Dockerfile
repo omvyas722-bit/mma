@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -18,6 +18,8 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
@@ -26,7 +28,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
+  CMD curl -f http://localhost:80/ || exit 1
 
 # Expose port
 EXPOSE 80

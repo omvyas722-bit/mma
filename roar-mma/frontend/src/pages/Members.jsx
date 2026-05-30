@@ -1,8 +1,10 @@
 // Members page
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
+import { useNotifications } from '../contexts/NotificationContext';
+import { formatDate } from '../lib/formatters';
 import AddMemberModal from '../components/Members/AddMemberModal';
 import EditMemberModal from '../components/Members/EditMemberModal';
 import ConfirmDialog from '../components/Shared/ConfirmDialog';
@@ -10,9 +12,18 @@ import ConfirmDialog from '../components/Shared/ConfirmDialog';
 export default function Members() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { error } = useNotifications();
   const [searchQuery, setSearchQuery] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [deletingMember, setDeletingMember] = useState(null);
@@ -42,9 +53,9 @@ export default function Members() {
       queryClient.invalidateQueries(['dashboard']);
       setDeletingMember(null);
     },
-    onError: (error) => {
-      console.error('Error deleting member:', error);
-      alert('Failed to delete member. Please try again.');
+    onError: (err) => {
+      console.error('Error deleting member:', err);
+      error('Failed to delete member. Please try again.');
     }
   });
 
@@ -85,8 +96,13 @@ export default function Members() {
           <input
             type="text"
             placeholder="Search members..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={inputValue}
+            onChange={(e) => {
+              const value = e.target.value;
+              setInputValue(value);
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => setSearchQuery(value), 300);
+            }}
             className="input"
           />
           <select
@@ -173,11 +189,11 @@ export default function Members() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="badge badge-blue capitalize">
-                        {member.location.replace('_', ' ')}
+                        {member.location?.replace('_', ' ') || ''}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(member.joined_date).toLocaleDateString()}
+                      {formatDate(member.joined_date)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button

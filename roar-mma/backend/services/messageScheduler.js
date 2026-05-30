@@ -98,9 +98,11 @@ class MessageScheduler {
 
     // Update lead follow-up tracking
     if (message.lead_id) {
+      const lead = leadsData.getLeadById(message.lead_id);
+      const currentCount = (lead && lead.follow_up_count) || 0;
       leadsData.updateLead(message.lead_id, {
         last_contact_date: new Date().toISOString(),
-        follow_up_count: (message.follow_up_count || 0) + 1
+        follow_up_count: currentCount + 1
       });
     }
 
@@ -108,9 +110,9 @@ class MessageScheduler {
   }
 
   personalizeMessage(message) {
+    if (!message || !message.body) return message?.body || '';
     let body = message.body;
 
-    // Replace placeholders with actual data
     const replacements = {
       '{{first_name}}': message.lead_first_name || message.member_first_name || '',
       '{{last_name}}': message.lead_last_name || message.member_last_name || '',
@@ -126,9 +128,10 @@ class MessageScheduler {
       '{{offer_details}}': 'First month 50% off when you join this week'
     };
 
-    for (const [placeholder, value] of Object.entries(replacements)) {
-      body = body.replace(new RegExp(placeholder, 'g'), value);
-    }
+    body = Object.entries(replacements).reduce((acc, [placeholder, value]) => {
+      const escaped = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return acc.replace(new RegExp(escaped, 'g'), value || '');
+    }, body);
 
     return body;
   }

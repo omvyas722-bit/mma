@@ -4,7 +4,7 @@ const { getDatabase } = require('../db/connection');
 function getAllClasses(filters = {}) {
   const db = getDatabase();
 
-  let query = 'SELECT c.*, s.name as coach_name FROM classes c LEFT JOIN staff s ON c.coach_id = s.id WHERE 1=1';
+  let query = 'SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.created_at, c.updated_at, s.name as coach_name FROM classes c LEFT JOIN staff s ON c.coach_id = s.id WHERE 1=1';
   const params = [];
 
   if (filters.location) {
@@ -30,7 +30,7 @@ function getAllClasses(filters = {}) {
 function getClassById(id) {
   const db = getDatabase();
   return db.prepare(`
-    SELECT c.*, s.name as coach_name
+    SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.created_at, c.updated_at, s.name as coach_name
     FROM classes c
     LEFT JOIN staff s ON c.coach_id = s.id
     WHERE c.id = ?
@@ -85,7 +85,7 @@ function updateClass(id, updates) {
     throw new Error('No valid fields to update');
   }
 
-  fields.push('updated_at = datetime("now")');
+  fields.push("updated_at = datetime('now')");
   values.push(id);
 
   const query = `UPDATE classes SET ${fields.join(', ')} WHERE id = ?`;
@@ -106,7 +106,7 @@ function getClassInstances(filters = {}) {
 
   let query = `
     SELECT
-      ci.*,
+      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.cancellation_reason, ci.created_at, ci.updated_at,
       c.name as class_name,
       c.class_type,
       c.location,
@@ -139,6 +139,11 @@ function getClassInstances(filters = {}) {
     params.push(filters.status);
   }
 
+  if (filters.active !== undefined) {
+    query += ' AND c.active = ?';
+    params.push(filters.active ? 1 : 0);
+  }
+
   query += ' ORDER BY ci.date, ci.start_time';
 
   return db.prepare(query).all(...params);
@@ -148,7 +153,7 @@ function getClassInstanceById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      ci.*,
+      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.cancellation_reason, ci.created_at, ci.updated_at,
       c.name as class_name,
       c.class_type,
       c.location,
@@ -204,7 +209,7 @@ function updateClassInstance(id, updates) {
     throw new Error('No valid fields to update');
   }
 
-  fields.push('updated_at = datetime("now")');
+  fields.push("updated_at = datetime('now')");
   values.push(id);
 
   const query = `UPDATE class_instances SET ${fields.join(', ')} WHERE id = ?`;
@@ -221,35 +226,42 @@ function generateClassInstances(classId, startDate, endDate) {
     throw new Error('Class not found');
   }
 
-  const instances = [];
   const currentDate = new Date(startDate);
   const end = new Date(endDate);
+  const instanceDates = [];
 
   while (currentDate <= end) {
     if (currentDate.getDay() === classInfo.day_of_week) {
-      const dateStr = currentDate.toISOString().split('T')[0];
-
-      // Check if instance already exists
-      const existing = db.prepare(
-        'SELECT id FROM class_instances WHERE class_id = ? AND date = ?'
-      ).get(classId, dateStr);
-
-      if (!existing) {
-        const instance = createClassInstance({
-          class_id: classId,
-          date: dateStr,
-          start_time: classInfo.start_time,
-          coach_id: classInfo.coach_id,
-          capacity: classInfo.capacity
-        });
-        instances.push(instance);
-      }
+      instanceDates.push(currentDate.toISOString().split('T')[0]);
     }
-
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  return instances;
+  if (instanceDates.length === 0) return [];
+
+  const placeholders = instanceDates.map(() => '?').join(',');
+  const existingRows = db.prepare(
+    `SELECT date FROM class_instances WHERE class_id = ? AND date IN (${placeholders})`
+  ).all(classId, ...instanceDates);
+
+  const existingSet = new Set(existingRows.map(r => r.date));
+  const toCreate = instanceDates.filter(d => !existingSet.has(d));
+
+  if (toCreate.length === 0) return [];
+
+  const insertStmt = db.prepare(`
+    INSERT INTO class_instances (class_id, date, start_time, coach_id, capacity, status)
+    VALUES (?, ?, ?, ?, ?, 'scheduled')
+  `);
+
+  const txn = db.transaction(() => {
+    return toCreate.map(date => {
+      const result = insertStmt.run(classId, date, classInfo.start_time, classInfo.coach_id, classInfo.capacity);
+      return getClassInstanceById(result.lastInsertRowid);
+    });
+  });
+
+  return txn();
 }
 
 function getClassRoster(classInstanceId) {

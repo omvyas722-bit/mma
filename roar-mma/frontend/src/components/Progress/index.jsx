@@ -1,6 +1,7 @@
 // Progress and Loading Component System - Loading states and progress indicators
 
 import React from 'react';
+import SharedSpinner from '../Shared/Spinner';
 
 // Linear Progress Bar
 export function ProgressBar({
@@ -125,40 +126,8 @@ export function CircularProgress({
   );
 }
 
-// Spinner (Loading indicator)
-export function Spinner({
-  size = 'md',
-  variant = 'primary',
-  className = '',
-}) {
-  const sizeStyles = {
-    xs: 'w-4 h-4',
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-    xl: 'w-16 h-16',
-  };
-
-  const variantStyles = {
-    primary: 'border-blue-600',
-    success: 'border-green-600',
-    warning: 'border-yellow-600',
-    error: 'border-red-600',
-    white: 'border-white',
-  };
-
-  return (
-    <div
-      className={`
-        ${sizeStyles[size]} ${variantStyles[variant]}
-        border-2 border-t-transparent rounded-full animate-spin
-        ${className}
-      `}
-      role="status"
-      aria-label="Loading"
-    />
-  );
-}
+// Spinner imported from Shared (canonical source)
+const Spinner = SharedSpinner;
 
 // Dots Loader
 export function DotsLoader({

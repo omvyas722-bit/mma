@@ -5,9 +5,10 @@
 set -e
 
 # Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="/var/backups/roar-mma"
-DB_PATH="../data/roarmma.db"
-LOG_DIR="../logs"
+DB_PATH="$SCRIPT_DIR/../../data/roarmma.db"
+LOG_DIR="$SCRIPT_DIR/../logs"
 RETENTION_DAYS=30
 DATE=$(date +%Y%m%d-%H%M%S)
 
@@ -35,7 +36,11 @@ fi
 # 2. Clean old backups
 echo ""
 echo "🧹 Cleaning old backups (>$RETENTION_DAYS days)..."
-DELETED=$(find "$BACKUP_DIR" -name "roarmma-*.db" -mtime +$RETENTION_DAYS -delete -print | wc -l)
+OLD_FILES=$(find "$BACKUP_DIR" -name "roarmma-*.db" -mtime +$RETENTION_DAYS -print)
+DELETED=$(echo "$OLD_FILES" | grep -c . || true)
+if [ -n "$OLD_FILES" ]; then
+  echo "$OLD_FILES" | xargs rm -f
+fi
 echo "   ✅ Deleted $DELETED old backup(s)"
 
 # 3. Check disk space

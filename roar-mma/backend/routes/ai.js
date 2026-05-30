@@ -2,12 +2,13 @@ const express = require('express');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const aiState = require('../services/ai/aiState');
 const aiDaemon = require('../services/ai/aiDaemon');
-const openRouter = require('../services/ai/openRouterClient');
+const providerChain = require('../services/ai/providerChain');
 const chatEngine = require('../services/ai/chatEngine');
+const openRouterClient = require('../services/ai/openRouterClient');
 
 const router = express.Router();
 
-router.post('/chat', authenticateToken, async (req, res) => {
+router.post('/chat', authenticateToken, requirePermission('ai:manage'), async (req, res) => {
   try {
     const { query } = req.body;
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -38,24 +39,20 @@ router.post('/chat', authenticateToken, async (req, res) => {
       confidence: result.confidence
     });
   } catch (error) {
-    console.error('[AI-CHAT] Error:', error.message);
-    res.status(500).json({
-      response: 'Sorry, I encountered an error. Please try again.',
-      actions: [],
-      confidence: 0
-    });
+    console.error('[AI-CHAT] Error:', error);
+    res.status(500).json({ error: 'Failed to process chat query' });
   }
 });
 
-router.get('/status', authenticateToken, (req, res) => {
+router.get('/status', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
     const daemon = aiDaemon.getStatus();
-    const orStatus = openRouter.getStatus();
-    const orStats = openRouter.getUsageStats();
+    const providerStatus = providerChain.getStatus();
+    const providerStats = providerChain.getUsageStats();
 
     res.json({
       daemon,
-      openRouter: { ...orStatus, ...orStats },
+      providers: { ...providerStatus, ...providerStats },
       uptime: process.uptime()
     });
   } catch (error) {
@@ -156,7 +153,7 @@ router.post('/task', authenticateToken, requirePermission('staff:update'), async
 router.get('/stats', authenticateToken, requirePermission('reports:read'), async (req, res) => {
   try {
     const stats = await aiState.getStats();
-    const usage = openRouter.getUsageStats();
+    const usage = openRouterClient.getUsageStats();
 
     res.json({
       ...stats,

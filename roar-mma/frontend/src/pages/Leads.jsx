@@ -1,7 +1,9 @@
 // Leads page with Kanban board
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
+import { useNotifications } from '../contexts/NotificationContext';
+import logger from '../lib/logger';
 import AddLeadModal from '../components/Leads/AddLeadModal';
 import EditLeadModal from '../components/Leads/EditLeadModal';
 import TrialTrackingModal from '../components/Leads/TrialTrackingModal';
@@ -9,6 +11,7 @@ import ConfirmDialog from '../components/Shared/ConfirmDialog';
 
 export default function Leads() {
   const queryClient = useQueryClient();
+  const { error } = useNotifications();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
   const [trackingTrialLead, setTrackingTrialLead] = useState(null);
@@ -30,9 +33,9 @@ export default function Leads() {
       queryClient.invalidateQueries(['dashboard']);
       setDeletingLead(null);
     },
-    onError: (error) => {
-      console.error('Error deleting lead:', error);
-      alert('Failed to delete lead. Please try again.');
+    onError: (err) => {
+      logger.error('Error deleting lead:', err);
+      error('Failed to delete lead. Please try again.');
     }
   });
 
@@ -50,12 +53,6 @@ export default function Leads() {
     { id: 'converted', label: 'Converted', color: 'bg-green-100' },
   ];
 
-  // Group leads by stage
-  const leadsByStage = {};
-  stages.forEach((stage) => {
-    leadsByStage[stage.id] = leads.filter((lead) => lead.stage === stage.id);
-  });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -63,6 +60,15 @@ export default function Leads() {
       </div>
     );
   }
+
+  // Group leads by stage
+  const leadsByStage = useMemo(() => {
+    const grouped = {};
+    stages.forEach((stage) => {
+      grouped[stage.id] = leads.filter((lead) => lead.stage === stage.id);
+    });
+    return grouped;
+  }, [leads]);
 
   return (
     <div>

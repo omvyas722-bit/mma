@@ -65,19 +65,33 @@ router.get('/:id', authenticateToken, requirePermission('reports:read'), (req, r
 });
 
 // Create manual transaction
-router.post('/', authenticateToken, requirePermission('reports:read'), (req, res) => {
+router.post('/', authenticateToken, requirePermission('transactions:create'), (req, res) => {
   try {
     const { member_id, amount, type, payment_method, description } = req.body;
 
-    if (!member_id || !amount || !type) {
+    if (!member_id || amount === undefined || !type) {
       return res.status(400).json({ error: 'member_id, amount, and type required' });
+    }
+
+    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'amount must be a positive number' });
+    }
+
+    const validTypes = ['membership', 'hold_fee', 'pt_pack', 'product', 'other'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ error: `type must be one of: ${validTypes.join(', ')}` });
+    }
+
+    const validPaymentMethods = ['card', 'cash', 'bank_transfer', 'other'];
+    if (payment_method && !validPaymentMethods.includes(payment_method)) {
+      return res.status(400).json({ error: `payment_method must be one of: ${validPaymentMethods.join(', ')}` });
     }
 
     const transaction = transactionsData.createTransaction({
       member_id,
       amount,
       type,
-      status: 'succeeded',
+      status: 'completed',
       payment_method: payment_method || 'cash',
       description,
       processed_at: new Date().toISOString()
@@ -91,7 +105,7 @@ router.post('/', authenticateToken, requirePermission('reports:read'), (req, res
 });
 
 // Update transaction status
-router.put('/:id', authenticateToken, requirePermission('reports:read'), (req, res) => {
+router.put('/:id', authenticateToken, requirePermission('transactions:update'), (req, res) => {
   try {
     const transaction = transactionsData.getTransactionById(req.params.id);
 
@@ -99,7 +113,23 @@ router.put('/:id', authenticateToken, requirePermission('reports:read'), (req, r
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    const updatedTransaction = transactionsData.updateTransaction(req.params.id, req.body);
+    const allowedFields = ['status', 'payment_method', 'description'];
+    const updates = {};
+    for (const [key, value] of Object.entries(req.body)) {
+      if (allowedFields.includes(key)) {
+        updates[key] = value;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    if (updates.status && !['completed', 'failed', 'pending', 'refunded'].includes(updates.status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    const updatedTransaction = transactionsData.updateTransaction(req.params.id, updates);
 
     res.json(updatedTransaction);
   } catch (error) {
@@ -109,7 +139,7 @@ router.put('/:id', authenticateToken, requirePermission('reports:read'), (req, r
 });
 
 // Refund transaction
-router.post('/:id/refund', authenticateToken, requirePermission('reports:read'), (req, res) => {
+router.post('/:id/refund', authenticateToken, requirePermission('transactions:refund'), (req, res) => {
   try {
     const transaction = transactionsData.getTransactionById(req.params.id);
 
@@ -121,8 +151,8 @@ router.post('/:id/refund', authenticateToken, requirePermission('reports:read'),
       return res.status(400).json({ error: 'Transaction already refunded' });
     }
 
-    if (transaction.status !== 'succeeded') {
-      return res.status(400).json({ error: 'Only succeeded transactions can be refunded' });
+    if (transaction.status !== 'completed') {
+      return res.status(400).json({ error: 'Only completed transactions can be refunded' });
     }
 
     const updatedTransaction = transactionsData.updateTransaction(req.params.id, {

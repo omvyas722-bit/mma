@@ -1,5 +1,5 @@
 // Command Palette - Quick Navigation and Actions
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function CommandPalette({ isOpen, onClose, commands = [] }) {
@@ -30,10 +30,9 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
     { id: 'action-export-data', label: 'Export Data', icon: '📥', keywords: ['download', 'csv'], category: 'Actions' },
   ];
 
-  const allCommands = [...defaultCommands, ...commands];
+  const allCommands = useMemo(() => [...defaultCommands, ...commands], [commands]);
 
-  // Filter commands based on search
-  const filteredCommands = search
+  const filteredCommands = useMemo(() => search
     ? allCommands.filter(cmd => {
         const searchLower = search.toLowerCase();
         const labelMatch = cmd.label.toLowerCase().includes(searchLower);
@@ -41,15 +40,14 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
         const categoryMatch = cmd.category?.toLowerCase().includes(searchLower);
         return labelMatch || keywordsMatch || categoryMatch;
       })
-    : allCommands;
+    : allCommands, [search, allCommands]);
 
-  // Group commands by category
-  const groupedCommands = filteredCommands.reduce((acc, cmd) => {
+  const groupedCommands = useMemo(() => filteredCommands.reduce((acc, cmd) => {
     const category = cmd.category || 'Other';
     if (!acc[category]) acc[category] = [];
     acc[category].push(cmd);
     return acc;
-  }, {});
+  }, {}), [filteredCommands]);
 
   const executeCommand = useCallback((command) => {
     if (command.action) {
@@ -58,28 +56,34 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
     onClose();
   }, [onClose]);
 
-  // Handle keyboard navigation
+  const filteredCommandsRef = useRef(filteredCommands);
+  filteredCommandsRef.current = filteredCommands;
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!isOpen) return;
+      const cmds = filteredCommandsRef.current;
+      const idx = selectedIndexRef.current;
 
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
           setSelectedIndex(prev =>
-            prev < filteredCommands.length - 1 ? prev + 1 : 0
+            prev < cmds.length - 1 ? prev + 1 : 0
           );
           break;
         case 'ArrowUp':
           e.preventDefault();
           setSelectedIndex(prev =>
-            prev > 0 ? prev - 1 : filteredCommands.length - 1
+            prev > 0 ? prev - 1 : cmds.length - 1
           );
           break;
         case 'Enter':
           e.preventDefault();
-          if (filteredCommands[selectedIndex]) {
-            executeCommand(filteredCommands[selectedIndex]);
+          if (cmds[idx]) {
+            executeCommand(cmds[idx]);
           }
           break;
         case 'Escape':
@@ -91,7 +95,7 @@ export default function CommandPalette({ isOpen, onClose, commands = [] }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, selectedIndex, filteredCommands, onClose, executeCommand]);
+  }, [isOpen, onClose, executeCommand]);
 
   // Focus input when opened
   useEffect(() => {
@@ -233,7 +237,7 @@ export function useCommandPalette() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Cmd+K or Ctrl+K to open
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsOpen(true);
       }

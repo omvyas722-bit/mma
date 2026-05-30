@@ -171,8 +171,11 @@ export function ConfirmDialog({
   isLoading = false,
 }) {
   const handleConfirm = async () => {
-    await onConfirm();
-    onClose();
+    try {
+      await onConfirm();
+    } finally {
+      onClose();
+    }
   };
 
   const variantStyles = {

@@ -7,11 +7,13 @@ import { formatDate, formatCurrency, formatPhone, calculateAge } from '../lib/fo
 import EditMemberModal from '../components/Members/EditMemberModal';
 import ConfirmDialog from '../components/Shared/ConfirmDialog';
 import { PageLoader } from '../components/Shared/Spinner';
+import { useNotifications } from '../contexts/NotificationContext';
 
 export default function MemberProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { error } = useNotifications();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -51,9 +53,9 @@ export default function MemberProfile() {
       queryClient.invalidateQueries(['members']);
       navigate('/members');
     },
-    onError: (error) => {
-      console.error('Error deleting member:', error);
-      alert('Failed to delete member. Please try again.');
+    onError: (err) => {
+      console.error('Error deleting member:', err);
+      error('Failed to delete member. Please try again.');
     }
   });
 
@@ -70,7 +72,7 @@ export default function MemberProfile() {
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                {member.first_name[0]}{member.last_name[0]}
+                {(member.first_name || '?')[0]}{(member.last_name || '?')[0]}
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
@@ -231,7 +233,7 @@ export default function MemberProfile() {
                           {record.start_time}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(record.checked_in_at).toLocaleTimeString()}
+                          {record.checked_in_at ? new Date(record.checked_in_at).toLocaleTimeString() : 'N/A'}
                         </td>
                       </tr>
                     ))}

@@ -1,14 +1,24 @@
 // Messaging providers - Twilio SMS + Brevo Email
 const { getDatabase } = require('../db/connection');
+const nodemailer = require('nodemailer');
+const twilio = require('twilio');
+let twilioClient = null;
+function getTwilioClient(accountSid, authToken) {
+  if (!twilioClient) {
+    twilioClient = twilio(accountSid, authToken);
+  }
+  return twilioClient;
+}
 
 class MessagingProviders {
   constructor() {
     this.settings = {};
-    this.loadSettings();
+    this._loaded = false;
   }
 
   // Load provider settings from database
   loadSettings() {
+    this.settings = {};
     const db = getDatabase();
     const rows = db.prepare('SELECT provider, setting_key, setting_value FROM messaging_provider_settings').all();
 
@@ -18,6 +28,13 @@ class MessagingProviders {
       }
       this.settings[row.provider][row.setting_key] = row.setting_value;
     });
+    this._loaded = true;
+  }
+
+  // Force reload settings from database (e.g., after settings update)
+  reloadSettings() {
+    this._loaded = false;
+    this.loadSettings();
   }
 
   // Check if contact is unsubscribed
@@ -35,10 +52,12 @@ class MessagingProviders {
 
   // Check rate limit
   checkRateLimit(contactValue, channel) {
+    if (!contactValue) return { allowed: false, remaining: 0, reason: 'No contact value' };
     const db = getDatabase();
     const now = new Date();
-    const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const windowEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    const utcStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const windowStart = utcStart.toISOString();
+    const windowEnd = new Date(utcStart.getTime() + 86400000).toISOString();
 
     // Get or create rate limit record
     let rateLimit = db.prepare(`
@@ -48,7 +67,9 @@ class MessagingProviders {
         AND window_start >= ?
     `).get(contactValue, channel, windowStart);
 
-    const maxPerDay = channel === 'sms' ? 5 : 10;
+    const maxPerDay = channel === 'sms'
+      ? (parseInt(process.env.SMS_RATE_LIMIT_PER_DAY) || 5)
+      : (parseInt(process.env.EMAIL_RATE_LIMIT_PER_DAY) || 10);
 
     if (!rateLimit) {
       // Create new rate limit record
@@ -165,6 +186,7 @@ class MessagingProviders {
 
   // Send SMS via Twilio
   async sendSMS(phone, message, scheduledMessageId = null) {
+    if (!phone) return { success: false, reason: 'No phone number' };
     if (!this.settings.twilio || this.settings.twilio.enabled !== 'true') {
       console.log('[SMS - DISABLED] To:', phone, 'Message:', message);
       return { success: false, reason: 'Twilio not enabled' };
@@ -186,31 +208,22 @@ class MessagingProviders {
     const deliveryId = scheduledMessageId ? this.createDelivery(scheduledMessageId, 'sms', phone, 'twilio') : null;
 
     try {
-      // TODO: Real Twilio integration
-      // const twilio = require('twilio');
-      // const client = twilio(this.settings.twilio.account_sid, this.settings.twilio.auth_token);
-      // const result = await client.messages.create({
-      //   body: message,
-      //   from: this.settings.twilio.from_number,
-      //   to: phone
-      // });
+      const client = getTwilioClient(this.settings.twilio.account_sid, this.settings.twilio.auth_token);
+      const result = await client.messages.create({
+        body: message,
+        from: this.settings.twilio.from_number,
+        to: phone
+      }, { timeout: 15000 });
 
-      // Simulate for now
-      console.log('[SMS - WOULD SEND via Twilio]');
-      console.log('  To:', phone);
-      console.log('  From:', this.settings.twilio.from_number);
-      console.log('  Message:', message);
-
-      // Simulate cost (AU SMS ~$0.08 per segment)
-      const segments = Math.ceil(message.length / 160);
+      const segments = result.numSegments ? parseInt(result.numSegments) : Math.ceil(message.length / 160);
       const cost = segments * 0.08;
 
       if (deliveryId) {
-        this.updateDeliveryStatus(deliveryId, 'sent', 'Simulated send', 'SIM' + Date.now(), cost);
+        this.updateDeliveryStatus(deliveryId, 'sent', 'Sent via Twilio', result.sid, cost);
         this.trackCost('sms', cost);
       }
 
-      return { success: true, cost, segments };
+      return { success: true, cost, segments, sid: result.sid };
     } catch (error) {
       console.error('[SMS - ERROR]', error);
 
@@ -245,37 +258,35 @@ class MessagingProviders {
     const deliveryId = scheduledMessageId ? this.createDelivery(scheduledMessageId, 'email', email, 'brevo') : null;
 
     try {
-      // TODO: Real Brevo integration
-      // const SibApiV3Sdk = require('sib-api-v3-sdk');
-      // const defaultClient = SibApiV3Sdk.ApiClient.instance;
-      // const apiKey = defaultClient.authentications['api-key'];
-      // apiKey.apiKey = this.settings.brevo.api_key;
-      //
-      // const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-      // const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-      // sendSmtpEmail.sender = { email: this.settings.brevo.from_email, name: this.settings.brevo.from_name };
-      // sendSmtpEmail.to = [{ email }];
-      // sendSmtpEmail.subject = subject;
-      // sendSmtpEmail.htmlContent = body;
-      //
-      // const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+      const smtpTransport = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        secure: parseInt(process.env.SMTP_PORT) === 465,
+        auth: {
+          user: process.env.SMTP_USER || this.settings.brevo?.from_email,
+          pass: process.env.SMTP_PASS || this.settings.brevo?.api_key
+        }
+      });
 
-      // Simulate for now
-      console.log('[EMAIL - WOULD SEND via Brevo]');
-      console.log('  To:', email);
-      console.log('  From:', this.settings.brevo.from_email);
-      console.log('  Subject:', subject);
-      console.log('  Body:', body.substring(0, 100) + '...');
+      const fromEmail = this.settings.brevo?.from_email || process.env.SMTP_FROM || 'notifications@roarmma.com.au';
+      const fromName = this.settings.brevo?.from_name || 'ROAR MMA';
 
-      // Brevo free tier, simulate $0 cost
+      const info = await smtpTransport.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: email,
+        subject: subject,
+        html: body
+      }, { timeout: 15000 });
+
+      // Brevo free tier: simulate $0 cost (tracked as email sent)
       const cost = 0;
 
       if (deliveryId) {
-        this.updateDeliveryStatus(deliveryId, 'sent', 'Simulated send', 'BRV' + Date.now(), cost);
+        this.updateDeliveryStatus(deliveryId, 'sent', 'Sent via SMTP', info.messageId, cost);
         this.trackCost('email', cost);
       }
 
-      return { success: true, cost };
+      return { success: true, cost, messageId: info.messageId };
     } catch (error) {
       console.error('[EMAIL - ERROR]', error);
 
@@ -325,7 +336,7 @@ class MessagingProviders {
         SUM(total_cost) as total_cost
       FROM message_costs
       WHERE date BETWEEN ? AND ?
-    `).get(dateFrom, dateTo);
+    `).get(dateFrom, dateTo) || { total_sms: 0, total_email: 0, total_cost: 0, total_sms_cost: 0, total_email_cost: 0 };
 
     const deliveries = db.prepare(`
       SELECT

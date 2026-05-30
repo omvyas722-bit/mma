@@ -64,7 +64,21 @@ router.post('/', authenticateToken, requirePermission('staff:write'), (req, res)
       });
     }
 
-    const session = ptSessionsData.createSession(req.body);
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(scheduled_date)) {
+      return res.status(400).json({ error: 'scheduled_date must be in YYYY-MM-DD format' });
+    }
+
+    const parsedDate = new Date(scheduled_date);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ error: 'scheduled_date is not a valid date' });
+    }
+
+    const allowedFields = ['member_id', 'coach_id', 'member_package_id', 'scheduled_date', 'scheduled_time', 'duration_minutes', 'status', 'session_type', 'amount', 'commission_rate', 'notes'];
+    const sessionData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) sessionData[f] = req.body[f]; });
+    const session = ptSessionsData.createSession(sessionData);
     res.status(201).json(session);
   } catch (error) {
     console.error('Error creating PT session:', error);
@@ -81,7 +95,10 @@ router.put('/:id', authenticateToken, requirePermission('staff:write'), (req, re
       return res.status(404).json({ error: 'PT session not found' });
     }
 
-    const updated = ptSessionsData.updateSession(req.params.id, req.body);
+    const allowedFields = ['scheduled_date', 'scheduled_time', 'duration_minutes', 'status', 'session_type', 'amount', 'commission_rate', 'notes', 'cancelled_reason'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    const updated = ptSessionsData.updateSession(req.params.id, updateData);
     res.json(updated);
   } catch (error) {
     console.error('Error updating PT session:', error);
@@ -102,7 +119,7 @@ router.post('/:id/complete', authenticateToken, requirePermission('staff:write')
       return res.status(400).json({ error: 'Session already completed' });
     }
 
-    const completed = ptSessionsData.completeSession(req.params.id);
+    const completed = ptSessionsData.completeSession(req.params.id, req.user.id);
     res.json(completed);
   } catch (error) {
     console.error('Error completing PT session:', error);

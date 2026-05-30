@@ -23,7 +23,7 @@ export function Breadcrumb({
                 </span>
               )}
               {isLast ? (
-                <span className="font-medium text-gray-900 dark:text-white">
+                <span className="font-medium text-gray-900 dark:text-white" aria-current="page">
                   {item.label}
                 </span>
               ) : item.href ? (
@@ -71,14 +71,14 @@ export function BreadcrumbWithIcons({
                   {separator || defaultSeparator}
                 </span>
               )}
-              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5">
                 {item.icon && (
                   <span className={isLast ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}>
                     {item.icon}
                   </span>
                 )}
                 {isLast ? (
-                  <span className="font-medium text-gray-900 dark:text-white">
+                  <span className="font-medium text-gray-900 dark:text-white" aria-current="page">
                     {item.label}
                   </span>
                 ) : item.href ? (
@@ -207,7 +207,7 @@ export function CollapsibleBreadcrumb({
               <span className="text-gray-400 dark:text-gray-600">{separator}</span>
               <li>
                 {isLast ? (
-                  <span className="font-medium text-gray-900 dark:text-white">
+                  <span className="font-medium text-gray-900 dark:text-white" aria-current="page">
                     {item.label}
                   </span>
                 ) : (

@@ -38,6 +38,7 @@ export function Card({
   return (
     <Component
       onClick={onClick}
+      type={Component === 'button' ? 'button' : undefined}
       className={`
         ${baseStyles}
         ${variantStyles[variant]}
@@ -99,62 +100,6 @@ export function CardFooter({
     <div className={`flex items-center gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 ${alignStyles[align]} ${className}`}>
       {children}
     </div>
-  );
-}
-
-// Stats Card Component
-export function StatsCard({
-  title,
-  value,
-  change,
-  icon,
-  color = 'blue',
-  trend = 'up',
-  className = '',
-}) {
-  const colorStyles = {
-    blue: 'text-blue-600 bg-blue-100 dark:bg-blue-900',
-    green: 'text-green-600 bg-green-100 dark:bg-green-900',
-    red: 'text-red-600 bg-red-100 dark:bg-red-900',
-    yellow: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900',
-    purple: 'text-purple-600 bg-purple-100 dark:bg-purple-900',
-    gray: 'text-gray-600 bg-gray-100 dark:bg-gray-700',
-  };
-
-  const trendColor = trend === 'up' ? 'text-green-600' : 'text-red-600';
-  const trendIcon = trend === 'up' ? '↑' : '↓';
-
-  return (
-    <Card className={className}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-            {title}
-          </p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {value}
-          </p>
-          {change !== undefined && (
-            <p className={`text-sm mt-2 ${trendColor}`}>
-              <span>{trendIcon}</span>
-              <span className="ml-1">{Math.abs(change)}%</span>
-              <span className="text-gray-500 dark:text-gray-400 ml-1">
-                vs last period
-              </span>
-            </p>
-          )}
-        </div>
-        {icon && (
-          <div className={`p-3 rounded-lg ${colorStyles[color]}`}>
-            {typeof icon === 'string' ? (
-              <span className="text-2xl">{icon}</span>
-            ) : (
-              icon
-            )}
-          </div>
-        )}
-      </div>
-    </Card>
   );
 }
 
@@ -503,7 +448,6 @@ export default {
   CardHeader,
   CardBody,
   CardFooter,
-  StatsCard,
   MemberCard,
   ClassCard,
   PaymentCard,
@@ -519,7 +463,6 @@ import {
   CardHeader,
   CardBody,
   CardFooter,
-  StatsCard,
   MemberCard,
   ClassCard,
   EmptyStateCard,

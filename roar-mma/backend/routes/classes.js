@@ -2,6 +2,8 @@
 const express = require('express');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const classesData = require('../data/classes');
+const { getDatabase } = require('../db/connection');
+const bookingsData = require('../data/bookings');
 
 const router = express.Router();
 
@@ -97,7 +99,10 @@ router.post('/', authenticateToken, requirePermission('classes:create'), (req, r
       return res.status(400).json({ error: 'day_of_week must be between 0 (Sunday) and 6 (Saturday)' });
     }
 
-    const classInfo = classesData.createClass(req.body);
+    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active'];
+    const classData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) classData[f] = req.body[f]; });
+    const classInfo = classesData.createClass(classData);
 
     res.status(201).json(classInfo);
   } catch (error) {
@@ -115,7 +120,11 @@ router.put('/:id', authenticateToken, requirePermission('classes:update'), (req,
       return res.status(404).json({ error: 'Class not found' });
     }
 
-    const updatedClass = classesData.updateClass(req.params.id, req.body);
+    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+
+    const updatedClass = classesData.updateClass(req.params.id, updateData);
 
     res.json(updatedClass);
   } catch (error) {
@@ -193,7 +202,7 @@ router.post('/instances/:id/cancel', authenticateToken, requirePermission('class
 // Get class attendees
 router.get('/:id/attendees', authenticateToken, requirePermission('classes:read'), (req, res) => {
   try {
-    const db = require('../db/connection').getDatabase();
+    const db = getDatabase();
 
     const attendees = db.prepare(`
       SELECT
@@ -226,24 +235,21 @@ router.post('/:id/check-in', authenticateToken, requirePermission('attendance:up
       return res.status(400).json({ error: 'member_ids array required' });
     }
 
-    const db = require('../db/connection').getDatabase();
-    const bookingsData = require('../data/bookings');
+    const db = getDatabase();
     const results = [];
+    let hasErrors = false;
 
     for (const memberId of member_ids) {
       try {
-        // Check if booking exists
         const existingBooking = db.prepare(`
           SELECT id FROM bookings
           WHERE member_id = ? AND class_instance_id = ? AND status = 'booked'
         `).get(memberId, req.params.id);
 
         if (existingBooking) {
-          // Mark as attended
           bookingsData.markAttendance(existingBooking.id, true);
           results.push({ member_id: memberId, status: 'checked_in' });
         } else {
-          // Create booking and mark as attended
           const booking = bookingsData.createBooking({
             member_id: memberId,
             class_instance_id: req.params.id
@@ -252,11 +258,13 @@ router.post('/:id/check-in', authenticateToken, requirePermission('attendance:up
           results.push({ member_id: memberId, status: 'checked_in' });
         }
       } catch (error) {
+        hasErrors = true;
         results.push({ member_id: memberId, status: 'error', error: error.message });
       }
     }
 
-    res.json({ results });
+    const statusCode = hasErrors ? 207 : 200;
+    res.status(statusCode).json({ results });
   } catch (error) {
     console.error('Error checking in members:', error);
     res.status(500).json({ error: 'Failed to check in members' });

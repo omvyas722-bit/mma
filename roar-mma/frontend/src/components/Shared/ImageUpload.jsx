@@ -1,5 +1,5 @@
 // Image Upload Component with Preview and Cropping
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function ImageUpload({
   onUpload,
@@ -14,6 +14,15 @@ export default function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const readerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (readerRef.current && readerRef.current.readyState === 1) {
+        readerRef.current.abort();
+      }
+    };
+  }, []);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -30,12 +39,13 @@ export default function ImageUpload({
     // Validate file size
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > maxSize) {
-      setError(`File size must be less than ${maxSize}MB`);
+      setError(`File size must be less than ${maxSize}MB. Current: ${fileSizeMB.toFixed(2)}MB`);
       return;
     }
 
     // Create preview
     const reader = new FileReader();
+    readerRef.current = reader;
     reader.onloadend = () => {
       setPreview(reader.result);
     };
@@ -47,7 +57,7 @@ export default function ImageUpload({
       await onUpload(file);
     } catch (err) {
       setError('Failed to upload image. Please try again.');
-      console.error('Upload error:', err);
+      if (import.meta.env.DEV) console.error('Upload error:', err);
     } finally {
       setUploading(false);
     }
@@ -58,7 +68,7 @@ export default function ImageUpload({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    onUpload(null);
+    onUpload?.(null);
   };
 
   const handleClick = () => {
@@ -167,7 +177,11 @@ export function AvatarUpload({ currentAvatar, onUpload, name = '' }) {
     reader.readAsDataURL(file);
 
     // Upload
-    await onUpload(file);
+    try {
+      await onUpload(file);
+    } catch (err) {
+      console.error('Upload error:', err);
+    }
   };
 
   const getInitials = () => {
@@ -233,7 +247,7 @@ export function AvatarUpload({ currentAvatar, onUpload, name = '' }) {
 }
 
 // Multiple Image Upload Component
-export function MultiImageUpload({ onUpload, maxImages = 5, currentImages = [] }) {
+export function MultiImageUpload({ onUpload, onError, maxImages = 5, currentImages = [] }) {
   const [images, setImages] = useState(currentImages);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -242,9 +256,9 @@ export function MultiImageUpload({ onUpload, maxImages = 5, currentImages = [] }
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    if (images.length + files.length > maxImages) {
-      alert(`You can only upload up to ${maxImages} images`);
-      return;
+      if (images.length + files.length > maxImages) {
+        onError?.(`You can only upload up to ${maxImages} images`);
+        return;
     }
 
     setUploading(true);
@@ -253,8 +267,9 @@ export function MultiImageUpload({ onUpload, maxImages = 5, currentImages = [] }
       const newImages = [];
       for (const file of files) {
         const reader = new FileReader();
-        const imageUrl = await new Promise((resolve) => {
+        const imageUrl = await new Promise((resolve, reject) => {
           reader.onloadend = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Failed to read file'));
           reader.readAsDataURL(file);
         });
         newImages.push({ file, preview: imageUrl });
@@ -264,8 +279,8 @@ export function MultiImageUpload({ onUpload, maxImages = 5, currentImages = [] }
       setImages(updatedImages);
       await onUpload(updatedImages.map(img => img.file));
     } catch (error) {
-      console.error('Upload error:', error);
-      alert('Failed to upload images');
+      if (import.meta.env.DEV) console.error('Upload error:', error);
+      onError?.('Failed to upload images');
     } finally {
       setUploading(false);
     }
@@ -283,7 +298,7 @@ export function MultiImageUpload({ onUpload, maxImages = 5, currentImages = [] }
       {images.length > 0 && (
         <div className="grid grid-cols-3 gap-4">
           {images.map((image, index) => (
-            <div key={index} className="relative group">
+            <div key={image.file?.name || image.preview || index} className="relative group">
               <img
                 src={image.preview}
                 alt={`Upload ${index + 1}`}

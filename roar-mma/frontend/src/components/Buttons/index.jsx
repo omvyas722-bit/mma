@@ -209,15 +209,35 @@ export function CloseButton({ onClick, size = 'md', className = '' }) {
 // Copy Button Component
 export function CopyButton({ text, size = 'md', onCopy, className = '' }) {
   const [copied, setCopied] = React.useState(false);
+  const timeoutRef = React.useRef(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       setCopied(true);
       onCopy?.();
-      setTimeout(() => setCopied(false), 2000);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to copy:', error);
+      }
     }
   };
 

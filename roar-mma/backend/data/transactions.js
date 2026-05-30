@@ -6,7 +6,7 @@ function getAllTransactions(filters = {}) {
 
   let query = `
     SELECT
-      t.*,
+      t.id, t.member_id, t.amount, t.currency, t.type, t.status, t.payment_method, t.lightspeed_transaction_id, t.description, t.processed_at, t.failure_reason, t.created_at, t.updated_at,
       m.first_name || ' ' || m.last_name as member_name,
       m.email as member_email
     FROM transactions t
@@ -76,7 +76,7 @@ function getTransactionById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      t.*,
+      t.id, t.member_id, t.amount, t.currency, t.type, t.status, t.payment_method, t.lightspeed_transaction_id, t.description, t.processed_at, t.failure_reason, t.created_at, t.updated_at,
       m.first_name || ' ' || m.last_name as member_name,
       m.email as member_email,
       m.phone as member_phone
@@ -154,13 +154,13 @@ function getRevenueStats(filters = {}) {
     today: db.prepare(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE DATE(created_at) = ? AND status = 'succeeded'
+      WHERE DATE(created_at) = ? AND status = 'completed'
     `).get(today).total,
 
     this_month: db.prepare(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE DATE(created_at) >= ? AND status = 'succeeded'
+      WHERE DATE(created_at) >= ? AND status = 'completed'
     `).get(monthStartStr).total,
 
     failed_this_month: db.prepare(`
@@ -172,7 +172,7 @@ function getRevenueStats(filters = {}) {
     by_type: db.prepare(`
       SELECT type, COUNT(*) as count, COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE DATE(created_at) >= ? AND status = 'succeeded'
+      WHERE DATE(created_at) >= ? AND status = 'completed'
       GROUP BY type
     `).all(monthStartStr)
   };
@@ -182,7 +182,7 @@ function getRevenueStats(filters = {}) {
     SELECT COALESCE(SUM(amount), 0) as total
     FROM transactions
     WHERE type = 'membership'
-      AND status = 'succeeded'
+      AND status = 'completed'
       AND DATE(created_at) >= ?
   `).get(monthStartStr).total;
 
@@ -196,7 +196,7 @@ function getFailedPayments() {
 
   return db.prepare(`
     SELECT
-      t.*,
+      t.id, t.member_id, t.amount, t.currency, t.type, t.status, t.payment_method, t.lightspeed_transaction_id, t.description, t.processed_at, t.failure_reason, t.created_at, t.updated_at,
       m.first_name || ' ' || m.last_name as member_name,
       m.email as member_email,
       m.phone as member_phone

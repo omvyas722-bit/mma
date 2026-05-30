@@ -4,7 +4,7 @@ const { getDatabase } = require('../db/connection');
 function getAllMembers(filters = {}) {
   const db = getDatabase();
 
-  let query = 'SELECT * FROM members WHERE 1=1';
+  let query = 'SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, experience_level, lightspeed_customer_id, notes, created_at, updated_at FROM members WHERE 1=1';
   const params = [];
 
   // Apply filters
@@ -60,12 +60,12 @@ function getAllMembers(filters = {}) {
 
 function getMemberById(id) {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM members WHERE id = ?').get(id);
+  return db.prepare('SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, medical_conditions, injuries, goals, experience_level, lightspeed_customer_id, notes, created_at, updated_at FROM members WHERE id = ?').get(id);
 }
 
 function getMemberByEmail(email) {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM members WHERE email = ?').get(email);
+  return db.prepare('SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, medical_conditions, injuries, goals, experience_level, lightspeed_customer_id, notes, created_at, updated_at FROM members WHERE email = ?').get(email);
 }
 
 function createMember(memberData) {
@@ -132,7 +132,7 @@ function updateMember(id, updates) {
   }
 
   // Add updated_at
-  fields.push('updated_at = datetime("now")');
+  fields.push("updated_at = datetime('now')");
   values.push(id);
 
   const query = `UPDATE members SET ${fields.join(', ')} WHERE id = ?`;
@@ -143,7 +143,9 @@ function updateMember(id, updates) {
 
 function deleteMember(id) {
   const db = getDatabase();
-  const result = db.prepare('DELETE FROM members WHERE id = ?').run(id);
+  const result = db.prepare(`
+    UPDATE members SET status = 'cancelled', cancellation_date = date('now'), notes = COALESCE(NULLIF(notes, ''), '') || ' [Archived ' || date('now') || ']', updated_at = datetime('now') WHERE id = ?
+  `).run(id);
   return result.changes > 0;
 }
 
@@ -191,7 +193,7 @@ function getMemberTransactions(memberId, limit = 20) {
   const db = getDatabase();
 
   const transactions = db.prepare(`
-    SELECT *
+    SELECT id, member_id, amount, currency, type, status, payment_method, lightspeed_transaction_id, description, processed_at, failure_reason, created_at, updated_at
     FROM transactions
     WHERE member_id = ?
     ORDER BY created_at DESC

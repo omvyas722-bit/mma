@@ -14,8 +14,11 @@ export default function Spinner({ size = 'md', color = 'blue' }) {
     gray: 'border-gray-600',
   };
 
+  const sizeClass = sizes[size] || sizes.md;
+  const colorClass = colors[color] || colors.blue;
+
   return (
-    <div className={`animate-spin rounded-full border-b-2 ${sizes[size]} ${colors[color]}`}></div>
+    <div className={`animate-spin rounded-full border-b-2 ${sizeClass} ${colorClass}`}></div>
   );
 }
 

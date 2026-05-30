@@ -29,7 +29,7 @@ function getStaffById(id) {
 
 function getStaffByEmail(email) {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM staff WHERE email = ?').get(email);
+  return db.prepare('SELECT id, name, email, role, phone, active, created_at FROM staff WHERE email = ?').get(email);
 }
 
 function createStaff(staffData) {
@@ -39,6 +39,10 @@ function createStaff(staffData) {
     INSERT INTO staff (name, email, password_hash, role, phone, active)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
+
+  if (!/^\$2[aby]\$/.test(staffData.password_hash)) {
+    throw new Error('Password must be hashed with bcrypt');
+  }
 
   const result = stmt.run(
     staffData.name,
@@ -71,7 +75,7 @@ function updateStaff(id, updates) {
     throw new Error('No valid fields to update');
   }
 
-  fields.push('updated_at = datetime("now")');
+  fields.push("updated_at = datetime('now')");
   values.push(id);
 
   const query = `UPDATE staff SET ${fields.join(', ')} WHERE id = ?`;
@@ -83,7 +87,7 @@ function updateStaff(id, updates) {
 function updateStaffPassword(id, passwordHash) {
   const db = getDatabase();
 
-  db.prepare('UPDATE staff SET password_hash = ?, updated_at = datetime("now") WHERE id = ?')
+  db.prepare("UPDATE staff SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
     .run(passwordHash, id);
 
   return getStaffById(id);
@@ -93,9 +97,9 @@ function deleteStaff(id) {
   const db = getDatabase();
 
   // Soft delete by setting active = 0
-  db.prepare('UPDATE staff SET active = 0, updated_at = datetime("now") WHERE id = ?').run(id);
+  const result = db.prepare("UPDATE staff SET active = 0, updated_at = datetime('now') WHERE id = ? AND active = 1").run(id);
 
-  return true;
+  return result.changes > 0;
 }
 
 function getStaffStats() {

@@ -72,7 +72,13 @@ function sendWinbackMessage(campaign, messageType) {
   }
 
   // Parse special offer
-  const offer = JSON.parse(campaign.special_offer);
+  let offer = {};
+  try {
+    offer = JSON.parse(campaign.special_offer);
+  } catch {
+    offer = {};
+    console.warn(`[WINBACK] Invalid JSON in special_offer for campaign ${campaign.id}, using empty offer`);
+  }
 
   // Personalize message
   let content = template.content
@@ -87,10 +93,12 @@ function sendWinbackMessage(campaign, messageType) {
     scheduledMessagesData.createScheduledMessage({
       member_id: campaign.member_id,
       template_id: template.id,
-      channel: template.channel,
-      recipient: template.channel === 'sms' ? campaign.phone : campaign.email,
-      content: content,
+      message_type: template.channel,
       scheduled_for: sendDate.toISOString(),
+      recipient_phone: template.channel === 'sms' ? campaign.phone : null,
+      recipient_email: template.channel === 'email' ? campaign.email : null,
+      body: content,
+      status: 'pending',
       metadata: JSON.stringify({
         campaign_id: campaign.id,
         campaign_type: campaign.campaign_type,

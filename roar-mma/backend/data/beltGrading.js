@@ -34,14 +34,17 @@ function getMemberBeltProgress(memberId) {
   `).get(memberId);
 
   if (!current) {
-    // No belt assigned yet - assign white belt
-    return assignBelt(memberId, 1, 0, new Date().toISOString().split('T')[0]);
+    const whiteBelt = db.prepare('SELECT id FROM belt_levels WHERE rank_order = 1').get();
+    if (!whiteBelt) {
+      return null;
+    }
+    return assignBelt({ memberId, beltLevelId: whiteBelt.id, stripes: 0, awardedDate: new Date().toISOString().split('T')[0] });
   }
 
   return current;
 }
 
-function assignBelt(memberId, beltLevelId, stripes = 0, awardedDate = null, gradedBy = null, gradingSessionId = null) {
+function assignBelt({ memberId, beltLevelId, stripes = 0, awardedDate = null, gradedBy = null, gradingSessionId = null } = {}) {
   const db = getDatabase();
 
   if (!awardedDate) {
@@ -106,7 +109,7 @@ function awardStripe(memberId, staffId) {
   if (!progress) throw new Error('Member has no belt progress');
 
   const belt = getBeltLevel(progress.current_belt_id);
-  if (progress.current_stripes >= belt.stripe_count) {
+  if (belt.stripe_count !== null && progress.current_stripes >= belt.stripe_count) {
     throw new Error('Maximum stripes reached for this belt');
   }
 
@@ -139,8 +142,9 @@ function checkGradingEligibility(memberId) {
   const belt = getBeltLevel(progress.current_belt_id);
   const reasons = [];
 
-  // Check if at black belt (max level)
-  if (belt.rank_order === 5) {
+  // Check if at max belt level
+  const maxRank = db.prepare('SELECT MAX(rank_order) as max_order FROM belt_levels').get().max_order;
+  if (belt.rank_order === maxRank) {
     return { eligible: false, reasons: ['Already at maximum belt level'] };
   }
 
@@ -164,6 +168,9 @@ function checkGradingEligibility(memberId) {
 
   // Check technique proficiency
   const nextBelt = db.prepare('SELECT * FROM belt_levels WHERE rank_order = ?').get(belt.rank_order + 1);
+  if (!nextBelt) {
+    return { eligible: false, reasons: ['Already at maximum belt level'] };
+  }
   const requirements = getRequirementsForBelt(nextBelt.id);
   const requiredTechniques = requirements.filter(r => r.required);
 
@@ -308,14 +315,14 @@ function recordGradingResult(participantId, result, score, feedback, awardedStri
     const participant = db.prepare('SELECT * FROM grading_participants WHERE id = ?').get(participantId);
     const session = db.prepare('SELECT * FROM grading_sessions WHERE id = ?').get(participant.grading_session_id);
 
-    assignBelt(
-      participant.member_id,
-      participant.testing_for_belt_id,
-      awardedStripes,
-      session.session_date,
-      session.grading_coach_id,
-      session.id
-    );
+    assignBelt({
+      memberId: participant.member_id,
+      beltLevelId: participant.testing_for_belt_id,
+      stripes: awardedStripes,
+      awardedDate: session.session_date,
+      gradedBy: session.grading_coach_id,
+      gradingSessionId: session.id
+    });
   }
 
   return db.prepare('SELECT * FROM grading_participants WHERE id = ?').get(participantId);
@@ -361,7 +368,7 @@ function getMemberGradingHistory(memberId) {
     FROM grading_history gh
     LEFT JOIN belt_levels fb ON gh.from_belt_id = fb.id
     JOIN belt_levels tb ON gh.to_belt_id = tb.id
-    JOIN staff s ON gh.graded_by = s.id
+    LEFT JOIN staff s ON gh.graded_by = s.id
     WHERE gh.member_id = ?
     ORDER BY gh.grading_date DESC
   `).all(memberId);

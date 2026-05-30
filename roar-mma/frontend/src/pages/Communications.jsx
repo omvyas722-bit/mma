@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
+import { useNotifications } from '../contexts/NotificationContext';
 import Modal from '../components/Shared/Modal';
 import { PageLoader } from '../components/Shared/Spinner';
 
@@ -157,6 +158,7 @@ function MessageHistoryItem({ message }) {
 
 function ComposeMessageModal({ isOpen, onClose }) {
   const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
   const [formData, setFormData] = useState({
     type: 'email',
     recipients: 'all_active',
@@ -174,16 +176,37 @@ function ComposeMessageModal({ isOpen, onClose }) {
       queryClient.invalidateQueries(['message-history']);
       onClose();
       resetForm();
-      alert('Message sent successfully!');
+      success('Message sent successfully!');
     },
-    onError: (error) => {
-      console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+    onError: (err) => {
+      console.error('Error sending message:', err);
+      error('Failed to send message. Please try again.');
     }
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!formData.subject && (formData.type === 'email' || formData.type === 'both')) {
+      error('Please enter a subject');
+      return;
+    }
+
+    if (!formData.message.trim()) {
+      error('Please enter a message');
+      return;
+    }
+
+    if (formData.type === 'sms' && formData.message.length > 160) {
+      error('SMS message must be 160 characters or less');
+      return;
+    }
+
+    if (formData.schedule_for && new Date(formData.schedule_for) <= new Date()) {
+      error('Schedule time must be in the future');
+      return;
+    }
+
     sendMessage.mutate(formData);
   };
 
@@ -348,29 +371,15 @@ function ComposeMessageModal({ isOpen, onClose }) {
 }
 
 function MessageTemplates() {
-  const [templates] = useState([
-    {
-      id: 1,
-      name: 'Welcome Email',
-      subject: 'Welcome to ROAR MMA!',
-      content: 'Hi {first_name},\n\nWelcome to ROAR MMA! We\'re excited to have you join our community...',
-      type: 'email',
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: ['message-templates'],
+    queryFn: async () => {
+      const response = await api.get('/api/communications/templates');
+      return response.data?.templates || [];
     },
-    {
-      id: 2,
-      name: 'Class Reminder',
-      subject: 'Your class starts soon',
-      content: 'Hi {first_name},\n\nReminder: Your {class_name} class starts at {class_time} today.',
-      type: 'both',
-    },
-    {
-      id: 3,
-      name: 'Payment Reminder',
-      subject: 'Payment Due',
-      content: 'Hi {first_name},\n\nYour membership payment of {amount} is due on {due_date}.',
-      type: 'email',
-    },
-  ]);
+  });
+
+  if (isLoading) return <PageLoader />;
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -381,6 +390,11 @@ function MessageTemplates() {
         </div>
       </div>
 
+      {templates.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No templates found</p>
+        </div>
+      ) : (
       <div className="divide-y divide-gray-200">
         {templates.map((template) => (
           <div key={template.id} className="p-6 hover:bg-gray-50">
@@ -394,10 +408,10 @@ function MessageTemplates() {
                 <p className="text-sm text-gray-500 line-clamp-2">{template.content}</p>
               </div>
               <div className="flex gap-2">
-                <button className="text-blue-600 hover:text-blue-900 text-sm">
+                <button type="button" className="text-blue-600 hover:text-blue-900 text-sm">
                   Use Template
                 </button>
-                <button className="text-gray-600 hover:text-gray-900 text-sm">
+                <button type="button" className="text-gray-600 hover:text-gray-900 text-sm">
                   Edit
                 </button>
               </div>
@@ -405,12 +419,21 @@ function MessageTemplates() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
 
 function ScheduledMessages() {
-  const [scheduled] = useState([]);
+  const { data: scheduled = [], isLoading } = useQuery({
+    queryKey: ['scheduled-messages'],
+    queryFn: async () => {
+      const response = await api.get('/api/communications/scheduled');
+      return response.data?.scheduled || [];
+    },
+  });
+
+  if (isLoading) return <PageLoader />;
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -455,8 +478,8 @@ function MessageTypeBadge({ type }) {
   };
 
   return (
-    <span className={`badge ${badges[type]} text-xs`}>
-      {labels[type]}
+    <span className={`badge ${badges[type] || 'badge-gray'} text-xs`}>
+      {labels[type] || type}
     </span>
   );
 }

@@ -1,19 +1,22 @@
 // Reports data access layer
 const { getDatabase } = require('../db/connection');
 
+const DEFAULT_DATE_FROM = '2000-01-01';
+const DEFAULT_DATE_TO = '2099-12-31';
+
 function getMembershipReport(filters = {}) {
   const db = getDatabase();
 
-  const dateFrom = filters.date_from || '2000-01-01';
-  const dateTo = filters.date_to || '2099-12-31';
+  const dateFrom = filters.date_from || DEFAULT_DATE_FROM;
+  const dateTo = filters.date_to || DEFAULT_DATE_TO;
 
   return {
     summary: {
-      total_members: db.prepare('SELECT COUNT(*) as count FROM members').get().count,
-      active: db.prepare("SELECT COUNT(*) as count FROM members WHERE status = 'active'").get().count,
-      trial: db.prepare("SELECT COUNT(*) as count FROM members WHERE status = 'trial'").get().count,
-      paused: db.prepare("SELECT COUNT(*) as count FROM members WHERE status = 'paused'").get().count,
-      cancelled: db.prepare("SELECT COUNT(*) as count FROM members WHERE status = 'cancelled'").get().count,
+      total_members: db.prepare("SELECT status, COUNT(*) as count FROM members GROUP BY status").all().reduce((acc, row) => {
+        acc.total_members += row.count;
+        acc[row.status] = row.count;
+        return acc;
+      }, { total_members: 0, active: 0, trial: 0, paused: 0, cancelled: 0 }),
     },
     by_location: db.prepare(`
       SELECT location, status, COUNT(*) as count
@@ -39,7 +42,8 @@ function getMembershipReport(filters = {}) {
       SELECT COUNT(*) as count
       FROM members
       WHERE status = 'active'
-        AND DATE(joined_date) < DATE(updated_at)
+        AND trial_end_date IS NOT NULL
+        AND joined_date IS NOT NULL
         AND DATE(updated_at) BETWEEN ? AND ?
     `).get(dateFrom, dateTo).count
   };
@@ -48,21 +52,21 @@ function getMembershipReport(filters = {}) {
 function getRevenueReport(filters = {}) {
   const db = getDatabase();
 
-  const dateFrom = filters.date_from || '2000-01-01';
-  const dateTo = filters.date_to || '2099-12-31';
+  const dateFrom = filters.date_from || DEFAULT_DATE_FROM;
+  const dateTo = filters.date_to || DEFAULT_DATE_TO;
 
   return {
     summary: {
       total_revenue: db.prepare(`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM transactions
-        WHERE status = 'succeeded'
+        WHERE status = 'completed'
           AND DATE(created_at) BETWEEN ? AND ?
       `).get(dateFrom, dateTo).total,
       total_transactions: db.prepare(`
         SELECT COUNT(*) as count
         FROM transactions
-        WHERE status = 'succeeded'
+        WHERE status = 'completed'
           AND DATE(created_at) BETWEEN ? AND ?
       `).get(dateFrom, dateTo).count,
       failed_payments: db.prepare(`
@@ -74,14 +78,14 @@ function getRevenueReport(filters = {}) {
       avg_transaction: db.prepare(`
         SELECT COALESCE(AVG(amount), 0) as avg
         FROM transactions
-        WHERE status = 'succeeded'
+        WHERE status = 'completed'
           AND DATE(created_at) BETWEEN ? AND ?
       `).get(dateFrom, dateTo).avg
     },
     by_type: db.prepare(`
       SELECT type, COUNT(*) as count, COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE status = 'succeeded'
+      WHERE status = 'completed'
         AND DATE(created_at) BETWEEN ? AND ?
       GROUP BY type
       ORDER BY total DESC
@@ -89,7 +93,7 @@ function getRevenueReport(filters = {}) {
     by_date: db.prepare(`
       SELECT DATE(created_at) as date, COALESCE(SUM(amount), 0) as total
       FROM transactions
-      WHERE status = 'succeeded'
+      WHERE status = 'completed'
         AND DATE(created_at) BETWEEN ? AND ?
       GROUP BY DATE(created_at)
       ORDER BY date
@@ -102,7 +106,7 @@ function getRevenueReport(filters = {}) {
         COALESCE(SUM(t.amount), 0) as total_spent
       FROM members m
       JOIN transactions t ON m.id = t.member_id
-      WHERE t.status = 'succeeded'
+      WHERE t.status = 'completed'
         AND DATE(t.created_at) BETWEEN ? AND ?
       GROUP BY m.id
       ORDER BY total_spent DESC
@@ -114,8 +118,8 @@ function getRevenueReport(filters = {}) {
 function getAttendanceReport(filters = {}) {
   const db = getDatabase();
 
-  const dateFrom = filters.date_from || '2000-01-01';
-  const dateTo = filters.date_to || '2099-12-31';
+  const dateFrom = filters.date_from || DEFAULT_DATE_FROM;
+  const dateTo = filters.date_to || DEFAULT_DATE_TO;
 
   return {
     summary: {
@@ -191,30 +195,34 @@ function getAttendanceReport(filters = {}) {
 function getLeadsReport(filters = {}) {
   const db = getDatabase();
 
-  const dateFrom = filters.date_from || '2000-01-01';
-  const dateTo = filters.date_to || '2099-12-31';
+  const dateFrom = filters.date_from || DEFAULT_DATE_FROM;
+  const dateTo = filters.date_to || DEFAULT_DATE_TO;
 
   return {
-    summary: {
-      total_leads: db.prepare(`
+    summary: (() => {
+      const total_leads = db.prepare(`
         SELECT COUNT(*) as count
         FROM leads
         WHERE DATE(created_at) BETWEEN ? AND ?
-      `).get(dateFrom, dateTo).count,
-      converted: db.prepare(`
+      `).get(dateFrom, dateTo).count;
+      const converted = db.prepare(`
         SELECT COUNT(*) as count
         FROM leads
         WHERE stage = 'converted'
           AND DATE(updated_at) BETWEEN ? AND ?
-      `).get(dateFrom, dateTo).count,
-      lost: db.prepare(`
-        SELECT COUNT(*) as count
-        FROM leads
-        WHERE stage = 'lost'
-          AND DATE(updated_at) BETWEEN ? AND ?
-      `).get(dateFrom, dateTo).count,
-      conversion_rate: 0 // Calculated below
-    },
+      `).get(dateFrom, dateTo).count;
+      return {
+        total_leads,
+        converted,
+        lost: db.prepare(`
+          SELECT COUNT(*) as count
+          FROM leads
+          WHERE stage = 'lost'
+            AND DATE(updated_at) BETWEEN ? AND ?
+        `).get(dateFrom, dateTo).count,
+        conversion_rate: total_leads > 0 ? Math.round((converted / total_leads) * 100) : 0
+      };
+    })(),
     by_source: db.prepare(`
       SELECT source, COUNT(*) as count
       FROM leads

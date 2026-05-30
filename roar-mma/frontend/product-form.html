@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Add/Edit Product</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -71,30 +77,30 @@
     <div class="sidebar">
         <div class="logo">⚡ ROAR MMA</div>
         <div class="nav-menu">
-            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
-            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
-            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
-            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
-            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
-            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
-            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
-            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
-            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
-            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
-            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
-            <div class="nav-item active" onclick="window.location.href='stock.html'">📦 Stock</div>
+            <div class="nav-item" >📊 Dashboard</div>
+            <div class="nav-item" >🤖 AI Command</div>
+            <div class="nav-item" >⚙️ Workflows</div>
+            <div class="nav-item" >📅 Classes</div>
+            <div class="nav-item" >🥋 Belt Progression</div>
+            <div class="nav-item" >✅ Check-In</div>
+            <div class="nav-item" >⚠️ Retention</div>
+            <div class="nav-item" >💳 Billing</div>
+            <div class="nav-item" >👥 Members</div>
+            <div class="nav-item" >📞 Leads</div>
+            <div class="nav-item" >🏋️ PT Sessions</div>
+            <div class="nav-item active" >📦 Stock</div>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" role="main" aria-label="Main content">
         <div class="header">
             <div class="header-left">
-                <button class="back-btn" onclick="window.location.href='stock.html'">← Back</button>
+                <button class="back-btn" >← Back</button>
                 <div class="header-title" id="page-title">Add New Product</div>
             </div>
         </div>
 
-        <form class="form-container" id="product-form" onsubmit="handleSubmit(event)">
+        <form class="form-container" id="product-form" >
             <div class="form-section">
                 <div class="section-title">Product Information</div>
                 <div class="form-grid">
@@ -241,15 +247,15 @@
             </div>
 
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="window.location.href='stock.html'">Cancel</button>
+                <button type="button" class="btn btn-secondary" >Cancel</button>
                 <button type="submit" class="btn btn-primary">Save Product</button>
             </div>
         </form>
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
         let productId = null;
         let isEditMode = false;
 
@@ -262,27 +268,21 @@
                 document.getElementById('page-title').textContent = 'Edit Product';
             }
 
+            if (!RoarMMA.requireAuth()) return;
+            document.getElementById('product-form')?.addEventListener('submit', handleSubmit);
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
-                });
-                const data = await response.json();
-                authToken = data.token;
-
                 if (isEditMode) {
                     await loadProductData();
                 }
             } catch (error) {
-                console.error('Init failed:', error);
+                // Log suppressed
             }
         }
 
         async function loadProductData() {
             try {
                 const response = await fetch(`${API_BASE}/stock/products`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const products = await response.json();
                 const product = products.find(p => p.id == productId);
@@ -303,7 +303,7 @@
                     calculateMargin();
                 }
             } catch (error) {
-                console.error('Failed to load product:', error);
+                // Log suppressed
             }
         }
 
@@ -349,7 +349,7 @@
                 const response = await fetch(url, {
                     method: method,
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
+                        'Authorization': 'Bearer ' + RoarMMA.getToken(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
@@ -363,7 +363,7 @@
                     alert(`Failed to save product: ${error.message || 'Unknown error'}`);
                 }
             } catch (error) {
-                console.error('Failed to save product:', error);
+                // Log suppressed
                 alert('Error saving product. Please try again.');
             }
         }

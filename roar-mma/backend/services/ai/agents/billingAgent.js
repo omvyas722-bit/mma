@@ -11,18 +11,30 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     // 1. Failed transactions in last 24 hours
-    const allFailed = transactionsData.getFailedPayments();
+    const allFailed = (transactionsData.getFailedPayments() || []).slice(0, 500);
     const recentFailed = allFailed.filter(t => t.created_at >= twentyFourHoursAgo);
 
     let failedTotal = 0;
+
+    // Batch query existing failed payment tasks
+    const existingFailedKeys = new Set();
+    const failedMemberIds = [...new Set(recentFailed.filter(t => t && t.member_id).map(t => t.member_id))];
+    if (failedMemberIds.length > 0) {
+      const placeholders = failedMemberIds.map(() => '?').join(',');
+      const existing = dbConn.prepare(`
+        SELECT member_id FROM staff_tasks
+        WHERE member_id IN (${placeholders})
+          AND task_type = 'failed_payment'
+          AND status = 'pending'
+        GROUP BY member_id
+      `).all(...failedMemberIds);
+      existing.forEach(r => existingFailedKeys.add(r.member_id));
+    }
+
     for (const tx of recentFailed) {
+      if (!tx || !tx.member_id) continue;
       failedTotal += Math.abs(tx.amount || 0);
-      const existingTasks = staffTasksData.getAllTasks({
-        member_id: tx.member_id,
-        task_type: 'failed_payment',
-        status: 'pending'
-      });
-      if (existingTasks.length === 0) {
+      if (!existingFailedKeys.has(tx.member_id)) {
         staffTasksData.createTask({
           member_id: tx.member_id,
           task_type: 'failed_payment',
@@ -41,20 +53,31 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.joined_date
       FROM members m
       WHERE m.status = 'active'
-        AND m.id NOT IN (
-          SELECT DISTINCT t.member_id FROM transactions t
-          WHERE t.status = 'completed' AND t.created_at >= ?
+        AND NOT EXISTS (
+          SELECT 1 FROM transactions t
+          WHERE t.member_id = m.id AND t.status = 'completed' AND t.created_at >= ?
         )
+      LIMIT 100
     `).all(thirtyDaysAgo);
+
+    // Batch query existing overdue check tasks
+    const existingOverdueKeys = new Set();
+    const overdueMemberIds = possiblyOverdue.map(m => m.id);
+    if (overdueMemberIds.length > 0) {
+      const placeholders = overdueMemberIds.map(() => '?').join(',');
+      const existing = dbConn.prepare(`
+        SELECT member_id FROM staff_tasks
+        WHERE member_id IN (${placeholders})
+          AND task_type = 'payment_overdue_check'
+          AND status = 'pending'
+        GROUP BY member_id
+      `).all(...overdueMemberIds);
+      existing.forEach(r => existingOverdueKeys.add(r.member_id));
+    }
 
     let overdueFlagged = 0;
     for (const member of possiblyOverdue) {
-      const existingTasks = staffTasksData.getAllTasks({
-        member_id: member.id,
-        task_type: 'payment_overdue_check',
-        status: 'pending'
-      });
-      if (existingTasks.length === 0) {
+      if (!existingOverdueKeys.has(member.id)) {
         staffTasksData.createTask({
           member_id: member.id,
           task_type: 'payment_overdue_check',
@@ -87,14 +110,16 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       broadcast({ type: 'billing_agent_update', summary, failedPayments: recentFailed.length, overdueFlagged });
     }
   } catch (err) {
-    console.error('[BILLING-AGENT] Error:', err.message);
+    console.error('[BILLING-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'billing_check_error',
         details: { error: err.message },
         summary: `Billing agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[BILLING-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 

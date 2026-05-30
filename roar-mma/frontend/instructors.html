@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Instructors</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -92,33 +98,33 @@
     <div class="sidebar">
         <div class="logo">⚡ ROAR MMA</div>
         <div class="nav-menu">
-            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
-            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
-            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
-            <div class="nav-item" onclick="window.location.href='locations.html'">📍 Locations</div>
-            <div class="nav-item" onclick="window.location.href='trial-bookings.html'">🎯 Trial Bookings</div>
-            <div class="nav-item" onclick="window.location.href='membership-tiers.html'">💎 Membership Tiers</div>
+            <div class="nav-item" >📊 Dashboard</div>
+            <div class="nav-item" >🤖 AI Command</div>
+            <div class="nav-item" >⚙️ Workflows</div>
+            <div class="nav-item" >📍 Locations</div>
+            <div class="nav-item" >🎯 Trial Bookings</div>
+            <div class="nav-item" >💎 Membership Tiers</div>
             <div class="nav-item active">👨‍🏫 Instructors</div>
-            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
-            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
-            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
-            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
-            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
-            <div class="nav-item" onclick="window.location.href='reports.html'">📈 Reports</div>
-            <div class="nav-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
-            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
-            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
-            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
-            <div class="nav-item" onclick="window.location.href='stock.html'">📦 Stock</div>
+            <div class="nav-item" >📅 Classes</div>
+            <div class="nav-item" >🥋 Belt Progression</div>
+            <div class="nav-item" >✅ Check-In</div>
+            <div class="nav-item" >⚠️ Retention</div>
+            <div class="nav-item" >💳 Billing</div>
+            <div class="nav-item" >📈 Reports</div>
+            <div class="nav-item" >⚙️ Settings</div>
+            <div class="nav-item" >👥 Members</div>
+            <div class="nav-item" >📞 Leads</div>
+            <div class="nav-item" >🏋️ PT Sessions</div>
+            <div class="nav-item" >📦 Stock</div>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" role="main" aria-label="Main content">
         <div class="header">
             <div class="header-title">Instructors</div>
             <div class="header-actions">
                 <button class="btn btn-secondary">View Schedule</button>
-                <button class="btn btn-primary" onclick="openAddModal()">+ Add Instructor</button>
+                <button class="btn btn-primary" >+ Add Instructor</button>
             </div>
         </div>
 
@@ -184,9 +190,9 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title" id="modal-title">Add New Instructor</div>
-                <div class="close-btn" onclick="closeModal()">&times;</div>
+                <div class="close-btn" >&times;</div>
             </div>
-            <form id="instructor-form" onsubmit="handleSubmit(event)">
+            <form id="instructor-form" >
                 <div class="form-grid">
                     <div class="form-field">
                         <label class="form-label required">First Name</label>
@@ -274,7 +280,7 @@
                 </div>
 
                 <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 25px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="button" class="btn btn-secondary" >Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Instructor</button>
                 </div>
             </form>
@@ -282,24 +288,18 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
         let instructors = [];
         let editingInstructorId = null;
 
         async function init() {
+            if (!RoarMMA.requireAuth()) return;
+            document.getElementById('instructor-form')?.addEventListener('submit', handleSubmit);
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
-                });
-                const data = await response.json();
-                authToken = data.token;
-
                 await loadInstructors();
             } catch (error) {
-                console.error('Init failed:', error);
+                // Log suppressed
             }
         }
 
@@ -451,9 +451,9 @@
                         </div>
 
                         <div class="instructor-actions">
-                            <button class="btn btn-secondary btn-small" onclick="viewInstructor(${inst.id})">View Profile</button>
-                            <button class="btn btn-secondary btn-small" onclick="editInstructor(${inst.id})">Edit</button>
-                            <button class="btn btn-secondary btn-small" onclick="deleteInstructor(${inst.id})">Delete</button>
+                            <button class="btn btn-secondary btn-small" >View Profile</button>
+                            <button class="btn btn-secondary btn-small" >Edit</button>
+                            <button class="btn btn-secondary btn-small" >Delete</button>
                         </div>
                     </div>
                 `;

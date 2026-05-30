@@ -1,7 +1,8 @@
 // Authentication context
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import logger from '../lib/logger';
 
 const AuthContext = createContext();
 
@@ -10,33 +11,31 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check for existing token on mount
-    const token = localStorage.getItem('token');
-    if (token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchCurrentUser();
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function fetchCurrentUser() {
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const response = await api.get('/api/auth/me');
       setUser(response.data);
     } catch (error) {
-      console.error('Failed to fetch current user:', error);
+      logger.error('Failed to fetch current user:', error);
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function login(email, password) {
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      fetchCurrentUser();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchCurrentUser]);
+
+  const login = useCallback(async (email, password) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
       const { token, user } = response.data;
@@ -48,82 +47,104 @@ export function AuthProvider({ children }) {
       navigate('/dashboard');
       return { success: true };
     } catch (error) {
-      console.error('Login failed:', error);
+      logger.error('Login failed:', error);
       return {
         success: false,
         error: error.response?.data?.error || 'Login failed'
       };
     }
-  }
+  }, [navigate]);
 
-  function logout() {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);
-    navigate('/login');
-  }
+    if (window.location.pathname !== '/login') {
+      navigate('/login');
+    }
+  }, [navigate]);
 
-  function hasPermission(permission) {
+  const hasPermission = useCallback((permission) => {
     if (!user) return false;
 
     const rolePermissions = {
       owner: ['*'],
       gm: [
-        'members:read', 'members:create', 'members:update',
-        'classes:read', 'classes:create', 'classes:update',
+        'members:read', 'members:create', 'members:update', 'members:delete',
+        'classes:read', 'classes:create', 'classes:update', 'classes:delete',
         'bookings:*',
         'leads:*',
-        'reports:read',
-        'staff:read'
+        'reports:read', 'reports:write',
+        'staff:read', 'staff:create', 'staff:update',
+        'dashboard:read',
+        'ai:manage', 'ai:read',
+        'analytics:read',
+        'transactions:read', 'transactions:create',
+        'attendance:*',
+        'communications:read', 'communications:write',
+        'settings:read', 'settings:write',
+        'stock:read', 'stock:write',
+        'grading:read', 'grading:write',
+        'pt:read', 'pt:write',
+        'retention:read', 'retention:write',
+        'tasks:read', 'tasks:write'
       ],
       front_desk: [
         'members:read', 'members:create',
         'classes:read',
         'bookings:*',
-        'waivers:*'
+        'leads:read', 'leads:create',
+        'attendance:*',
+        'communications:read',
+        'dashboard:read'
       ],
       coach: [
         'classes:read',
         'attendance:*',
-        'members:read'
+        'members:read',
+        'grading:read', 'grading:write',
+        'pt:read', 'pt:write',
+        'tasks:read'
       ],
       sales: [
         'leads:*',
-        'members:read'
+        'members:read',
+        'communications:read', 'communications:write',
+        'dashboard:read'
       ],
       social: [
-        'social:*'
+        'social:*',
+        'communications:read'
       ]
     };
 
     const permissions = rolePermissions[user.role] || [];
 
-    // Owner has all permissions
     if (permissions.includes('*')) {
       return true;
     }
 
-    // Check exact match
     if (permissions.includes(permission)) {
       return true;
     }
 
-    // Check wildcard match
     const [resource] = permission.split(':');
     if (permissions.includes(`${resource}:*`)) {
       return true;
     }
 
     return false;
-  }
+  }, [user]);
 
-  const value = {
-    user,
-    loading,
-    login,
-    logout,
-    hasPermission
-  };
+  const value = useMemo(() => ({ user, loading, login, logout, hasPermission }), [user, loading, login, logout, hasPermission]);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, [logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

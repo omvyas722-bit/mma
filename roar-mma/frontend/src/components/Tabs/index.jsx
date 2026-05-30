@@ -48,8 +48,9 @@ export function Tabs({
 }
 
 // Tab List Component
-export function TabList({ children, className = '' }) {
-  const { variant, orientation } = useContext(TabsContext);
+export function TabList({ children, className = '', ...props }) {
+  const tabsContext = React.useContext(TabsContext);
+  const { variant, orientation } = tabsContext || {};
 
   const variantStyles = {
     default: 'border-b border-gray-200 dark:border-gray-700',
@@ -71,6 +72,7 @@ export function TabList({ children, className = '' }) {
       `}
       role="tablist"
       aria-orientation={orientation}
+      {...props}
     >
       {children}
     </div>

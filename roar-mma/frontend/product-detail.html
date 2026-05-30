@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:*; img-src 'self' data:;">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <script defer src="/public/shared-auth.js"></script>
     <title>ROAR MMA - Product Details</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -81,31 +87,31 @@
     <div class="sidebar">
         <div class="logo">⚡ ROAR MMA</div>
         <div class="nav-menu">
-            <div class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</div>
-            <div class="nav-item" onclick="window.location.href='command-center-v2.html'">🤖 AI Command</div>
-            <div class="nav-item" onclick="window.location.href='workflow-builder.html'">⚙️ Workflows</div>
-            <div class="nav-item" onclick="window.location.href='classes.html'">📅 Classes</div>
-            <div class="nav-item" onclick="window.location.href='belt-progression.html'">🥋 Belt Progression</div>
-            <div class="nav-item" onclick="window.location.href='checkin.html'">✅ Check-In</div>
-            <div class="nav-item" onclick="window.location.href='retention.html'">⚠️ Retention</div>
-            <div class="nav-item" onclick="window.location.href='billing.html'">💳 Billing</div>
-            <div class="nav-item" onclick="window.location.href='members.html'">👥 Members</div>
-            <div class="nav-item" onclick="window.location.href='leads.html'">📞 Leads</div>
-            <div class="nav-item" onclick="window.location.href='pt-sessions.html'">🏋️ PT Sessions</div>
-            <div class="nav-item active" onclick="window.location.href='stock.html'">📦 Stock</div>
+            <div class="nav-item" >📊 Dashboard</div>
+            <div class="nav-item" >🤖 AI Command</div>
+            <div class="nav-item" >⚙️ Workflows</div>
+            <div class="nav-item" >📅 Classes</div>
+            <div class="nav-item" >🥋 Belt Progression</div>
+            <div class="nav-item" >✅ Check-In</div>
+            <div class="nav-item" >⚠️ Retention</div>
+            <div class="nav-item" >💳 Billing</div>
+            <div class="nav-item" >👥 Members</div>
+            <div class="nav-item" >📞 Leads</div>
+            <div class="nav-item" >🏋️ PT Sessions</div>
+            <div class="nav-item active" >📦 Stock</div>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" role="main" aria-label="Main content">
         <div class="header">
             <div class="header-left">
-                <button class="back-btn" onclick="window.location.href='stock.html'">← Back</button>
+                <button class="back-btn" >← Back</button>
                 <div class="header-title" id="page-title">Product Details</div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="adjustStock()">📦 Adjust Stock</button>
-                <button class="btn btn-secondary" onclick="recordSale()">💰 Record Sale</button>
-                <button class="btn btn-primary" onclick="editProduct()">✏️ Edit</button>
+                <button class="btn btn-secondary" >📦 Adjust Stock</button>
+                <button class="btn btn-secondary" >💰 Record Sale</button>
+                <button class="btn btn-primary" >✏️ Edit</button>
             </div>
         </div>
 
@@ -158,8 +164,8 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3001/api';
-        let authToken = null;
+        var API_BASE = RoarMMA.API_BASE;
+        
         let productId = null;
         let productData = null;
 
@@ -167,15 +173,8 @@
             const params = new URLSearchParams(window.location.search);
             productId = params.get('id') || 1;
 
+            if (!RoarMMA.requireAuth()) return;
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@roarmma.com.au', password: 'changeme123' })
-                });
-                const data = await response.json();
-                authToken = data.token;
-
                 await Promise.all([
                     loadProductHeader(),
                     loadProductInfo(),
@@ -185,14 +184,14 @@
                     loadActivityTimeline()
                 ]);
             } catch (error) {
-                console.error('Init failed:', error);
+                // Log suppressed
             }
         }
 
         async function loadProductHeader() {
             try {
                 const response = await fetch(`${API_BASE}/stock/products`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: { 'Authorization': 'Bearer ' + RoarMMA.getToken() }
                 });
                 const products = await response.json();
                 productData = products.find(p => p.id == productId) || products[0];
@@ -214,7 +213,7 @@
                                 <div class="alert-title">${stockText}</div>
                                 <div class="alert-text">Current stock: ${productData.stock_quantity} units. Minimum level: ${productData.min_stock_level} units.</div>
                             </div>
-                            <button class="btn btn-primary" onclick="reorderProduct()">📦 Reorder</button>
+                            <button class="btn btn-primary" >📦 Reorder</button>
                         </div>
                     `;
                 }
@@ -255,7 +254,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load product header:', error);
+                // Log suppressed
             }
         }
 
@@ -292,7 +291,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load product info:', error);
+                // Log suppressed
             }
         }
 
@@ -321,7 +320,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load pricing info:', error);
+                // Log suppressed
             }
         }
 
@@ -346,7 +345,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load supplier info:', error);
+                // Log suppressed
             }
         }
 
@@ -381,7 +380,7 @@
                     </div>
                 `;
             } catch (error) {
-                console.error('Failed to load inventory status:', error);
+                // Log suppressed
             }
         }
 
@@ -408,7 +407,7 @@
 
                 document.getElementById('activity-timeline').innerHTML = html;
             } catch (error) {
-                console.error('Failed to load activity timeline:', error);
+                // Log suppressed
             }
         }
 
@@ -424,7 +423,7 @@
                 const response = await fetch(`${API_BASE}/stock/adjustments`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
+                        'Authorization': 'Bearer ' + RoarMMA.getToken(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -442,7 +441,7 @@
                     alert('Failed to adjust stock');
                 }
             } catch (error) {
-                console.error('Failed to adjust stock:', error);
+                // Log suppressed
                 alert('Error adjusting stock');
             }
         }
@@ -455,7 +454,7 @@
                 const response = await fetch(`${API_BASE}/stock/sales`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
+                        'Authorization': 'Bearer ' + RoarMMA.getToken(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -473,7 +472,7 @@
                     alert('Failed to record sale');
                 }
             } catch (error) {
-                console.error('Failed to record sale:', error);
+                // Log suppressed
                 alert('Error recording sale');
             }
         }

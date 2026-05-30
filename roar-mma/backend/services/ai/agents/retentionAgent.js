@@ -13,70 +13,93 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     // 1. Active members with no attendance in 14+ days
-    const activeMembers = membersData.getAllMembers({ status: 'active' }).members;
+    const activeMembers = (membersData.getAllMembers({ status: 'active' }).members || []).slice(0, 200);
+
+    // Batch query: get members who HAVE attended recently
+    const recentAttendees = dbConn.prepare(`
+      SELECT DISTINCT member_id FROM attendance
+      WHERE check_in_time >= ?
+    `).all(fourteenDaysAgo).map(r => r.member_id);
+    const recentSet = new Set(recentAttendees);
+
+    const atRiskMembers = activeMembers.filter(m => m && m.id && !recentSet.has(m.id));
+
+    // Batch query existing tasks for all at-risk members
+    const existingTaskKeys = new Set();
+    if (atRiskMembers.length > 0) {
+      const memberIds = atRiskMembers.map(m => m.id);
+      const placeholders = memberIds.map(() => '?').join(',');
+      const existing = dbConn.prepare(`
+        SELECT member_id FROM staff_tasks
+        WHERE member_id IN (${placeholders})
+          AND task_type = 'retention_check_in'
+          AND status = 'pending'
+        GROUP BY member_id
+      `).all(...memberIds);
+      existing.forEach(r => existingTaskKeys.add(r.member_id));
+    }
 
     let atRiskCount = 0;
-    for (const member of activeMembers) {
-      const recentBooking = dbConn.prepare(`
-        SELECT b.id FROM bookings b
-        JOIN class_instances ci ON b.class_instance_id = ci.id
-        WHERE b.member_id = ? AND b.status = 'attended' AND ci.date >= ?
-        LIMIT 1
-      `).get(member.id, fourteenDaysAgo);
-
-      if (!recentBooking) {
+    for (const member of atRiskMembers) {
+      try {
         retentionData.logRetentionEvent(member.id, 'at_risk_inactive', null, JSON.stringify({
           detected_by: 'retention_agent',
           days_since_last_attendance: 14
         }));
 
-        const existingTasks = staffTasksData.getAllTasks({
-          member_id: member.id,
-          task_type: 'retention_check_in',
-          status: 'pending'
-        });
-        if (existingTasks.length === 0) {
+        if (!existingTaskKeys.has(member.id)) {
           staffTasksData.createTask({
             member_id: member.id,
             task_type: 'retention_check_in',
             priority: 'medium',
-            title: `At-risk member: ${member.first_name} ${member.last_name}`,
+            title: `At-risk member: ${member.first_name || ''} ${member.last_name || ''}`.trim(),
             description: `No attendance in 14+ days. Reach out to re-engage.`,
             due_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
             status: 'pending'
           });
+          atRiskCount++;
         }
-        atRiskCount++;
+      } catch (loopErr) {
+        console.error(`[RETENTION-AGENT] Error processing member #${member.id}:`, loopErr.message);
       }
     }
 
     // 2. Cancelled members not contacted for win-back in 30+ days
-    const cancelledMembers = membersData.getAllMembers({ status: 'cancelled' }).members;
-    let winbackCandidates = 0;
+    const cancelledMembers = (membersData.getAllMembers({ status: 'cancelled' }).members || []).slice(0, 100);
+    const winbackCandidates = cancelledMembers.filter(m => m && m.id && m.cancellation_date && (new Date(m.cancellation_date).getTime() + 30 * 24 * 60 * 60 * 1000) <= Date.now());
 
-    for (const member of cancelledMembers) {
-      if (!member.cancellation_date) continue;
-      const cancelDate = new Date(member.cancellation_date);
-      const thirtyDaysAfterCancel = new Date(cancelDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    // Batch query existing win-back tasks
+    const existingWinbackKeys = new Set();
+    if (winbackCandidates.length > 0) {
+      const memberIds = winbackCandidates.map(m => m.id);
+      const placeholders = memberIds.map(() => '?').join(',');
+      const existing = dbConn.prepare(`
+        SELECT member_id FROM staff_tasks
+        WHERE member_id IN (${placeholders})
+          AND task_type = 'win_back'
+          AND status = 'pending'
+        GROUP BY member_id
+      `).all(...memberIds);
+      existing.forEach(r => existingWinbackKeys.add(r.member_id));
+    }
 
-      if (thirtyDaysAfterCancel <= new Date()) {
-        const existingTasks = staffTasksData.getAllTasks({
-          member_id: member.id,
-          task_type: 'win_back',
-          status: 'pending'
-        });
-        if (existingTasks.length === 0) {
+    let winbackCreated = 0;
+    for (const member of winbackCandidates) {
+      try {
+        if (!existingWinbackKeys.has(member.id)) {
           staffTasksData.createTask({
             member_id: member.id,
             task_type: 'win_back',
             priority: 'medium',
-            title: `Win-back candidate: ${member.first_name} ${member.last_name}`,
+            title: `Win-back candidate: ${member.first_name || ''} ${member.last_name || ''}`.trim(),
             description: `Member cancelled on ${member.cancellation_date}. 30+ days passed, ready for win-back outreach.`,
             due_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
             status: 'pending'
           });
-          winbackCandidates++;
+          winbackCreated++;
         }
+      } catch (loopErr) {
+        console.error(`[RETENTION-AGENT] Error processing cancelled member #${member.id}:`, loopErr.message);
       }
     }
 
@@ -93,13 +116,13 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
       `).run(campaign.id);
     }
 
-    const summary = `${atRiskCount} at-risk members detected. ${winbackCandidates} win-back candidates. ${expiredCampaigns.length} expired campaigns closed.`;
+    const summary = `${atRiskCount} at-risk members detected. ${winbackCreated} win-back candidates. ${expiredCampaigns.length} expired campaigns closed.`;
 
     await aiState.logActivity({
       actionType: 'retention_check',
       details: {
         at_risk_members: atRiskCount,
-        winback_candidates: winbackCandidates,
+        winback_candidates: winbackCreated,
         expired_campaigns: expiredCampaigns.length,
         total_active: activeMembers.length,
         total_cancelled: cancelledMembers.length
@@ -109,18 +132,20 @@ async function handler({ db, aiState, openRouter, broadcast, config }) {
 
     console.log(`[RETENTION-AGENT] ${summary}`);
 
-    if (atRiskCount > 0 || winbackCandidates > 0) {
-      broadcast({ type: 'retention_agent_update', summary, atRiskCount, winbackCandidates });
+    if (atRiskCount > 0 || winbackCreated > 0) {
+      broadcast({ type: 'retention_agent_update', summary, atRiskCount, winbackCandidates: winbackCreated });
     }
   } catch (err) {
-    console.error('[RETENTION-AGENT] Error:', err.message);
+    console.error('[RETENTION-AGENT] Error:', err.stack || err.message);
     try {
       await aiState.logActivity({
         actionType: 'retention_check_error',
         details: { error: err.message },
         summary: `Retention agent failed: ${err.message}`
       });
-    } catch (_) {}
+    } catch (logErr) {
+      console.error('[RETENTION-AGENT] Failed to log activity:', logErr.message);
+    }
   }
 }
 

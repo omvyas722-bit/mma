@@ -10,9 +10,15 @@
     "health": "node scripts/health-check.js",
     "verify": "node scripts/verify-system.js",
     "examples": "node scripts/api-examples.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint .",
+    "test": "node --test"
   },
-  "keywords": ["gym", "management", "mma", "bjj"],
+  "keywords": [
+    "gym",
+    "management",
+    "mma",
+    "bjj"
+  ],
   "author": "ROAR MMA",
   "license": "ISC",
   "type": "commonjs",
@@ -23,12 +29,15 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.5",
     "twilio": "^5.13.1",
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "eslint": "^8.56.0",
     "nodemon": "^3.1.14"
   }
 }
