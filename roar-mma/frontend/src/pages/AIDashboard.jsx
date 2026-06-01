@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import ActivityFeed from '../components/AI/ActivityFeed';
 import AgentToggle from '../components/AI/AgentToggle';
+import { useNotifications } from '../contexts/NotificationContext';
 
 function StatusCard({ title, value, status }) {
   const isGood = status === 'good' || status === true;
@@ -45,9 +46,10 @@ function formatRelativeTime(timestamp) {
 }
 
 export default function AIDashboard() {
+  const { error: showError } = useNotifications();
   const [agentFilter, setAgentFilter] = useState('');
 
-  const { data: status, isLoading: statusLoading } = useQuery({
+  const { data: status, isLoading: statusLoading, isError: statusError, refetch: refetchStatus } = useQuery({
     queryKey: ['ai-status'],
     queryFn: async () => {
       const response = await api.get('/api/ai/status');
@@ -56,7 +58,7 @@ export default function AIDashboard() {
     refetchInterval: 30000
   });
 
-  const { data: agents, isLoading: agentsLoading } = useQuery({
+  const { data: agents, isLoading: agentsLoading, isError: agentsError, refetch: refetchAgents } = useQuery({
     queryKey: ['ai-agents'],
     queryFn: async () => {
       const response = await api.get('/api/ai/agents');
@@ -65,7 +67,7 @@ export default function AIDashboard() {
     refetchInterval: 30000
   });
 
-  const { data: history, isLoading: historyLoading } = useQuery({
+  const { data: history, isLoading: historyLoading, isError: historyError, refetch: refetchHistory } = useQuery({
     queryKey: ['ai-history', agentFilter],
     queryFn: async () => {
       const params = agentFilter ? `?agent=${agentFilter}` : '';
@@ -79,9 +81,9 @@ export default function AIDashboard() {
     try {
       await api.post(`/api/ai/agents/${agentName}/toggle`);
     } catch (err) {
-      console.error('Failed to toggle agent:', err);
+      showError(`Failed to toggle ${agentName}`);
     }
-  }, []);
+  }, [showError]);
 
   const agentNames = [...new Set((history || []).map(h => h.agent_name))];
 
@@ -93,7 +95,13 @@ export default function AIDashboard() {
       </div>
 
       {/* Status Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      {statusError ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center mb-8" role="alert">
+          <p className="text-red-700 text-sm mb-3">Failed to load AI status</p>
+          <button type="button" onClick={refetchStatus} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <StatusCard
           title="AI Status"
           value={statusLoading ? '...' : status?.running ? 'Running' : 'Stopped'}
@@ -117,6 +125,7 @@ export default function AIDashboard() {
           status={(status?.dailyApiCalls ?? 0) < (status?.dailyApiLimit ?? 50)}
         />
       </div>
+      )}
 
       {/* Agent Controls */}
       <div className="bg-white rounded-lg shadow mb-8">
@@ -124,7 +133,12 @@ export default function AIDashboard() {
           <h2 className="text-lg font-semibold text-gray-900">Agent Controls</h2>
         </div>
         <div className="p-6">
-          {agentsLoading ? (
+          {agentsError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center" role="alert">
+              <p className="text-red-700 text-sm mb-2">Failed to load agents</p>
+              <button type="button" onClick={refetchAgents} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
+            </div>
+          ) : agentsLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
@@ -148,6 +162,7 @@ export default function AIDashboard() {
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Activity Log</h2>
+          <a href="/approval-queue" className="text-xs text-red-600 hover:underline">Approval Queue →</a>
           <select
             value={agentFilter}
             onChange={(e) => setAgentFilter(e.target.value)}
@@ -160,11 +175,18 @@ export default function AIDashboard() {
           </select>
         </div>
         <div className="p-6">
-          <ActivityFeed
-            activities={history}
-            isLoading={historyLoading}
-            emptyMessage="No AI activity recorded yet"
-          />
+          {historyError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center" role="alert">
+              <p className="text-red-700 text-sm mb-2">Failed to load activity history</p>
+              <button type="button" onClick={refetchHistory} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
+            </div>
+          ) : (
+            <ActivityFeed
+              activities={history}
+              isLoading={historyLoading}
+              emptyMessage="No AI activity recorded yet"
+            />
+          )}
         </div>
       </div>
     </div>

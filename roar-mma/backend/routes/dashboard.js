@@ -291,4 +291,65 @@ router.get('/attendance-chart', authenticateToken, requirePermission('reports:re
   }
 });
 
+// Dashboard sparklines (30-day trends)
+router.get('/sparklines', authenticateToken, requirePermission('dashboard:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const sparklines = db.prepare('SELECT * FROM dashboard_sparklines').all();
+
+    const dailyData = {};
+    const days = 30;
+
+    const newMembers = db.prepare(`
+      SELECT DATE(joined_date) as date, COUNT(*) as count
+      FROM members WHERE joined_date >= date('now', '-' || ? || ' days')
+      GROUP BY DATE(joined_date) ORDER BY date
+    `).all(days);
+    dailyData.new_members = newMembers;
+
+    const revenue = db.prepare(`
+      SELECT DATE(created_at) as date, COALESCE(SUM(amount), 0) as count
+      FROM transactions WHERE created_at >= date('now', '-' || ? || ' days') AND status = 'completed'
+      GROUP BY DATE(created_at) ORDER BY date
+    `).all(days);
+    dailyData.revenue = revenue;
+
+    const attendance = db.prepare(`
+      SELECT ci.date, COUNT(b.id) as count
+      FROM class_instances ci
+      LEFT JOIN bookings b ON ci.id = b.class_instance_id AND b.status = 'attended'
+      WHERE ci.date >= date('now', '-' || ? || ' days')
+      GROUP BY ci.date ORDER BY ci.date
+    `).all(days);
+    dailyData.attendance = attendance;
+
+    const leads = db.prepare(`
+      SELECT DATE(created_at) as date, COUNT(*) as count
+      FROM leads WHERE created_at >= date('now', '-' || ? || ' days')
+      GROUP BY DATE(created_at) ORDER BY date
+    `).all(days);
+    dailyData.leads = leads;
+
+    const enriched = sparklines.map(s => {
+      const raw = dailyData[s.metric_key] || [];
+      const points = Array.from({ length: days }, (_, i) => {
+        const d = new Date(Date.now() - (days - 1 - i) * 86400000);
+        const ds = d.toISOString().split('T')[0];
+        const match = raw.find(r => r.date === ds);
+        return match ? parseFloat(match.count) || 0 : 0;
+      });
+      return { ...s, data: JSON.stringify(points) };
+    });
+
+    // Update stored sparklines
+    const upsert = db.prepare("UPDATE dashboard_sparklines SET data = ?, updated_at = datetime('now') WHERE metric_key = ?");
+    for (const s of enriched) upsert.run(s.data, s.metric_key);
+
+    res.json({ sparklines: enriched });
+  } catch (error) {
+    console.error('Error fetching sparklines:', error);
+    res.status(500).json({ error: 'Failed to fetch sparklines' });
+  }
+});
+
 module.exports = router;

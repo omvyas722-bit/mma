@@ -287,6 +287,69 @@ router.get('/winback', authenticateToken, requirePermission('leads:read'), (req,
   }
 });
 
+// Bulk import leads (JSON array from CSV parsing on frontend)
+router.post('/import', authenticateToken, requirePermission('leads:create'), (req, res) => {
+  try {
+    const { leads: rawLeads } = req.body;
+    if (!Array.isArray(rawLeads) || rawLeads.length === 0) return res.status(400).json({ error: 'leads array is required' });
+    if (rawLeads.length > 500) return res.status(400).json({ error: 'Maximum 500 leads per import' });
+
+    const imported = [];
+    const errors = [];
+    const fieldMap = {
+      first_name: ['first_name', 'firstname', 'first', 'givenname', 'given_name', 'fname'],
+      last_name: ['last_name', 'lastname', 'last', 'surname', 'family_name', 'lname'],
+      email: ['email', 'e-mail', 'email_address', 'emailaddress'],
+      phone: ['phone', 'telephone', 'mobile', 'phone_number', 'phonenumber', 'tel', 'cell'],
+      source: ['source', 'lead_source', 'leadsource', 'origin'],
+      notes: ['notes', 'comments', 'description', 'note'],
+      interest_level: ['interest_level', 'interest', 'level'],
+      location: ['location', 'branch', 'gym', 'site'],
+      status: ['status', 'stage'],
+    };
+
+    function mapRow(row) {
+      const mapped = {};
+      for (const [field, aliases] of Object.entries(fieldMap)) {
+        for (const alias of aliases) {
+          const val = row[alias] || row[alias.toLowerCase()];
+          if (val && val.trim()) { mapped[field] = val.trim(); break; }
+        }
+      }
+      return mapped;
+    }
+
+    for (let i = 0; i < rawLeads.length; i++) {
+      try {
+        const row = mapRow(rawLeads[i]);
+        if (!row.first_name && !row.email && !row.phone) {
+          errors.push({ row: i + 1, error: 'Missing required field (first_name, email, or phone)' });
+          continue;
+        }
+        const lead = leadsData.createLead({
+          first_name: row.first_name || 'Unknown',
+          last_name: row.last_name || '',
+          email: row.email || null,
+          phone: row.phone || null,
+          source: row.source || 'csv_import',
+          notes: row.notes || null,
+          interest_level: row.interest_level || null,
+          location: row.location || null,
+          stage: row.status || 'new',
+        });
+        imported.push(lead);
+      } catch (err) {
+        errors.push({ row: i + 1, error: err.message });
+      }
+    }
+
+    res.status(201).json({ imported: imported.length, errors, leads: imported });
+  } catch (error) {
+    console.error('Error importing leads:', error);
+    res.status(500).json({ error: 'Failed to import leads' });
+  }
+});
+
 // Delete lead
 router.delete('/:id', authenticateToken, requirePermission('leads:delete'), (req, res) => {
   try {

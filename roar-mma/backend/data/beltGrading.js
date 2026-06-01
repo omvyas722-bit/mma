@@ -356,6 +356,37 @@ function getGradingSessions(filters = {}) {
   return db.prepare(query).all(...params);
 }
 
+function updateGradingSession(id, data) {
+  const db = getDatabase();
+
+  const existing = db.prepare('SELECT * FROM grading_sessions WHERE id = ?').get(id);
+  if (!existing) return null;
+
+  const updates = [];
+  const values = [];
+  const fields = ['session_date', 'session_time', 'location', 'grading_coach_id', 'status', 'notes'];
+
+  fields.forEach(f => {
+    if (data[f] !== undefined) {
+      updates.push(`${f} = ?`);
+      values.push(data[f]);
+    }
+  });
+
+  if (updates.length === 0) return existing;
+
+  values.push(id);
+  db.prepare(`UPDATE grading_sessions SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+  return db.prepare('SELECT * FROM grading_sessions WHERE id = ?').get(id);
+}
+
+function deleteGradingSession(id) {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM grading_sessions WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 // Grading history
 function getMemberGradingHistory(memberId) {
   const db = getDatabase();
@@ -385,6 +416,8 @@ module.exports = {
   updateMemberTechnique,
   getMemberTechniques,
   createGradingSession,
+  updateGradingSession,
+  deleteGradingSession,
   addGradingParticipant,
   recordGradingResult,
   getGradingSessions,

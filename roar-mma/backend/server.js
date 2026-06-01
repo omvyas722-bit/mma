@@ -38,6 +38,11 @@ const aiRoutes = require('./routes/ai');
 const agentsRoutes = require('./routes/agents');
 const studentCoachingRoutes = require('./routes/studentCoaching');
 const notificationsRoutes = require('./routes/notifications');
+const socialMediaRoutes = require('./routes/socialMedia');
+const certificationsRoutes = require('./routes/certifications');
+const approvalQueueRoutes = require('./routes/approvalQueue');
+const makeupClassesRoutes = require('./routes/makeupClasses');
+const automatedMessagesRoutes = require('./routes/automatedMessages');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
@@ -215,6 +220,11 @@ app.use('/api/agents', agentsRoutes.router);
 app.use('/api/coaching', studentCoachingRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/waivers', require('./routes/waivers'));
+app.use('/api/social-media', socialMediaRoutes);
+app.use('/api/certifications', certificationsRoutes);
+app.use('/api/approval-queue', approvalQueueRoutes);
+app.use('/api/makeup-classes', makeupClassesRoutes);
+app.use('/api/automated-messages', automatedMessagesRoutes);
 
 // 404 handler
 app.use((req, res) => {

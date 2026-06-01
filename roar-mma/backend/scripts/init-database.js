@@ -24,7 +24,10 @@ const migrations = [
   '011_add_transaction_columns.sql',
   '012_add_student_coaching.sql',
   '013_add_waivers_and_documents.sql',
-  '014_member_profile_enhancements.sql'
+  '014_member_profile_enhancements.sql',
+  '015_social_media.sql',
+  '016_kiosk_enhancements.sql',
+  '017_remaining_features.sql'
 ];
 
 function initDatabase(seedDefaults = false) {

@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
 import AddLeadModal from '../components/Leads/AddLeadModal';
 import TrialTrackingModal from '../components/Leads/TrialTrackingModal';
+import CSVImportModal from '../components/Leads/CSVImportModal';
 import ConfirmDialog from '../components/Shared/ConfirmDialog';
 
 const STAGES = ['new', 'contacted', 'trial_booked', 'trial_completed', 'converted'];
@@ -23,6 +24,7 @@ export default function Leads() {
   const { error, success } = useNotifications();
   const [tab, setTab] = useState('pipeline');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
   const [trackingLead, setTrackingLead] = useState(null);
@@ -102,11 +104,12 @@ export default function Leads() {
         <div className="flex gap-2">
           <button type="button" onClick={() => setTab('pipeline')} className={`text-sm px-4 py-2 rounded-lg ${tab === 'pipeline' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Pipeline</button>
           <button type="button" onClick={() => setTab('analytics')} className={`text-sm px-4 py-2 rounded-lg ${tab === 'analytics' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Analytics</button>
-          {tab === 'pipeline' && <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Lead</button>}
+          {tab === 'pipeline' && <><button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Lead</button><button type="button" onClick={() => setShowImport(true)} className="btn-outline text-sm">Import CSV</button></>}
         </div>
       </div>
 
       <AddLeadModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
+      <CSVImportModal isOpen={showImport} onClose={() => setShowImport(false)} />
       <EditModal isOpen={!!editingLead} onClose={() => setEditingLead(null)} lead={editingLead} />
       <TrialTrackingModal isOpen={!!trackingLead} onClose={() => setTrackingLead(null)} lead={trackingLead} />
       <ConfirmDialog isOpen={!!deletingLead} onClose={() => setDeletingLead(null)} onConfirm={() => deleteLead.mutate(deletingLead.id)}

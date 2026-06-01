@@ -9,7 +9,7 @@ export default function Gradings() {
   const [showSchedule, setShowSchedule] = useState(false);
   const [sessionFilter, setSessionFilter] = useState('');
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['grading-sessions', sessionFilter],
     queryFn: async () => { const p = sessionFilter ? `?status=${sessionFilter}` : ''; const r = await api.get(`/api/grading/sessions${p}`); return r.data?.sessions || []; },
   });
@@ -45,7 +45,8 @@ export default function Gradings() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {isLoading ? <div className="col-span-3 text-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto"></div></div> :
+        {isError ? <div className="col-span-3 bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert"><p className="text-red-700 text-sm mb-3">Failed to load grading sessions</p><button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button></div> :
+        isLoading ? <div className="col-span-3 text-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto"></div></div> :
         sessions.length === 0 ? <div className="col-span-3 text-center py-12"><p className="text-gray-500">No grading sessions</p></div> :
         sessions.map(s => (
           <div key={s.id} className="bg-white rounded-lg shadow p-4">

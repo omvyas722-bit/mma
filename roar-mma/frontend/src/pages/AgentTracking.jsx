@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { Drawer } from '../components/Modal';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const AGENT_LABELS = {
   sales_team: { name: 'Sales & Marketing', icon: '🎯', color: 'bg-blue-500', desc: 'Manages leads, drafts personalized outreach, moves leads through pipeline' },
@@ -210,11 +211,12 @@ function LogDetailDrawer({ log, isOpen, onClose }) {
 
 export default function AgentTracking() {
   const queryClient = useQueryClient();
+  const { success, error: showError } = useNotifications();
   const [running, setRunning] = useState(null);
   const [logFilter, setLogFilter] = useState('all');
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const { data: stats } = useQuery({
+  const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['agent-stats'],
     queryFn: async () => {
       const res = await api.get('/api/agents/stats');
@@ -223,7 +225,7 @@ export default function AgentTracking() {
     refetchInterval: 15000
   });
 
-  const { data: logsData, isLoading: logsLoading } = useQuery({
+  const { data: logsData, isLoading: logsLoading, isError: logsError, refetch: refetchLogs } = useQuery({
     queryKey: ['agent-logs', logFilter],
     queryFn: async () => {
       const params = logFilter !== 'all' ? `?agent=${logFilter}` : '';
@@ -239,8 +241,9 @@ export default function AgentTracking() {
       await api.post('/api/agents/run');
       queryClient.invalidateQueries({ queryKey: ['agent-stats'] });
       queryClient.invalidateQueries({ queryKey: ['agent-logs'] });
+      success('All agents triggered');
     } catch (err) {
-      console.error('Error running agents:', err);
+      showError('Failed to run agents');
     } finally {
       setRunning(null);
     }
@@ -252,12 +255,13 @@ export default function AgentTracking() {
       await api.post('/api/agents/run', { agent: name });
       queryClient.invalidateQueries({ queryKey: ['agent-stats'] });
       queryClient.invalidateQueries({ queryKey: ['agent-logs'] });
+      success(`${AGENT_LABELS[name]?.name || name} agent triggered`);
     } catch (err) {
-      console.error('Error running agent:', err);
+      showError(`Failed to run ${name} agent`);
     } finally {
       setRunning(null);
     }
-  }, []);
+  }, [queryClient, success, showError]);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -288,11 +292,18 @@ export default function AgentTracking() {
       </div>
 
       {/* Agent Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-        {Object.entries(AGENT_LABELS).map(([name, info]) => (
-          <AgentCard key={name} name={name} info={info} stats={stats} onRun={runAgent} running={running} />
-        ))}
-      </div>
+      {statsError ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center mb-10" role="alert">
+          <p className="text-red-700 text-sm mb-3">Failed to load agent stats</p>
+          <button type="button" onClick={refetchStats} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+          {Object.entries(AGENT_LABELS).map(([name, info]) => (
+            <AgentCard key={name} name={name} info={info} stats={stats} onRun={runAgent} running={running} />
+          ))}
+        </div>
+      )}
 
       {/* Activity Feed */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200">
@@ -316,7 +327,12 @@ export default function AgentTracking() {
           </div>
         </div>
         <div className="p-6 space-y-3 max-h-[600px] overflow-y-auto">
-          {logsLoading ? (
+          {logsError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center" role="alert">
+              <p className="text-red-700 text-sm mb-2">Failed to load activity</p>
+              <button type="button" onClick={refetchLogs} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
+            </div>
+          ) : logsLoading ? (
             <p className="text-gray-400 text-center py-8">Loading activity...</p>
           ) : !logsData?.logs?.length ? (
             <p className="text-gray-400 text-center py-8">No activity yet. Click "Run All Agents" to see autonomous actions.</p>

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import { formatDate } from '../lib/formatters';
-
 const READINESS_COLORS = { fight_ready: 'badge-green', ready: 'badge-blue', developing: 'badge-yellow', not_ready: 'badge-gray' };
 const READINESS_LABELS = { fight_ready: 'Fight Ready', ready: 'Ready', developing: 'Developing', not_ready: 'Not Ready' };
 
@@ -12,7 +11,7 @@ export default function Coaching() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name');
 
-  const { data: allStudents, isLoading } = useQuery({
+  const { data: allStudents, isLoading, isError, refetch } = useQuery({
     queryKey: ['coaching-summary'],
     queryFn: async () => { const r = await api.get('/api/coaching/ratings'); return r.data; },
   });
@@ -65,7 +64,12 @@ export default function Coaching() {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        {isLoading ? (
+        {isError ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center m-4" role="alert">
+            <p className="text-red-700 text-sm mb-3">Failed to load coaching data</p>
+            <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
           </div>

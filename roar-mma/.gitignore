@@ -53,3 +53,7 @@ backup/
 
 # PM2
 .pm2/
+
+# Test artifacts
+test-results/
+results.json

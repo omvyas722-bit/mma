@@ -23,7 +23,7 @@ export default function Communications() {
 
       <div className="bg-white rounded-lg shadow mb-6">
         <nav className="flex border-b border-gray-200 overflow-x-auto" role="tablist">
-          {['history', 'templates', 'scheduled', 'approval'].map(tab => (
+          {['history', 'templates', 'scheduled', 'automated', 'approval'].map(tab => (
             <button key={tab} role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-3 text-sm font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}>
               {tab === 'approval' ? 'Pending Approval' : tab}
@@ -58,6 +58,7 @@ export default function Communications() {
 
       {activeTab === 'templates' && <TemplatesPanel />}
       {activeTab === 'scheduled' && <ScheduledPanel />}
+      {activeTab === 'automated' && <AutomatedMessagesPanel />}
       {activeTab === 'approval' && <ApprovalPanel />}
     </div>
   );
@@ -347,4 +348,32 @@ function TypeBadge({ type }) {
 function StatusBadge({ status }) {
   const m = { sent: 'bg-green-100 text-green-700', scheduled: 'bg-yellow-100 text-yellow-700', pending: 'bg-yellow-100 text-yellow-700', failed: 'bg-red-100 text-red-700', cancelled: 'bg-gray-100 text-gray-600' };
   return <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${m[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
+}
+
+const TRIGGER_LABELS = { birthday: '🎂 Birthday', membership_anniversary: '🎉 Membership Anniversary', inactive_30_days: '👋 30 Days Inactive', trial_expiring: '⏳ Trial Expiring' };
+
+function AutomatedMessagesPanel() {
+  const { data: msgs = [], isLoading } = useQuery({ queryKey: ['automated-messages'], queryFn: () => api.get('/api/automated-messages').then(r => r.data?.messages || []) });
+  return (
+    <div className="space-y-3">
+      {isLoading ? <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-50 rounded-lg animate-pulse" />)}</div> : msgs.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">No automated messages configured.</div>
+      ) : msgs.map(m => (
+        <div key={m.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm">{TRIGGER_LABELS[m.trigger_event] || m.trigger_event}</span>
+              <TypeBadge type={m.channel} />
+              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${m.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{m.enabled ? 'Active' : 'Disabled'}</span>
+            </div>
+            <p className="text-sm font-medium text-gray-900">{m.title}</p>
+            <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{m.body}</p>
+            {m.last_sent_at && (
+              <p className="text-xs text-gray-400 mt-1">Last sent: {new Date(m.last_sent_at).toLocaleDateString('en-AU')}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }

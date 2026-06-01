@@ -41,6 +41,31 @@ router.post('/:id/ratings', authenticateToken, requirePermission('members:update
   }
 });
 
+router.put('/ratings/:id', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const allowedFields = ['defense', 'stance', 'offense', 'practice_quality', 'notes'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    const rating = coaching.updateRating(req.params.id, updateData);
+    if (!rating) return res.status(404).json({ error: 'Rating not found' });
+    res.json(rating);
+  } catch (error) {
+    console.error('Error updating rating:', error);
+    res.status(500).json({ error: 'Failed to update rating' });
+  }
+});
+
+router.delete('/ratings/:id', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const ok = coaching.deleteRating(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Rating not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting rating:', error);
+    res.status(500).json({ error: 'Failed to delete rating' });
+  }
+});
+
 router.get('/:id/insights', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
@@ -60,6 +85,43 @@ router.get('/:id/drills', authenticateToken, requirePermission('members:read'), 
   } catch (error) {
     console.error('Error fetching drills:', error);
     res.status(500).json({ error: 'Failed to fetch drills' });
+  }
+});
+
+router.delete('/drills/:id', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const ok = coaching.deleteDrill(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Drill not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting drill:', error);
+    res.status(500).json({ error: 'Failed to delete drill' });
+  }
+});
+
+router.put('/insights/:id', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const allowedFields = ['skill_level', 'fight_readiness', 'recommended_weight_class', 'weight_advice',
+      'diet_recommendation', 'strengths', 'weaknesses', 'summary', 'details'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    const insight = coaching.updateInsight(req.params.id, updateData);
+    if (!insight) return res.status(404).json({ error: 'Insight not found' });
+    res.json(insight);
+  } catch (error) {
+    console.error('Error updating insight:', error);
+    res.status(500).json({ error: 'Failed to update insight' });
+  }
+});
+
+router.delete('/insights/:id', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const ok = coaching.deleteInsight(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Insight not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting insight:', error);
+    res.status(500).json({ error: 'Failed to delete insight' });
   }
 });
 

@@ -217,4 +217,17 @@ function determineTransactionType(description) {
   return 'other';
 }
 
+// Lightspeed manual sync trigger
+router.post('/lightspeed/sync', require('../middleware/auth').authenticateToken, require('../middleware/auth').requirePermission('reports:read'), async (req, res) => {
+  try {
+    const { daysBack = 30 } = req.body;
+    const lightspeedSync = require('../services/lightspeedSync');
+    const result = await lightspeedSync.syncAll();
+    res.json(result);
+  } catch (error) {
+    console.error('Lightspeed sync error:', error);
+    res.status(500).json({ error: 'Sync failed: ' + error.message });
+  }
+});
+
 module.exports = router;

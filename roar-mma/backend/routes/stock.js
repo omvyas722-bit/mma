@@ -57,6 +57,7 @@ router.put('/products/:id', authenticateToken, requirePermission('stock:write'),
     allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
 
     const product = stockData.updateProduct(req.params.id, updateData);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -156,6 +157,18 @@ router.get('/movements/:productId', authenticateToken, requirePermission('stock:
   }
 });
 
+// Product deletion
+router.delete('/products/:id', authenticateToken, requirePermission('stock:write'), (req, res) => {
+  try {
+    const ok = stockData.deleteProduct(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Product not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
 // Suppliers
 router.get('/suppliers', authenticateToken, requirePermission('stock:read'), (req, res) => {
   try {
@@ -183,6 +196,43 @@ router.post('/suppliers', authenticateToken, requirePermission('stock:write'), (
   } catch (error) {
     console.error('Error creating supplier:', error);
     res.status(500).json({ error: 'Failed to create supplier' });
+  }
+});
+
+router.get('/suppliers/:id', authenticateToken, requirePermission('stock:read'), (req, res) => {
+  try {
+    const supplier = stockData.getSupplier(req.params.id);
+    if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
+    res.json(supplier);
+  } catch (error) {
+    console.error('Error fetching supplier:', error);
+    res.status(500).json({ error: 'Failed to fetch supplier' });
+  }
+});
+
+router.put('/suppliers/:id', authenticateToken, requirePermission('stock:write'), (req, res) => {
+  try {
+    const allowedFields = ['name', 'contact_person', 'email', 'phone', 'address', 'notes'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+
+    const supplier = stockData.updateSupplier(req.params.id, updateData);
+    if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
+    res.json(supplier);
+  } catch (error) {
+    console.error('Error updating supplier:', error);
+    res.status(500).json({ error: 'Failed to update supplier' });
+  }
+});
+
+router.delete('/suppliers/:id', authenticateToken, requirePermission('stock:write'), (req, res) => {
+  try {
+    const ok = stockData.deleteSupplier(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Supplier not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting supplier:', error);
+    res.status(500).json({ error: 'Failed to delete supplier' });
   }
 });
 

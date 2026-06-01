@@ -28,6 +28,9 @@ const Coaching = lazy(() => import('./pages/Coaching'));
 const Gradings = lazy(() => import('./pages/Gradings'));
 const POS = lazy(() => import('./pages/POS'));
 const Waivers = lazy(() => import('./pages/Waivers'));
+const SocialMedia = lazy(() => import('./pages/SocialMedia'));
+const KioskWaiver = lazy(() => import('./pages/KioskWaiver'));
+const ApprovalQueue = lazy(() => import('./pages/ApprovalQueue'));
 
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -44,6 +47,7 @@ function App() {
               <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
+                  <Route path="/kiosk/waiver" element={<KioskWaiver />} />
 
                   <Route
                     path="/"
@@ -73,6 +77,8 @@ function App() {
                     <Route path="gradings" element={<Gradings />} />
                     <Route path="pos" element={<POS />} />
                     <Route path="waivers" element={<Waivers />} />
+                    <Route path="social-media" element={<SocialMedia />} />
+                    <Route path="approval-queue" element={<ApprovalQueue />} />
                   </Route>
 
                   <Route path="*" element={<Navigate to="/" replace />} />

@@ -119,6 +119,83 @@ function getDrills(memberId, limit = 20) {
   `).all(memberId, limit);
 }
 
+function deleteDrill(id) {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM student_drill_recommendations WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+function updateRating(id, data) {
+  const db = getDatabase();
+
+  const existing = db.prepare('SELECT * FROM student_ratings WHERE id = ?').get(id);
+  if (!existing) return null;
+
+  const updates = [];
+  const values = [];
+  ALLOWED_RATING_FIELDS.forEach(f => {
+    if (data[f] !== undefined) {
+      updates.push(`${f} = ?`);
+      values.push(data[f]);
+    }
+  });
+
+  if (updates.length === 0) return existing;
+
+  values.push(id);
+  db.prepare(`UPDATE student_ratings SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+  return db.prepare(`
+    SELECT sr.*, s.name AS coach_name
+    FROM student_ratings sr
+    LEFT JOIN staff s ON s.id = sr.coach_id
+    WHERE sr.id = ?
+  `).get(id);
+}
+
+function deleteRating(id) {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM student_ratings WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+function updateInsight(id, data) {
+  const db = getDatabase();
+
+  const existing = db.prepare('SELECT * FROM student_ai_insights WHERE id = ?').get(id);
+  if (!existing) return null;
+
+  const updates = [];
+  const values = [];
+  const fields = ['skill_level', 'fight_readiness', 'recommended_weight_class', 'weight_advice',
+    'diet_recommendation', 'strengths', 'weaknesses', 'summary'];
+
+  fields.forEach(f => {
+    if (data[f] !== undefined) {
+      updates.push(`${f} = ?`);
+      values.push(data[f]);
+    }
+  });
+
+  if (data.details !== undefined) {
+    updates.push('details = ?');
+    values.push(typeof data.details === 'string' ? data.details : JSON.stringify(data.details));
+  }
+
+  if (updates.length === 0) return existing;
+
+  values.push(id);
+  db.prepare(`UPDATE student_ai_insights SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+  return db.prepare('SELECT * FROM student_ai_insights WHERE id = ?').get(id);
+}
+
+function deleteInsight(id) {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM student_ai_insights WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 function getAllMembersWithRecentRatings(limitDays = 7) {
   const db = getDatabase();
   const cutoff = new Date();
@@ -163,9 +240,14 @@ function getAllMemberRatingSummaries() {
 module.exports = {
   getRatings,
   createRating,
+  updateRating,
+  deleteRating,
   getInsights,
   createInsight,
+  updateInsight,
+  deleteInsight,
   getDrills,
+  deleteDrill,
   getAllMembersWithRecentRatings,
   getAllMemberRatingSummaries
 };

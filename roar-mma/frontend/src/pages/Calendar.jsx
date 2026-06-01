@@ -15,7 +15,7 @@ export default function Calendar() {
   const calendarStart = startOfWeek(monthStart);
   const calendarEnd = endOfWeek(monthEnd);
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['calendar-events', format(monthStart, 'yyyy-MM-dd')],
     queryFn: async () => {
       const response = await api.get('/api/calendar/events', {
@@ -40,6 +40,13 @@ export default function Calendar() {
   };
 
   if (isLoading) return <PageLoader />;
+
+  if (isError) return (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert">
+      <p className="text-red-700 text-sm mb-3">Failed to load calendar events</p>
+      <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
+    </div>
+  );
 
   return (
     <div>

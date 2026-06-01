@@ -295,10 +295,21 @@ function getStockMovements(productId) {
   `).all(productId);
 }
 
+function deleteProduct(id) {
+  const db = getDatabase();
+  const result = db.prepare('UPDATE products SET active = 0, updated_at = datetime(\'now\') WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 // Suppliers
 function getAllSuppliers() {
   const db = getDatabase();
   return db.prepare('SELECT * FROM suppliers WHERE active = 1 ORDER BY name').all();
+}
+
+function getSupplier(id) {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM suppliers WHERE id = ?').get(id);
 }
 
 function createSupplier(data) {
@@ -317,6 +328,37 @@ function createSupplier(data) {
   );
 
   return db.prepare('SELECT * FROM suppliers WHERE id = ?').get(result.lastInsertRowid);
+}
+
+function updateSupplier(id, data) {
+  const db = getDatabase();
+
+  const existing = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(id);
+  if (!existing) return null;
+
+  const updates = [];
+  const values = [];
+
+  const fields = ['name', 'contact_person', 'email', 'phone', 'address', 'notes'];
+  fields.forEach(field => {
+    if (data[field] !== undefined) {
+      updates.push(`${field} = ?`);
+      values.push(data[field]);
+    }
+  });
+
+  if (updates.length === 0) return existing;
+
+  values.push(id);
+  db.prepare(`UPDATE suppliers SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+  return db.prepare('SELECT * FROM suppliers WHERE id = ?').get(id);
+}
+
+function deleteSupplier(id) {
+  const db = getDatabase();
+  const result = db.prepare('UPDATE suppliers SET active = 0 WHERE id = ?').run(id);
+  return result.changes > 0;
 }
 
 // Stock analytics
@@ -394,6 +436,7 @@ module.exports = {
   getProduct,
   createProduct,
   updateProduct,
+  deleteProduct,
   createStockAdjustment,
   createProductSale,
   getSales,
@@ -401,6 +444,9 @@ module.exports = {
   resolveStockAlert,
   getStockMovements,
   getAllSuppliers,
+  getSupplier,
   createSupplier,
+  updateSupplier,
+  deleteSupplier,
   getStockAnalytics
 };

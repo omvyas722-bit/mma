@@ -82,8 +82,9 @@ export default function Reports() {
 
       {/* Report content */}
       {isError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <p className="text-red-700">Failed to load report. Please try again.</p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-center" role="alert">
+          <p className="text-red-700 text-sm mb-3">Failed to load report. Please try again.</p>
+          <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
         </div>
       )}
 

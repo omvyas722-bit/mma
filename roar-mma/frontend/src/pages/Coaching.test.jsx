@@ -6,6 +6,10 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../test/mocks/server';
 import Coaching from './Coaching';
 
+vi.mock('../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ error: vi.fn() }),
+}));
+
 const API_URL = 'http://localhost:3001';
 
 const mockStudents = [

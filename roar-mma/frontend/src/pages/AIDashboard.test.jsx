@@ -3,6 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AIDashboard from './AIDashboard';
 
+vi.mock('../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }),
+}));
+
 const mockGet = vi.fn();
 
 vi.mock('../lib/api', () => ({

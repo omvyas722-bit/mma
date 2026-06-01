@@ -58,6 +58,7 @@ const NAV_ITEMS = [
   { name: 'Staff', path: '/staff', icon: '👔' },
   { name: 'Waivers', path: '/waivers', icon: '📝' },
   { name: 'Reports', path: '/reports', icon: '📈' },
+  { name: 'Social Media', path: '/social-media', icon: '📱' },
   { name: 'AI', path: '/ai-dashboard', icon: '🤖' },
   { name: 'Settings', path: '/settings', icon: '⚙️' },
 ];

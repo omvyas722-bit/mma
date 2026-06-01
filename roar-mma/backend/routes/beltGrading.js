@@ -152,6 +152,32 @@ router.post('/sessions', authenticateToken, requirePermission('grading:write'), 
   }
 });
 
+router.put('/sessions/:id', authenticateToken, requirePermission('grading:write'), (req, res) => {
+  try {
+    const allowedFields = ['session_date', 'session_time', 'location', 'grading_coach_id', 'status', 'notes'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+
+    const session = beltGradingData.updateGradingSession(req.params.id, updateData);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    res.json(session);
+  } catch (error) {
+    console.error('Error updating grading session:', error);
+    res.status(500).json({ error: 'Failed to update grading session' });
+  }
+});
+
+router.delete('/sessions/:id', authenticateToken, requirePermission('grading:write'), (req, res) => {
+  try {
+    const ok = beltGradingData.deleteGradingSession(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Session not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting grading session:', error);
+    res.status(500).json({ error: 'Failed to delete grading session' });
+  }
+});
+
 router.post('/sessions/:sessionId/participants', authenticateToken, requirePermission('grading:write'), (req, res) => {
   try {
     const participant = beltGradingData.addGradingParticipant(

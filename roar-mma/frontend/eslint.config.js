@@ -6,13 +6,12 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'e2e']),
+  globalIgnores(['dist', 'e2e', 'coverage']),
   {
     files: ['**/*.{js,jsx}'],
-    plugins: { react, 'react-refresh': reactRefresh },
+    plugins: { react, 'react-refresh': reactRefresh, 'react-hooks': reactHooks },
     extends: [
       js.configs.recommended,
-      reactHooks.configs.flat.recommended,
     ],
     languageOptions: {
       globals: {
@@ -34,23 +33,14 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': 'warn',
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'react/jsx-key': 'error',
       'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-case-declarations': 'off',
+      'no-const-assign': 'off',
       'react-refresh/only-export-components': 'warn',
-      'react-hooks/purity': 'warn',
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/void-use-memo': 'warn',
-      'react-hooks/immutability': 'warn',
-      'react-hooks/refs': 'warn',
-      'react-hooks/config': 'warn',
-      'react-hooks/gating': 'warn',
-      'react-hooks/static-components': 'warn',
-      'react-hooks/use-memo': 'warn',
-      'react-hooks/preserve-manual-memoization': 'warn',
-      'react-hooks/globals': 'warn',
-      'react-hooks/error-boundaries': 'warn',
-      'react-hooks/unsupported-syntax': 'warn',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
 ])

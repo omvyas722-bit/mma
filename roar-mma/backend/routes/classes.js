@@ -205,7 +205,7 @@ router.post('/instances/:id/cancel', authenticateToken, requirePermission('class
 
       for (const member of bookedMembers) {
         db.prepare(`
-          INSERT INTO event_queue (type, payload, status)
+          INSERT INTO event_queue (event_type, payload, status)
           VALUES ('CLASS_CANCELLED', ?, 'pending')
         `).run(JSON.stringify({
           member_id: member.id,

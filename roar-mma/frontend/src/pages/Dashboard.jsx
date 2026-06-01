@@ -31,12 +31,24 @@ function useAiStatus() {
   });
 }
 
+function useSparklines() {
+  return useQuery({
+    queryKey: ['dashboard-sparklines'],
+    queryFn: async () => { const r = await api.get('/api/dashboard/sparklines'); return r.data?.sparklines || []; },
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { data: d, isLoading, isError, error: dashError, refetch } = useDashboard();
   const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
   const { data: aiStatus } = useAiStatus();
+  const { data: sparklines = [] } = useSparklines();
   useWebSocket();
+
+  const getSparkline = (key) => { const s = sparklines.find(sp => sp.metric_key === key); return s ? JSON.parse(s.data || '[]') : []; };
 
   return (
     <div>
@@ -57,6 +69,7 @@ export default function Dashboard() {
           analytics={analytics}
           analyticsLoading={analyticsLoading}
           aiStatus={aiStatus}
+          sparklines={{ activeMembers: getSparkline('new_members'), revenue: getSparkline('revenue'), attendance: getSparkline('attendance'), leads: getSparkline('leads') }}
           navigate={navigate}
         />
       )}
@@ -64,7 +77,7 @@ export default function Dashboard() {
   );
 }
 
-function DashboardContent({ data, analytics, analyticsLoading, aiStatus, navigate }) {
+function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparklines = {}, navigate }) {
   const kpis = data?.kpis || {};
   const todaysClasses = data?.todays_classes || [];
   const recentActivity = data?.recent_activity || [];
@@ -84,11 +97,11 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, navigat
     <div>
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <KpiCard title="Active Members" value={kpis.active_members?.value ?? '—'} change={kpis.active_members?.delta} onClick={() => navigate('/members')} loading={false} />
-        <KpiCard title="New This Week" value={kpis.new_leads?.value ?? '—'} change={kpis.new_leads?.delta} onClick={() => navigate('/leads')} loading={false} />
+        <KpiCard title="Active Members" value={kpis.active_members?.value ?? '—'} change={kpis.active_members?.delta} sparkline={sparklines.activeMembers} color="#22c55e" onClick={() => navigate('/members')} loading={false} />
+        <KpiCard title="New This Week" value={kpis.new_leads?.value ?? '—'} change={kpis.new_leads?.delta} sparkline={sparklines.leads} color="#f59e0b" onClick={() => navigate('/leads')} loading={false} />
         <KpiCard title="Active Trials" value={kpis.trial_members?.value ?? '—'} change={kpis.trial_members?.delta} onClick={() => navigate('/members?status=trial')} loading={false} />
-        <KpiCard title="Monthly Revenue" value={kpis.monthly_revenue?.value != null ? `$${Number(kpis.monthly_revenue.value).toLocaleString()}` : '—'} change={kpis.monthly_revenue?.delta} onClick={() => navigate('/billing')} loading={false} />
-        <KpiCard title="Today's Bookings" value={kpis.today_bookings?.value ?? '—'} change={kpis.today_bookings?.delta} onClick={() => navigate('/classes')} loading={false} />
+        <KpiCard title="Monthly Revenue" value={kpis.monthly_revenue?.value != null ? `$${Number(kpis.monthly_revenue.value).toLocaleString()}` : '—'} change={kpis.monthly_revenue?.delta} sparkline={sparklines.revenue} color="#dc2626" onClick={() => navigate('/billing')} loading={false} />
+        <KpiCard title="Today's Bookings" value={kpis.today_bookings?.value ?? '—'} change={kpis.today_bookings?.delta} sparkline={sparklines.attendance} color="#3b82f6" onClick={() => navigate('/classes')} loading={false} />
       </div>
 
       {/* Charts + AI Status */}
@@ -189,13 +202,26 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, navigat
   );
 }
 
-function KpiCard({ title, value, change, onClick, loading }) {
+function Sparkline({ data = [], color = '#dc2626' }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const w = 100; const h = 28;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * (h - 4) - 2}`).join(' ');
+  return <svg className="w-full h-7 mt-1" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"><polyline fill="none" stroke={color} strokeWidth="1.5" points={pts} vectorEffect="non-scaling-stroke" /></svg>;
+}
+
+function KpiCard({ title, value, change, onClick, loading, sparkline, color }) {
   if (loading) return <div className="bg-white rounded-lg shadow p-4 animate-pulse"><div className="h-3 bg-gray-200 rounded w-20 mb-2"></div><div className="h-6 bg-gray-200 rounded w-16"></div></div>;
   const changeNum = Number(change) || 0;
   return (
-    <button type="button" onClick={onClick} className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow w-full" aria-label={`${title}: ${value}`}>
+    <button type="button" onClick={onClick} className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow w-full group" aria-label={`${title}: ${value}`}>
       <p className="text-xs text-gray-500 mb-1">{title}</p>
       <p className="text-xl font-bold text-gray-900">{value}</p>
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <Sparkline data={sparkline} color={color} />
+      </div>
       {change != null && <p className={`text-xs mt-0.5 ${changeNum >= 0 ? 'text-green-600' : 'text-red-600'}`}>
         {changeNum >= 0 ? '↑' : '↓'} {Math.abs(changeNum)}%
       </p>}
@@ -217,7 +243,10 @@ function AiStatusPanel({ aiStatus, pendingApproval, navigate }) {
     <div className="bg-white rounded-lg shadow p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">AI Agent Status</h2>
-        <button type="button" onClick={() => navigate('/ai-dashboard')} className="text-xs text-red-600 hover:underline">Open Mission Control →</button>
+        <div className="flex items-center gap-2">
+          {pendingApproval > 0 && <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium">{pendingApproval} pending</span>}
+          <button type="button" onClick={() => navigate('/ai-dashboard')} className="text-xs text-red-600 hover:underline">Open Mission Control →</button>
+        </div>
       </div>
       <ul className="space-y-3" role="list">
         {agents.map(a => (
