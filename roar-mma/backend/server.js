@@ -214,6 +214,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/agents', agentsRoutes.router);
 app.use('/api/coaching', studentCoachingRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/waivers', require('./routes/waivers'));
 
 // 404 handler
 app.use((req, res) => {

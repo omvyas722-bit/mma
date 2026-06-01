@@ -4,6 +4,7 @@
 const initialClassForm = {
   name: '', description: '', instructor: '', location: '',
   day_of_week: '', start_time: '', end_time: '', max_capacity: '', class_type: '',
+  fighter_only: false, min_belt: '',
 };
 
 function validateClassForm(formData) {
@@ -120,6 +121,21 @@ function ClassFormFields({ formData, errors, handleChange }) {
               placeholder="Leave empty for unlimited" min="1" />
             {errors.max_capacity && <p className="text-red-500 text-sm mt-1">{errors.max_capacity}</p>}
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Min. Belt Requirement</label>
+            <select name="min_belt" value={formData.min_belt} onChange={handleChange} className="input">
+              <option value="">None</option>
+              <option value="white">White</option><option value="blue">Blue</option><option value="purple">Purple</option>
+              <option value="brown">Brown</option><option value="black">Black</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="fighter_only" checked={formData.fighter_only} onChange={(e) => handleChange({ target: { name: 'fighter_only', value: e.target.checked } })}
+              className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+            <span className="text-sm text-gray-700">Fighters only (invite-only, hidden from regular members)</span>
+          </label>
         </div>
       </div>
     </>

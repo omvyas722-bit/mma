@@ -55,6 +55,49 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_WS_URL: ${{ secrets.VITE_WS_URL }}
 
+  # Frontend E2E Tests (Playwright)
+  frontend-e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-node_modules-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: npx playwright install chromium
+
+      - name: Initialize backend database
+        working-directory: ./backend
+        run: npm run db:init
+        env:
+          JWT_SECRET: test-jwt-secret-for-ci
+          OPENROUTER_API_KEY: ''
+
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: npx playwright test
+        env:
+          JWT_SECRET: test-jwt-secret-for-ci
+          OPENROUTER_API_KEY: ''
+          OPENROUTER_RETRY_DELAY_MS: '1'
+
   # Backend Tests
   backend-test:
     runs-on: ubuntu-latest
@@ -117,7 +160,7 @@ jobs:
 
   # Build Docker Images
   build:
-    needs: [frontend-test, backend-test, backend-audit]
+    needs: [frontend-test, frontend-e2e, backend-test, backend-audit]
     runs-on: ubuntu-latest
     if: env.IS_MAIN_PUSH == 'true'
 

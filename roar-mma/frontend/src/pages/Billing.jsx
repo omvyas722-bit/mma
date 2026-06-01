@@ -56,8 +56,14 @@ export default function Billing() {
 
   const refundTx = useMutation({
     mutationFn: (id) => api.post(`/api/transactions/${id}/refund`),
-    onSuccess: () => { invalidate(); success('Transaction refunded'); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['transactions'] }); queryClient.invalidateQueries({ queryKey: ['transaction-stats'] }); success('Transaction refunded'); },
     onError: () => error('Failed to refund transaction'),
+  });
+
+  const emailBill = useMutation({
+    mutationFn: (tx) => api.post('/api/messaging/send', { to: tx.member_email, subject: `Your ROAR MMA Receipt`, body: `Hi ${tx.member_name},\n\nYour ${tx.type} payment of ${formatCurrency(tx.amount)} has been processed.\n\nThank you for choosing ROAR MMA!` }),
+    onSuccess: () => success('Bill emailed'),
+    onError: () => error('Failed to email bill'),
   });
 
   const transactions = txData?.transactions || [];
@@ -92,11 +98,36 @@ export default function Billing() {
 
       {/* Stats */}
       {!statsError && stats && !statsLoading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard label="MRR" value={stats.mrr != null ? formatCurrency(stats.mrr) : '—'} color="purple" />
           <StatCard label="Today" value={stats.today != null ? formatCurrency(stats.today) : '—'} color="green" />
           <StatCard label="Failed This Month" value={stats.failed_this_month ? `${stats.failed_this_month.count || 0} ($${(stats.failed_this_month.total || 0).toFixed(2)})` : '—'} color="red" />
           <StatCard label="This Month" value={stats.this_month != null ? formatCurrency(stats.this_month) : '—'} color="blue" />
+        </div>
+      )}
+
+      {/* Revenue Forecast */}
+      {!statsError && stats && !statsLoading && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenue Forecast</h3>
+          <div className="space-y-3">
+            <div>
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Confirmed MRR</span><span>{formatCurrency(stats.mrr || 0)}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, ((stats.mrr || 0) - (stats.failed_this_month?.total || 0)) / (stats.mrr || 1) * 100)}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>At Risk</span><span>{formatCurrency(stats.failed_this_month?.total || 0)}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="bg-red-400 h-2.5 rounded-full" style={{ width: `${Math.min(100, (stats.failed_this_month?.total || 0) / (stats.mrr || 1) * 100)}%` }} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -182,8 +213,14 @@ export default function Billing() {
                             <span className="text-xs text-gray-400">Retry</span>
                           )}
                           {tx.status === 'completed' && (
-                            <button onClick={() => { if (window.confirm('Refund this transaction?')) refundTx.mutate(tx.id); }}
-                              className="text-xs text-orange-600 hover:underline">Refund</button>
+                            <>
+                              <button onClick={() => { if (window.confirm('Refund this transaction?')) refundTx.mutate(tx.id); }}
+                                className="text-xs text-orange-600 hover:underline mr-2">Refund</button>
+                              {tx.member_email && (
+                                <button onClick={() => emailBill.mutate(tx)} disabled={emailBill.isPending}
+                                  className="text-xs text-blue-600 hover:underline">Email Bill</button>
+                              )}
+                            </>
                           )}
                         </td>
                       </tr>

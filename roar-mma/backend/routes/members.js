@@ -261,4 +261,137 @@ router.post('/:id/cancel', authenticateToken, requirePermission('members:update'
   }
 });
 
+// Get member disciplines/belts
+router.get('/:id/disciplines', authenticateToken, requirePermission('members:read'), (req, res) => {
+  try {
+    const disciplines = membersData.getMemberDisciplines(req.params.id);
+    res.json(disciplines);
+  } catch (error) {
+    console.error('Error fetching member disciplines:', error);
+    res.status(500).json({ error: 'Failed to fetch disciplines' });
+  }
+});
+
+// Assign belt for a discipline
+router.post('/:id/assign-belt', authenticateToken, requirePermission('grading:write'), (req, res) => {
+  try {
+    const { discipline, belt_level_id } = req.body;
+    if (!discipline || !belt_level_id) {
+      return res.status(400).json({ error: 'Discipline and belt_level_id required' });
+    }
+    const result = membersData.assignDisciplineBelt(req.params.id, discipline, belt_level_id, req.user.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error assigning belt:', error);
+    res.status(500).json({ error: 'Failed to assign belt' });
+  }
+});
+
+// Get member notes/timeline
+router.get('/:id/notes', authenticateToken, requirePermission('members:read'), (req, res) => {
+  try {
+    const notes = membersData.getMemberNotes(req.params.id);
+    res.json(notes);
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ error: 'Failed to fetch notes' });
+  }
+});
+
+// Add member note
+router.post('/:id/notes', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const { note_type, content } = req.body;
+    if (!content) return res.status(400).json({ error: 'Content required' });
+    const note = membersData.addMemberNote(req.params.id, req.user.id, note_type || 'general', content);
+    res.status(201).json(note);
+  } catch (error) {
+    console.error('Error adding note:', error);
+    res.status(500).json({ error: 'Failed to add note' });
+  }
+});
+
+// Get enrolled classes this week
+router.get('/:id/enrolled-classes', authenticateToken, requirePermission('members:read'), (req, res) => {
+  try {
+    const classes = membersData.getMemberEnrolledClasses(req.params.id);
+    res.json(classes);
+  } catch (error) {
+    console.error('Error fetching enrolled classes:', error);
+    res.status(500).json({ error: 'Failed to fetch enrolled classes' });
+  }
+});
+
+// Change membership plan
+router.post('/:id/change-plan', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const { plan, effective_date } = req.body;
+    if (!plan) return res.status(400).json({ error: 'Plan required' });
+    const member = membersData.changeMemberPlan(req.params.id, plan, effective_date || new Date().toISOString().split('T')[0]);
+    res.json(member);
+  } catch (error) {
+    console.error('Error changing plan:', error);
+    res.status(500).json({ error: error.message || 'Failed to change plan' });
+  }
+});
+
+// Get PT sessions
+router.get('/:id/pt-sessions', authenticateToken, requirePermission('members:read'), (req, res) => {
+  try {
+    const sessions = membersData.getMemberPtSessions(req.params.id);
+    res.json(sessions);
+  } catch (error) {
+    console.error('Error fetching PT sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch PT sessions' });
+  }
+});
+
+// Get competition history
+router.get('/:id/competitions', authenticateToken, requirePermission('members:read'), (req, res) => {
+  try {
+    const comps = membersData.getMemberCompetitions(req.params.id);
+    res.json(comps);
+  } catch (error) {
+    console.error('Error fetching competitions:', error);
+    res.status(500).json({ error: 'Failed to fetch competitions' });
+  }
+});
+
+// Add competition result
+router.post('/:id/competitions', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const { event_name, event_date } = req.body;
+    if (!event_name || !event_date) return res.status(400).json({ error: 'Event name and date required' });
+    const comp = membersData.addMemberCompetition(req.params.id, req.body);
+    res.status(201).json(comp);
+  } catch (error) {
+    console.error('Error adding competition:', error);
+    res.status(500).json({ error: 'Failed to add competition' });
+  }
+});
+
+// Get referrals
+router.get('/:id/referrals', authenticateToken, requirePermission('members:read'), (req, res) => {
+  try {
+    const referrals = membersData.getMemberReferrals(req.params.id);
+    res.json(referrals);
+  } catch (error) {
+    console.error('Error fetching referrals:', error);
+    res.status(500).json({ error: 'Failed to fetch referrals' });
+  }
+});
+
+// Add referral
+router.post('/:id/referrals', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const { referred_member_id, voucher_value } = req.body;
+    if (!referred_member_id) return res.status(400).json({ error: 'Referred member ID required' });
+    const referral = membersData.addMemberReferral(req.params.id, referred_member_id, voucher_value);
+    res.status(201).json(referral);
+  } catch (error) {
+    console.error('Error adding referral:', error);
+    res.status(500).json({ error: 'Failed to add referral' });
+  }
+});
+
 module.exports = router;

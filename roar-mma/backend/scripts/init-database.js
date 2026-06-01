@@ -22,7 +22,9 @@ const migrations = [
   '009_add_ai_system.sql',
   '010_expand_schema.sql',
   '011_add_transaction_columns.sql',
-  '012_add_student_coaching.sql'
+  '012_add_student_coaching.sql',
+  '013_add_waivers_and_documents.sql',
+  '014_member_profile_enhancements.sql'
 ];
 
 function initDatabase(seedDefaults = false) {

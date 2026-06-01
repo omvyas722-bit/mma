@@ -120,6 +120,11 @@ export default function Settings() {
             onClick={() => setActiveTab('integrations')}
             label="Integrations"
           />
+          <TabButton
+            active={activeTab === 'grading'}
+            onClick={() => setActiveTab('grading')}
+            label="Grading"
+          />
         </nav>
       </div>
 
@@ -153,6 +158,12 @@ export default function Settings() {
           <IntegrationsSettings
             data={formData.integrations || {}}
             onChange={(field, value) => handleChange('integrations', field, value)}
+          />
+        )}
+        {activeTab === 'grading' && (
+          <GradingSettings
+            data={formData.grading || {}}
+            onChange={(field, value) => handleChange('grading', field, value)}
           />
         )}
       </div>
@@ -498,6 +509,102 @@ function NotificationsSettings({ data, onChange }) {
             onChange={(v) => onChange('payment_reminders', v)}
           />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function GradingSettings({ data, onChange }) {
+  const [discipline, setDiscipline] = useState('bjj');
+  const disciplines = [
+    { id: 'bjj', label: 'BJJ' },
+    { id: 'muay_thai', label: 'Muay Thai' },
+    { id: 'mma', label: 'MMA' },
+    { id: 'boxing', label: 'Boxing' },
+    { id: 'kids', label: 'Kids' },
+  ];
+  const d = data[discipline] || {};
+
+  const updateD = (field, value) => {
+    onChange(discipline, { ...d, [field]: value });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Grading Configuration</h2>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {disciplines.map(dsc => (
+          <button key={dsc.id} type="button" onClick={() => setDiscipline(dsc.id)}
+            className={`text-xs px-3 py-1.5 rounded-full ${discipline === dsc.id ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{dsc.label}</button>
+        ))}
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div>
+            <h3 className="font-medium text-gray-900">Enable Grading</h3>
+            <p className="text-sm text-gray-500">Allow grading for {discipline.replace(/_/g, ' ')}</p>
+          </div>
+          <ToggleSwitch checked={d.enabled ?? true} onChange={(v) => updateD('enabled', v)} />
+        </div>
+
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div>
+            <h3 className="font-medium text-gray-900">Default Test Day</h3>
+            <p className="text-sm text-gray-500">Day of week for scheduled grading sessions</p>
+          </div>
+          <select value={d.default_test_day || 'Saturday'} onChange={(e) => updateD('default_test_day', e.target.value)} className="input text-sm w-40">
+            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => <option key={day} value={day}>{day}</option>)}
+          </select>
+        </div>
+
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div>
+            <h3 className="font-medium text-gray-900">Min Classes Between Gradings</h3>
+            <p className="text-sm text-gray-500">Minimum classes required before next grading</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="number" value={d.min_classes ?? 20} onChange={(e) => updateD('min_classes', parseInt(e.target.value, 10) || 20)} className="input w-20" min="0" />
+            <span className="text-sm text-gray-600">classes</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div>
+            <h3 className="font-medium text-gray-900">Exam Duration</h3>
+            <p className="text-sm text-gray-500">Default duration for grading sessions</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="number" value={d.exam_duration_minutes ?? 120} onChange={(e) => updateD('exam_duration_minutes', parseInt(e.target.value, 10) || 120)} className="input w-20" min="15" step="15" />
+            <span className="text-sm text-gray-600">minutes</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div>
+            <h3 className="font-medium text-gray-900">Allow Stripes</h3>
+            <p className="text-sm text-gray-500">Award interim stripes between belt ranks</p>
+          </div>
+          <ToggleSwitch checked={d.allow_stripes ?? true} onChange={(v) => updateD('allow_stripes', v)} />
+        </div>
+
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div>
+            <h3 className="font-medium text-gray-900">Review Period (Days)</h3>
+            <p className="text-sm text-gray-500">Days between stripe eligibility reviews</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="number" value={d.review_period_days ?? 30} onChange={(e) => updateD('review_period_days', parseInt(e.target.value, 10) || 30)} className="input w-20" min="1" />
+            <span className="text-sm text-gray-600">days</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-200 pt-4">
+        <p className="text-xs text-gray-400">Belt rank progression is managed via the database. These settings control grading session defaults per discipline.</p>
       </div>
     </div>
   );

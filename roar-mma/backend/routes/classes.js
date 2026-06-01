@@ -175,7 +175,8 @@ router.post('/:id/generate-instances', authenticateToken, requirePermission('cla
 // Cancel class instance
 router.post('/instances/:id/cancel', authenticateToken, requirePermission('classes:update'), (req, res) => {
   try {
-    const { cancellation_reason } = req.body;
+    const { cancellation_reason, reason, notify_members } = req.body;
+    const db = getDatabase();
 
     const instance = classesData.getClassInstanceById(req.params.id);
 
@@ -189,8 +190,49 @@ router.post('/instances/:id/cancel', authenticateToken, requirePermission('class
 
     const updatedInstance = classesData.updateClassInstance(req.params.id, {
       status: 'cancelled',
-      cancellation_reason: cancellation_reason || 'No reason provided'
+      cancellation_reason: cancellation_reason || reason || 'No reason provided'
     });
+
+    if (notify_members) {
+      const bookedMembers = db.prepare(`
+        SELECT DISTINCT m.id, m.first_name, m.last_name, m.email, m.phone
+        FROM bookings b
+        JOIN members m ON b.member_id = m.id
+        WHERE b.class_instance_id = ? AND b.status = 'confirmed'
+      `).all(req.params.id);
+
+      const classInfo = db.prepare('SELECT name, date, start_time, location FROM class_instances ci JOIN classes c ON ci.class_id = c.id WHERE ci.id = ?').get(req.params.id);
+
+      for (const member of bookedMembers) {
+        db.prepare(`
+          INSERT INTO event_queue (type, payload, status)
+          VALUES ('CLASS_CANCELLED', ?, 'pending')
+        `).run(JSON.stringify({
+          member_id: member.id,
+          member_name: `${member.first_name} ${member.last_name}`,
+          email: member.email,
+          phone: member.phone,
+          class_name: classInfo?.name,
+          class_date: classInfo?.date,
+          class_time: classInfo?.start_time,
+          location: classInfo?.location,
+          reason: cancellation_reason || reason || 'No reason provided'
+        }));
+
+        if (global.wsBroadcast) {
+          global.wsBroadcast({
+            type: 'notification',
+            data: {
+              type: 'class_cancelled',
+              title: 'Class Cancelled',
+              message: `${classInfo?.name} on ${classInfo?.date} has been cancelled`,
+              member_id: member.id,
+              link: '/classes'
+            }
+          });
+        }
+      }
+    }
 
     res.json(updatedInstance);
   } catch (error) {

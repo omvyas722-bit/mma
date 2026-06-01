@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -21,6 +21,7 @@ function getScorePriority(score) {
 export default function Leads() {
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
+  const [tab, setTab] = useState('pipeline');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
@@ -97,8 +98,12 @@ export default function Leads() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Leads Pipeline</h1>
-        <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Lead</button>
+        <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setTab('pipeline')} className={`text-sm px-4 py-2 rounded-lg ${tab === 'pipeline' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Pipeline</button>
+          <button type="button" onClick={() => setTab('analytics')} className={`text-sm px-4 py-2 rounded-lg ${tab === 'analytics' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Analytics</button>
+          {tab === 'pipeline' && <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Lead</button>}
+        </div>
       </div>
 
       <AddLeadModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
@@ -107,63 +112,67 @@ export default function Leads() {
       <ConfirmDialog isOpen={!!deletingLead} onClose={() => setDeletingLead(null)} onConfirm={() => deleteLead.mutate(deletingLead.id)}
         title="Delete Lead" message={`Delete ${deletingLead?.first_name} ${deletingLead?.last_name}?`} confirmText="Delete" type="danger" />
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <input type="text" placeholder="Search leads..." value={search} onChange={(e) => setSearch(e.target.value)} className="input text-sm" aria-label="Search leads" />
-          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="input text-sm" aria-label="Filter by stage">
-            <option value="">All Stages</option>
-            {STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
-          </select>
-          <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="input text-sm" aria-label="Filter by source">
-            <option value="">All Sources</option>
-            {['website', 'facebook', 'instagram', 'referral', 'walk_in', 'google', 'tiktok', 'event', 'other'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Error state */}
-      {isError ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert">
-          <p className="text-red-700 text-sm mb-3">Failed to load leads</p>
-          <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
-        </div>
-      ) : isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {STAGES.map(s => <SkeletonColumn key={s} count={3} />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto" style={{ minHeight: '60vh' }}>
-          {STAGES.map(stage => (
-            <div
-              key={stage}
-              className={`bg-gray-50 rounded-lg p-3 min-h-[400px] ${dragState === stage ? 'bg-blue-50 ring-2 ring-blue-300' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setDragState(stage); }}
-              onDragLeave={() => setDragState(null)}
-              onDragEnd={() => setDragState(null)}
-              onDrop={(e) => handleDrop(e, stage)}
-              aria-label={`${STAGE_LABELS[stage]} column, ${(grouped[stage] || []).length} leads`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-gray-600 uppercase">{STAGE_LABELS[stage]}</h3>
-                <span className="text-xs font-medium text-gray-400 bg-gray-200 rounded-full px-2 py-0.5" aria-label={`${(grouped[stage] || []).length} leads`}>{grouped[stage]?.length || 0}</span>
-              </div>
-              <div className="space-y-2 min-h-[200px]">
-                {(grouped[stage] || []).map(lead => (
-                  <LeadCard key={lead.id} lead={lead} overdue={isOverdue(lead)}
-                    onClick={() => setDetailLead(lead)} onDelete={() => setDeletingLead(lead)}
-                    onTrack={() => { setTrackingLead(lead); }} onConvert={() => convertLead.mutate(lead.id)} />
-                ))}
-              </div>
-              {stage === 'new' && (
-                <button type="button" onClick={() => setShowAddModal(true)}
-                  className="w-full mt-2 py-2 text-xs text-gray-400 border-2 border-dashed border-gray-300 rounded-lg hover:border-red-400 hover:text-red-500 transition-colors">
-                  + Add Lead
-                </button>
-              )}
+      {tab === 'analytics' ? <LeadsAnalytics /> : (
+        <>
+          {/* Filters */}
+          <div className="bg-white rounded-lg shadow p-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input type="text" placeholder="Search leads..." value={search} onChange={(e) => setSearch(e.target.value)} className="input text-sm" aria-label="Search leads" />
+              <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="input text-sm" aria-label="Filter by stage">
+                <option value="">All Stages</option>
+                {STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
+              </select>
+              <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="input text-sm" aria-label="Filter by source">
+                <option value="">All Sources</option>
+                {['website', 'facebook', 'instagram', 'referral', 'walk_in', 'google', 'tiktok', 'event', 'other'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              </select>
             </div>
-          ))}
-        </div>
+          </div>
+
+          {/* Error state */}
+          {isError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert">
+              <p className="text-red-700 text-sm mb-3">Failed to load leads</p>
+              <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
+            </div>
+          ) : isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {STAGES.map(s => <SkeletonColumn key={s} count={3} />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto" style={{ minHeight: '60vh' }}>
+              {STAGES.map(stage => (
+                <div
+                  key={stage}
+                  className={`bg-gray-50 rounded-lg p-3 min-h-[400px] ${dragState === stage ? 'bg-blue-50 ring-2 ring-blue-300' : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragState(stage); }}
+                  onDragLeave={() => setDragState(null)}
+                  onDragEnd={() => setDragState(null)}
+                  onDrop={(e) => handleDrop(e, stage)}
+                  aria-label={`${STAGE_LABELS[stage]} column, ${(grouped[stage] || []).length} leads`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-semibold text-gray-600 uppercase">{STAGE_LABELS[stage]}</h3>
+                    <span className="text-xs font-medium text-gray-400 bg-gray-200 rounded-full px-2 py-0.5" aria-label={`${(grouped[stage] || []).length} leads`}>{grouped[stage]?.length || 0}</span>
+                  </div>
+                  <div className="space-y-2 min-h-[200px]">
+                    {(grouped[stage] || []).map(lead => (
+                      <LeadCard key={lead.id} lead={lead} overdue={isOverdue(lead)}
+                        onClick={() => setDetailLead(lead)} onDelete={() => setDeletingLead(lead)}
+                        onTrack={() => { setTrackingLead(lead); }} onConvert={() => convertLead.mutate(lead.id)} />
+                    ))}
+                  </div>
+                  {stage === 'new' && (
+                    <button type="button" onClick={() => setShowAddModal(true)}
+                      className="w-full mt-2 py-2 text-xs text-gray-400 border-2 border-dashed border-gray-300 rounded-lg hover:border-red-400 hover:text-red-500 transition-colors">
+                      + Add Lead
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Detail Panel */}
@@ -216,6 +225,132 @@ function TimeAgo({ date }) {
   else if (days === 1) label = 'Yesterday';
   else label = `${days}d ago`;
   return <p className="text-[10px] text-gray-400 mt-1">{label}</p>;
+}
+
+function LeadsAnalytics() {
+  const { data: stats, isLoading, isError } = useQuery({
+    queryKey: ['lead-stats'],
+    queryFn: async () => { const r = await api.get('/api/leads/stats'); return r.data; },
+    retry: 2,
+  });
+
+  const { data: winback } = useQuery({
+    queryKey: ['lead-winback'],
+    queryFn: async () => { const r = await api.get('/api/leads/winback'); return r.data?.leads || []; },
+    retry: 2,
+  });
+
+  const funnel = useMemo(() => {
+    if (!stats) return [];
+    const stages = [
+      { label: 'New Leads', key: 'new', color: 'bg-blue-500' },
+      { label: 'Contacted', key: 'contacted', color: 'bg-indigo-500' },
+      { label: 'Trial Booked', key: 'trial_booked', color: 'bg-purple-500' },
+      { label: 'Trial Completed', key: 'trial_completed', color: 'bg-pink-500' },
+      { label: 'Converted', key: 'converted', color: 'bg-green-500' },
+    ];
+    const maxCount = Math.max(...stages.map(s => stats[s.key]?.count ?? stats[s.key] ?? 0), 1);
+    return stages.map(s => ({ ...s, count: stats[s.key]?.count ?? stats[s.key] ?? 0, pct: Math.round(((stats[s.key]?.count ?? stats[s.key] ?? 0) / maxCount) * 100) }));
+  }, [stats]);
+
+  const sourceData = useMemo(() => {
+    if (!stats?.by_source) return [];
+    const maxCount = Math.max(...stats.by_source.map(s => s.count), 1);
+    return stats.by_source.map(s => ({ ...s, pct: Math.round((s.count / maxCount) * 100) }));
+  }, [stats]);
+
+  if (isLoading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div></div>;
+  if (isError) return <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert"><p className="text-red-700 text-sm">Failed to load analytics</p></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Stage Counts */}
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        {funnel.map(s => (
+          <div key={s.key} className="bg-white rounded-lg shadow p-4 text-center">
+            <p className="text-2xl font-bold text-gray-900">{s.count}</p>
+            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+          </div>
+        ))}
+        <div className="bg-white rounded-lg shadow p-4 text-center">
+          <p className="text-2xl font-bold text-gray-900">{stats?.total ?? 0}</p>
+          <p className="text-xs text-gray-500 mt-1">Total</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Conversion Funnel */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Conversion Funnel</h3>
+          <div className="space-y-3">
+            {funnel.map((s, i) => (
+              <div key={s.key}>
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>{s.label}</span><span>{s.count} ({i > 0 && funnel[i-1].count > 0 ? `${Math.round((s.count / funnel[i-1].count) * 100)}%` : '—'})</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-3">
+                  <div className={`${s.color} h-3 rounded-full transition-all`} style={{ width: `${s.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 text-xs text-gray-500">Overall conversion: {stats?.conversion_rate ?? 0}%</div>
+        </div>
+
+        {/* Source Breakdown */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Leads by Source</h3>
+          <div className="space-y-2">
+            {sourceData.map(s => (
+              <div key={s.source}>
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span className="capitalize">{s.source.replace(/_/g, ' ')}</span><span>{s.count}</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2.5">
+                  <div className="bg-red-500 h-2.5 rounded-full" style={{ width: `${s.pct}%` }} />
+                </div>
+              </div>
+            ))}
+            {sourceData.length === 0 && <p className="text-xs text-gray-400">No data</p>}
+          </div>
+          <div className="mt-4 pt-3 border-t">
+            <h4 className="text-xs font-semibold text-gray-700 mb-2">Conversion Rate by Source</h4>
+            <p className="text-xs text-gray-500">Calculated: {stats?.conversion_rate ?? 0}%</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Win-Back Pipeline */}
+      <div className="bg-white rounded-lg shadow p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">Win-Back Pipeline</h3>
+          <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">Lost leads inactive 14+ days</span>
+        </div>
+        {(!winback || winback.length === 0) ? (
+          <p className="text-xs text-gray-400 py-4 text-center">No win-back candidates</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr><th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">Name</th><th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">Source</th><th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">Reason Lost</th><th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">Last Contact</th><th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">Assigned</th></tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {winback.map(l => (
+                  <tr key={l.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 text-sm text-gray-900">{l.first_name} {l.last_name}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500 capitalize">{l.source?.replace(/_/g, ' ') || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500 max-w-[150px] truncate">{l.lost_reason || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500">{l.last_contact_date ? new Date(l.last_contact_date).toLocaleDateString('en-AU') : 'Never'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500">{l.assigned_to_name || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function SkeletonColumn({ count }) {

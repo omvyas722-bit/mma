@@ -77,13 +77,8 @@ function updateRateLimitState() {
 }
 
 function getAuthHeaders() {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    console.warn('[OPENROUTER] OPENROUTER_API_KEY not set in environment');
-    return {};
-  }
   return {
-    'Authorization': `Bearer ${apiKey}`,
+    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
     'HTTP-Referer': 'https://roarmma.com.au',
     'X-Title': 'ROAR MMA AI',
     'Content-Type': 'application/json'
@@ -232,77 +227,72 @@ async function* streamChat(messages, options = {}) {
   if (state.isRateLimited) {
     state.queuedRequests++;
     yield { content: 'Rate limited. Please try again later.', done: true };
-    return;
-  }
-
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
+  } else if (!process.env.OPENROUTER_API_KEY) {
     yield { content: 'OpenRouter API key not configured', done: true };
-    return;
-  }
+  } else {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), options.timeout || REQUEST_TIMEOUT);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout || REQUEST_TIMEOUT);
+    let requestSucceeded = false;
+    try {
+      const response = await executeWithRetry(async () => {
+        const res = await axios.post(BASE_URL, buildRequestBody(messages, { ...options, stream: true }), {
+          headers: getAuthHeaders(),
+          signal: controller.signal,
+          responseType: 'stream'
+        });
+        return res;
+      }, MAX_RETRIES);
 
-  let requestSucceeded = false;
-  try {
-    const response = await executeWithRetry(async () => {
-      const res = await axios.post(BASE_URL, buildRequestBody(messages, { ...options, stream: true }), {
-        headers: getAuthHeaders(),
-        signal: controller.signal,
-        responseType: 'stream'
-      });
-      return res;
-    }, MAX_RETRIES);
+      clearTimeout(timeoutId);
 
-    clearTimeout(timeoutId);
+      state.totalRequests++;
+      state.minuteCount++;
+      state.requestsToday++;
+      requestSucceeded = true;
 
-    state.totalRequests++;
-    state.minuteCount++;
-    state.requestsToday++;
-    requestSucceeded = true;
+      const stream = response.data;
 
-    const stream = response.data;
+      for await (const chunk of stream) {
+        const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
 
-    for await (const chunk of stream) {
-      const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6);
+            if (jsonStr === '[DONE]') {
+              yield { content: null, done: true };
+              state.successfulRequests++;
+              return;
+            }
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const jsonStr = line.slice(6);
-          if (jsonStr === '[DONE]') {
-            yield { content: null, done: true };
-            state.successfulRequests++;
-            return;
-          }
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta;
-            const content = delta?.content || null;
-            yield { content, done: false };
-          } catch (parseError) {
-            console.error('[OPENROUTER] Failed to parse streaming chunk:', parseError.message);
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const delta = parsed.choices?.[0]?.delta;
+              const content = delta?.content || null;
+              yield { content, done: false };
+            } catch (parseError) {
+              console.error('[OPENROUTER] Failed to parse streaming chunk:', parseError.message);
+            }
           }
         }
       }
-    }
 
-    yield { content: null, done: true };
-    state.successfulRequests++;
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('[OPENROUTER] Stream request timed out');
-    } else {
-      console.error('[OPENROUTER] streamChat error:', error.message);
-    }
+      yield { content: null, done: true };
+      state.successfulRequests++;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('[OPENROUTER] Stream request timed out');
+      } else {
+        console.error('[OPENROUTER] streamChat error:', error.message);
+      }
 
-    if (!requestSucceeded) {
-      state.failedRequests++;
+      if (!requestSucceeded) {
+        state.failedRequests++;
+      }
+      yield { content: null, done: true };
+    } finally {
+      clearTimeout(timeoutId);
     }
-    yield { content: null, done: true };
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 

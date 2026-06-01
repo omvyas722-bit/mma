@@ -7,6 +7,7 @@ import AddClassModal from '../components/Classes/AddClassModal';
 import EditClassModal from '../components/Classes/EditClassModal';
 import CheckInModal from '../components/Classes/CheckInModal';
 import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ContextMenu } from '../components/Dropdown';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const TYPE_COLORS = { bjj: 'bg-blue-100 text-blue-800', muay_thai: 'bg-red-100 text-red-800', mma: 'bg-purple-100 text-purple-800', boxing: 'bg-orange-100 text-orange-800', fitness: 'bg-green-100 text-green-800', kids: 'bg-yellow-100 text-yellow-800' };
@@ -186,28 +187,34 @@ function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn }) {
   const fillPct = instance.capacity ? Math.min(100, (instance.booked_count / instance.capacity) * 100) : 0;
   const fillColor = instance.status === 'cancelled' ? 'bg-gray-300' : fillPct >= 90 ? 'bg-red-500' : fillPct >= 80 ? 'bg-yellow-500' : fillPct >= 50 ? 'bg-blue-500' : 'bg-green-500';
   return (
-    <div onClick={onClick} className={`border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer relative group ${instance.status === 'cancelled' ? 'opacity-60 bg-gray-50' : 'border-gray-200'}`}
-      role="button" tabIndex={0} aria-label={`${instance.class_name}, ${instance.start_time}`}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}>
-      <div className="flex items-start justify-between mb-1">
-        <div className="flex-1 min-w-0"><p className="font-medium text-gray-900 text-sm truncate">{instance.class_name}</p><p className="text-xs text-gray-500">{instance.start_time}{instance.end_time ? ` - ${instance.end_time}` : ''}</p></div>
-        <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${TYPE_COLORS[instance.class_type] || 'bg-gray-100 text-gray-600'}`}>{instance.class_type?.toUpperCase() || 'CLASS'}</span>
-      </div>
-      {instance.coach_name && <p className="text-xs text-gray-600 mb-1.5">{instance.coach_name}</p>}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 bg-gray-200 rounded-full h-1.5" role="progressbar" aria-valuenow={instance.booked_count} aria-valuemin={0} aria-valuemax={instance.capacity}>
-          <div className={`${fillColor} h-1.5 rounded-full`} style={{ width: `${fillPct}%` }}></div>
+    <ContextMenu items={[
+      { label: 'View Details', icon: '🔍', onClick: onClick },
+      { label: 'Mark Attendance', icon: '✓', onClick: onCheckIn, disabled: instance.status === 'cancelled' },
+      { label: 'Edit Class', icon: '✏️', onClick: onEdit },
+      { separator: true },
+      { label: 'Cancel This Class', icon: '❌', onClick: onClick, disabled: instance.status === 'cancelled' },
+      { label: 'Duplicate Class', icon: '📋', onClick: () => console.log('Duplicate', instance.id) },
+      { separator: true },
+      { label: 'Delete Class', icon: '🗑️', destructive: true, onClick: onDelete },
+    ]}>
+      <div onClick={onClick} className={`border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer relative group ${instance.status === 'cancelled' ? 'opacity-60 bg-gray-50' : 'border-gray-200'}`}
+        role="button" tabIndex={0} aria-label={`${instance.class_name}, ${instance.start_time}`}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}>
+        <div className="flex items-start justify-between mb-1">
+          <div className="flex-1 min-w-0"><p className="font-medium text-gray-900 text-sm truncate">{instance.class_name}</p><p className="text-xs text-gray-500">{instance.start_time}{instance.end_time ? ` - ${instance.end_time}` : ''}</p></div>
+          <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${TYPE_COLORS[instance.class_type] || 'bg-gray-100 text-gray-600'}`}>{instance.class_type?.toUpperCase() || 'CLASS'}</span>
         </div>
-        <span className="text-xs text-gray-600">{instance.booked_count}/{instance.capacity}</span>
+        {instance.coach_name && <p className="text-xs text-gray-600 mb-1.5">{instance.coach_name}</p>}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 bg-gray-200 rounded-full h-1.5" role="progressbar" aria-valuenow={instance.booked_count} aria-valuemin={0} aria-valuemax={instance.capacity}>
+            <div className={`${fillColor} h-1.5 rounded-full`} style={{ width: `${fillPct}%` }}></div>
+          </div>
+          <span className="text-xs text-gray-600">{instance.booked_count}/{instance.capacity}</span>
+        </div>
+        {instance.status === 'cancelled' && <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 mt-1">Cancelled</span>}
+        {instance.waitlist_count > 0 && <span className="text-xs text-orange-600 font-medium mt-1 block">⚠ {instance.waitlist_count} on waitlist</span>}
       </div>
-      {instance.status === 'cancelled' && <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 mt-1">Cancelled</span>}
-      {instance.waitlist_count > 0 && <span className="text-xs text-orange-600 font-medium mt-1 block">⚠ {instance.waitlist_count} on waitlist</span>}
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onEdit} className="p-1 text-gray-500 hover:text-gray-700" title="Edit" aria-label="Edit class">✎</button>
-        <button onClick={onCheckIn} className="p-1 text-green-600 hover:text-green-800" title="Check In" aria-label="Check in members">✓</button>
-        <button onClick={onDelete} className="p-1 text-red-500 hover:text-red-700" title="Delete" aria-label="Delete class">🗑</button>
-      </div>
-    </div>
+    </ContextMenu>
   );
 }
 

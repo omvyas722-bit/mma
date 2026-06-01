@@ -222,6 +222,20 @@ function getConversionRate() {
   return total > 0 ? ((converted / total) * 100).toFixed(1) : 0;
 }
 
+function getWinBackLeads() {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT l.id, l.first_name, l.last_name, l.email, l.phone, l.source, l.lost_reason, l.last_contact_date, l.created_at,
+      s.name as assigned_to_name
+    FROM leads l
+    LEFT JOIN staff s ON l.assigned_to = s.id
+    WHERE l.stage = 'lost'
+      AND (l.last_contact_date IS NULL OR l.last_contact_date < datetime('now', '-14 days'))
+    ORDER BY l.last_contact_date ASC NULLS FIRST
+    LIMIT 20
+  `).all();
+}
+
 module.exports = {
   getAllLeads,
   getLeadById,
@@ -232,5 +246,6 @@ module.exports = {
   addLeadInteraction,
   getLeadStats,
   getLeadsBySource,
-  getConversionRate
+  getConversionRate,
+  getWinBackLeads
 };

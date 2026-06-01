@@ -10,19 +10,20 @@ import ConfirmDialog from '../components/Shared/ConfirmDialog';
 
 const LIMIT = 50;
 
-function buildParams({ query, status, location, plan, offset }) {
+function buildParams({ query, status, location, plan, member_type, offset }) {
   const p = new URLSearchParams();
   if (query) p.append('query', query);
   if (status) p.append('status', status);
   if (location) p.append('location', location);
   if (plan) p.append('plan', plan);
+  if (member_type) p.append('member_type', member_type);
   p.append('limit', LIMIT);
   p.append('offset', String(offset));
   return p;
 }
 
 function useMemberFilters() {
-  const [filters, setFilters] = useState({ query: '', status: '', location: '', plan: '', offset: 0 });
+  const [filters, setFilters] = useState({ query: '', status: '', location: '', plan: '', member_type: '', offset: 0 });
   const [inputValue, setInputValue] = useState('');
   const debounceRef = useRef(null);
 
@@ -129,7 +130,7 @@ export default function Members() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <input type="text" placeholder="Search name, email, phone..." value={inputValue} onChange={(e) => setQuery(e.target.value)} className="input text-sm" aria-label="Search members" />
           <select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} className="input text-sm" aria-label="Filter by status">
             <option value="">All Statuses</option>
@@ -140,6 +141,11 @@ export default function Members() {
             <option value="unlimited">Unlimited</option><option value="2x_week">2x Week</option><option value="3x_week">3x Week</option>
             <option value="casual">Casual</option><option value="fighter">Fighter</option><option value="pt_only">PT Only</option>
           </select>
+          <select value={filters.member_type} onChange={(e) => setFilter('member_type', e.target.value)} className="input text-sm" aria-label="Filter by type">
+            <option value="">All Types</option>
+            <option value="ninja">Ninja</option><option value="kids">Kids</option><option value="teen">Teen</option>
+            <option value="adult">Adult</option><option value="fighter">Fighter</option><option value="casual">Casual</option>
+          </select>
           <select value={filters.location} onChange={(e) => setFilter('location', e.target.value)} className="input text-sm" aria-label="Filter by location">
             <option value="">All Locations</option>
             <option value="rockingham">Rockingham</option><option value="bibra_lake">Bibra Lake</option>
@@ -149,9 +155,13 @@ export default function Members() {
 
       {/* Bulk actions */}
       {selected.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center justify-between" role="status" aria-live="polite">
-          <span className="text-sm text-blue-800">{selected.size} selected</span>
-          <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setSelected(new Set())}>Clear selection</button>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center justify-between gap-3 flex-wrap" role="status" aria-live="polite">
+          <span className="text-sm text-blue-800 font-medium">{selected.size} selected</span>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => exportCSV(members.filter(m => selected.has(m.id)))} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Export Selected</button>
+            <button type="button" onClick={() => { if (confirm(`Send message to ${selected.size} members?`)) { alert('Bulk messaging coming soon'); } }} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Message</button>
+            <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setSelected(new Set())}>Clear</button>
+          </div>
         </div>
       )}
 

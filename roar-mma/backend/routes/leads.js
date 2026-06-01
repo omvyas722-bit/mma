@@ -276,6 +276,17 @@ router.post('/schedule-trial-followups', authenticateToken, requirePermission('l
   }
 });
 
+// Get win-back candidates (lost leads inactive 14+ days)
+router.get('/winback', authenticateToken, requirePermission('leads:read'), (req, res) => {
+  try {
+    const leads = leadsData.getWinBackLeads();
+    res.json({ leads });
+  } catch (error) {
+    console.error('Error fetching win-back leads:', error);
+    res.status(500).json({ error: 'Failed to fetch win-back leads' });
+  }
+});
+
 // Delete lead
 router.delete('/:id', authenticateToken, requirePermission('leads:delete'), (req, res) => {
   try {

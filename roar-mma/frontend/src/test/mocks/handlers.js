@@ -425,4 +425,52 @@ export const handlers = [
   }),
 
   http.post(`${API_URL}/api/leads/:id/interactions`, () => HttpResponse.json({ id: 2 }, { status: 201 })),
+
+  // Waivers
+  http.get(`${API_URL}/api/waivers/templates`, () => {
+    return HttpResponse.json({ templates: [
+      { id: 1, name: 'Standard Gym Waiver', body_text: 'I hereby acknowledge that martial arts training involves inherent risks...', version: 1, active: true, created_at: '2024-01-01T00:00:00Z' },
+      { id: 2, name: 'Minor Waiver', body_text: 'I, as parent/guardian, consent to my child participating in martial arts...', version: 1, active: true, created_at: '2024-01-01T00:00:00Z' },
+    ]});
+  }),
+
+  http.get(`${API_URL}/api/waivers/templates/:id`, ({ params }) => {
+    return HttpResponse.json({ id: parseInt(params.id, 10), name: 'Standard Gym Waiver', body_text: 'I hereby acknowledge...', version: 1, active: true });
+  }),
+
+  http.post(`${API_URL}/api/waivers/templates`, async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({ id: 3, ...body, version: 1, active: true }, { status: 201 });
+  }),
+
+  http.put(`${API_URL}/api/waivers/templates/:id`, async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({ id: 1, ...body });
+  }),
+
+  http.delete(`${API_URL}/api/waivers/templates/:id`, () => HttpResponse.json({ success: true })),
+
+  http.post(`${API_URL}/api/waivers/sign`, async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({ id: 1, member_id: body.member_id, template_id: body.template_id, signed_at: new Date().toISOString(), template_name: 'Standard Gym Waiver' }, { status: 201 });
+  }),
+
+  http.get(`${API_URL}/api/waivers/member/:memberId`, () => {
+    return HttpResponse.json({ waivers: [
+      { id: 1, member_id: 1, template_id: 1, template_name: 'Standard Gym Waiver', signed_at: new Date().toISOString() },
+    ]});
+  }),
+
+  http.get(`${API_URL}/api/waivers/documents/member/:memberId`, () => {
+    return HttpResponse.json({ documents: [
+      { id: 1, member_id: 1, doc_type: 'health', file_name: 'health_clearance.pdf', file_path: '/uploads/health_clearance.pdf', notes: 'Annual health clearance', uploaded_at: new Date().toISOString() },
+    ]});
+  }),
+
+  http.post(`${API_URL}/api/waivers/documents/upload`, async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({ id: 2, ...body, uploaded_at: new Date().toISOString() }, { status: 201 });
+  }),
+
+  http.delete(`${API_URL}/api/waivers/documents/:id`, () => HttpResponse.json({ success: true })),
 ];

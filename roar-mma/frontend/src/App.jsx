@@ -27,6 +27,7 @@ const MemberProfile = lazy(() => import('./pages/MemberProfile'));
 const Coaching = lazy(() => import('./pages/Coaching'));
 const Gradings = lazy(() => import('./pages/Gradings'));
 const POS = lazy(() => import('./pages/POS'));
+const Waivers = lazy(() => import('./pages/Waivers'));
 
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -71,6 +72,7 @@ function App() {
                     <Route path="coaching" element={<Coaching />} />
                     <Route path="gradings" element={<Gradings />} />
                     <Route path="pos" element={<POS />} />
+                    <Route path="waivers" element={<Waivers />} />
                   </Route>
 
                   <Route path="*" element={<Navigate to="/" replace />} />

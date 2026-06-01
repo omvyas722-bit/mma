@@ -74,11 +74,26 @@ function ComposeModal({ onClose }) {
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
   const [form, setForm] = useState({ type: 'email', recipients: 'all_active', subject: '', body: '', schedule: '' });
+  const [recipientMode, setRecipientMode] = useState('group');
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [memberSearch, setMemberSearch] = useState('');
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const { data: searchResults } = useQuery({
+    queryKey: ['member-search', memberSearch],
+    queryFn: async () => { const r = await api.get(`/api/members?query=${encodeURIComponent(memberSearch)}&limit=10`); return r.data?.members || []; },
+    enabled: memberSearch.length >= 2,
+  });
+
+  function toggleMember(m) {
+    setSelectedMembers(prev => prev.some(x => x.id === m.id) ? prev.filter(x => x.id !== m.id) : [...prev, m]);
+    setMemberSearch('');
+  }
 
   const send = useMutation({
     mutationFn: () => api.post('/api/scheduled-messages', {
-      message_type: form.type, recipient_group: form.recipients,
+      message_type: form.type,
+      ...(recipientMode === 'group' ? { recipient_group: form.recipients } : { member_ids: selectedMembers.map(m => m.id) }),
       subject: form.subject, body: form.body,
       scheduled_for: form.schedule || new Date().toISOString(),
     }),
@@ -86,7 +101,9 @@ function ComposeModal({ onClose }) {
     onError: (err) => error(err?.response?.data?.error || 'Failed to send'),
   });
 
-  const isValid = form.body.trim() && (form.type !== 'email' && form.type !== 'both' || form.subject.trim());
+  const isGroupValid = recipientMode === 'group';
+  const isIndivValid = recipientMode === 'individual' && selectedMembers.length > 0;
+  const isValid = form.body.trim() && (form.type !== 'email' && form.type !== 'both' || form.subject.trim()) && (isGroupValid || isIndivValid);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -104,19 +121,55 @@ function ComposeModal({ onClose }) {
               ))}
             </div>
           </fieldset>
+
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Recipients</label>
-            <select value={form.recipients} onChange={e => u('recipients', e.target.value)} className="input text-sm w-full">
-              <option value="all_active">All Active Members</option>
-              <option value="all_trial">All Trial Members</option>
-              <option value="all_paused">All Paused Members</option>
-              <option value="location_rockingham">Rockingham Location</option>
-              <option value="location_bibra_lake">Bibra Lake Location</option>
-              <option value="membership_unlimited">Unlimited Plan</option>
-              <option value="membership_2x">2x Week Plan</option>
-              <option value="membership_3x">3x Week Plan</option>
-            </select>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Recipient Mode</label>
+            <div className="flex gap-3 mb-2">
+              {['group', 'individual'].map(m => (
+                <label key={m} className="flex items-center gap-1 text-sm cursor-pointer">
+                  <input type="radio" checked={recipientMode === m} onChange={() => setRecipientMode(m)} className="accent-red-600" />
+                  {m === 'group' ? 'Group (filter)' : 'Individual (select)'}
+                </label>
+              ))}
+            </div>
+            {recipientMode === 'group' ? (
+              <select value={form.recipients} onChange={e => u('recipients', e.target.value)} className="input text-sm w-full">
+                <option value="all_active">All Active Members</option>
+                <option value="all_trial">All Trial Members</option>
+                <option value="all_paused">All Paused Members</option>
+                <option value="location_rockingham">Rockingham Location</option>
+                <option value="location_bibra_lake">Bibra Lake Location</option>
+                <option value="membership_unlimited">Unlimited Plan</option>
+                <option value="membership_2x">2x Week Plan</option>
+                <option value="membership_3x">3x Week Plan</option>
+              </select>
+            ) : (
+              <div>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {selectedMembers.map(m => (
+                    <span key={m.id} className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">
+                      {m.first_name} {m.last_name}
+                      <button type="button" onClick={() => setSelectedMembers(prev => prev.filter(x => x.id !== m.id))} className="hover:text-red-900" aria-label={`Remove ${m.first_name}`}>&times;</button>
+                    </span>
+                  ))}
+                </div>
+                <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} className="input text-sm w-full" placeholder="Search members by name..." aria-label="Search members" />
+                {memberSearch.length >= 2 && searchResults && (
+                  <div className="mt-1 border border-gray-200 rounded-lg max-h-40 overflow-y-auto bg-white shadow">
+                    {searchResults.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-gray-500">No members found</p>
+                    ) : searchResults.map(m => (
+                      <button key={m.id} type="button" onClick={() => toggleMember(m)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex justify-between">
+                        <span>{m.first_name} {m.last_name}</span>
+                        {selectedMembers.some(x => x.id === m.id) && <span className="text-red-600">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
           {(form.type === 'email' || form.type === 'both') && (
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Subject</label><input type="text" value={form.subject} onChange={e => u('subject', e.target.value)} className="input text-sm w-full" placeholder="Message subject" /></div>
           )}

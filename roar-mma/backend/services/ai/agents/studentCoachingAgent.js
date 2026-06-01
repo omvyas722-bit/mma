@@ -183,4 +183,4 @@ function extractJson(text) {
   return null;
 }
 
-module.exports = { handler };
+module.exports = { handler, buildStudentProfile, generateLocalInsight, extractJson };
