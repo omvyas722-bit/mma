@@ -11,6 +11,7 @@
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-console": "warn",
     "require-atomic-updates": "warn",
-    "no-promise-executor-return": "error"
+    "no-promise-executor-return": "error",
+    "no-empty": ["error", { "allowEmptyCatch": true }]
   }
 }

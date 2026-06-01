@@ -129,14 +129,48 @@ export const handlers = [
     });
   }),
 
+  // Analytics endpoint
+  http.get(`${API_URL}/api/analytics/dashboard`, () => {
+    const now = new Date();
+    const member_growth = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (29 - i));
+      return { label: `${d.getMonth() + 1}/${d.getDate()}`, value: 120 + i * 2 };
+    });
+    const revenue_trend = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (29 - i));
+      return { label: `${d.getMonth() + 1}/${d.getDate()}`, value: 30000 + Math.floor(Math.random() * 5000) };
+    });
+    return HttpResponse.json({
+      member_growth,
+      revenue_trend,
+      class_attendance: [
+        { label: 'Mon', value: 18 },
+        { label: 'Tue', value: 22 },
+        { label: 'Wed', value: 15 },
+        { label: 'Thu', value: 24 },
+        { label: 'Fri', value: 12 },
+        { label: 'Sat', value: 30 },
+        { label: 'Sun', value: 8 },
+      ],
+    });
+  }),
+
   // Classes endpoints
   http.get(`${API_URL}/api/classes/instances`, () => {
+    // Compute Monday of the current week so dates are always correct
+    const now = new Date();
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((day + 6) % 7));
+    const dateStr = monday.toISOString().split('T')[0];
     return HttpResponse.json([
       {
         id: 1,
         class_name: 'BJJ Fundamentals',
         class_type: 'bjj',
-        date: '2024-04-22',
+        date: dateStr,
         start_time: '18:00',
         capacity: 20,
         booked_count: 15,
@@ -149,18 +183,12 @@ export const handlers = [
 
   // Leads endpoints
   http.get(`${API_URL}/api/leads`, () => {
-    return HttpResponse.json([
-      {
-        id: 1,
-        first_name: 'Alice',
-        last_name: 'Johnson',
-        phone: '0412345680',
-        email: 'alice@example.com',
-        source: 'website',
-        stage: 'new',
-        created_at: new Date().toISOString(),
-      },
-    ]);
+    return HttpResponse.json({
+      leads: [
+        { id: 1, first_name: 'Alice', last_name: 'Johnson', phone: '0412345680', email: 'alice@example.com', source: 'website', stage: 'new', score: 65, created_at: new Date().toISOString(), last_contact_date: new Date().toISOString() },
+        { id: 2, first_name: 'Bob', last_name: 'Smith', phone: '0412345681', email: 'bob@example.com', source: 'facebook', stage: 'contacted', score: 45, created_at: new Date(Date.now() - 86400000).toISOString(), last_contact_date: new Date(Date.now() - 86400000 * 3).toISOString() },
+      ],
+    });
   }),
 
   // Payments endpoints
@@ -252,6 +280,10 @@ export const handlers = [
       { agent_name: 'stock', enabled: true, description: 'Monitors inventory levels' },
       { agent_name: 'staff', enabled: true, description: 'Tracks staff performance' },
       { agent_name: 'messaging', enabled: true, description: 'Handles automated messages' },
+      { agent_name: 'sales_team', enabled: true, description: 'LLM-powered sales pipeline management' },
+      { agent_name: 'member_success_team', enabled: true, description: 'LLM-powered member retention' },
+      { agent_name: 'operations_team', enabled: true, description: 'LLM-powered operations management' },
+      { agent_name: 'finance_team', enabled: true, description: 'LLM-powered finance monitoring' },
     ]);
   }),
 
@@ -270,4 +302,127 @@ export const handlers = [
     const filtered = agentFilter ? allActivities.filter(a => a.agent_name === agentFilter) : allActivities;
     return HttpResponse.json(filtered);
   }),
+
+  // Notifications
+  http.get(`${API_URL}/api/notifications`, () => {
+    return HttpResponse.json({
+      notifications: [
+        { id: '1', type: 'payment_failed', title: 'Failed payment', message: 'John Doe payment failed', link: '/billing', created_at: new Date().toISOString(), read: false },
+        { id: '2', type: 'new_lead', title: 'New lead', message: 'New lead from website', link: '/leads', created_at: new Date().toISOString(), read: true },
+      ],
+      total: 2,
+      unread: 1,
+    });
+  }),
+
+  http.post(`${API_URL}/api/notifications/dismiss`, () => HttpResponse.json({ success: true })),
+  http.post(`${API_URL}/api/notifications/mark-read`, () => HttpResponse.json({ success: true })),
+
+  // Transactions (Billing)
+  http.get(`${API_URL}/api/transactions`, () => {
+    return HttpResponse.json({
+      transactions: [
+        { id: 1, member_name: 'John Doe', member_email: 'john@example.com', type: 'membership', amount: 69, status: 'completed', payment_method: 'card', created_at: '2024-04-22T10:00:00Z' },
+        { id: 2, member_name: 'Jane Smith', type: 'hold_fee', amount: 15, status: 'failed', created_at: '2024-04-21T10:00:00Z' },
+      ],
+      total: 2,
+    });
+  }),
+
+  http.get(`${API_URL}/api/transactions/stats`, () => {
+    return HttpResponse.json({ mrr: 15000, today: 1200, failed_this_month: { count: 3, total: 210 }, this_month: 12000, by_type: [{ type: 'membership', total: 10000, count: 120 }, { type: 'hold_fee', total: 500, count: 30 }] });
+  }),
+
+  http.post(`${API_URL}/api/transactions`, () => HttpResponse.json({ id: 99 }, { status: 201 })),
+  http.post(`${API_URL}/api/transactions/:id/refund`, () => HttpResponse.json({ success: true })),
+
+  // Staff
+  http.get(`${API_URL}/api/staff`, () => {
+    return HttpResponse.json([
+      { id: 1, name: 'Kane Mousah', email: 'kane@roarmma.com.au', role: 'coach', location: 'rockingham', active: true, created_at: '2024-01-01' },
+      { id: 2, name: 'Sarah Connor', email: 'sarah@roarmma.com.au', role: 'front_desk', location: 'bibra_lake', active: true, created_at: '2024-02-01' },
+    ]);
+  }),
+
+  http.get(`${API_URL}/api/staff/stats`, () => {
+    return HttpResponse.json({ total: 2, by_role: [{ role: 'coach', count: 1 }, { role: 'front_desk', count: 1 }] });
+  }),
+
+  http.get(`${API_URL}/api/staff-performance/:id`, () => {
+    return HttpResponse.json({ classes_taught: 45, avg_fill_rate: 72, pt_sessions: 12, pt_revenue: 2400 });
+  }),
+
+  http.put(`${API_URL}/api/staff/:id`, () => HttpResponse.json({ success: true })),
+  http.post(`${API_URL}/api/staff`, () => HttpResponse.json({ id: 3 }, { status: 201 })),
+
+  // Scheduled Messages
+  http.get(`${API_URL}/api/scheduled-messages`, () => {
+    return HttpResponse.json({ scheduled_messages: [
+      { id: 1, message_type: 'email', subject: 'Welcome', body: 'Welcome to ROAR MMA', status: 'sent', recipient_count: 50, scheduled_for: null },
+      { id: 2, message_type: 'sms', subject: null, body: 'Class reminder tomorrow', status: 'pending', recipient_count: 20, scheduled_for: new Date(Date.now() + 86400000).toISOString() },
+    ]});
+  }),
+
+  http.post(`${API_URL}/api/scheduled-messages`, () => HttpResponse.json({ id: 3 }, { status: 201 })),
+  http.post(`${API_URL}/api/scheduled-messages/:id/cancel`, () => HttpResponse.json({ success: true })),
+
+  // Message Templates
+  http.get(`${API_URL}/api/message-templates`, () => {
+    return HttpResponse.json({ templates: [
+      { id: 1, name: 'Welcome Email', type: 'email', subject: 'Welcome!', body: 'Hi {first_name}, welcome!', trigger_event: 'member_created' },
+    ]});
+  }),
+
+  http.delete(`${API_URL}/api/message-templates/:id`, () => new HttpResponse(null, { status: 204 })),
+
+  // AI Approval
+  http.get(`${API_URL}/api/ai/pending-approval`, () => {
+    return HttpResponse.json({ pending: [
+      { id: 1, agent: 'HERMES', channel: 'sms', recipient_name: 'Alice Johnson', subject: null, body: 'Hi Alice, ready for your trial?', created_at: new Date().toISOString() },
+    ], total: 1 });
+  }),
+
+  http.post(`${API_URL}/api/ai/approve/:id`, () => HttpResponse.json({ success: true })),
+  http.post(`${API_URL}/api/ai/reject/:id`, () => HttpResponse.json({ success: true })),
+
+  // Grading
+  http.get(`${API_URL}/api/grading/sessions`, () => {
+    return HttpResponse.json({ sessions: [
+      { id: 1, name: 'June Grading', date: '2024-06-15', location: 'rockingham', status: 'scheduled', notes: 'Bring gi' },
+    ]});
+  }),
+
+  http.get(`${API_URL}/api/grading/belts`, () => {
+    return HttpResponse.json({ belts: [
+      { id: 1, name: 'White', rank: 1 }, { id: 2, name: 'Blue', rank: 2 }, { id: 3, name: 'Purple', rank: 3 },
+    ]});
+  }),
+
+  http.post(`${API_URL}/api/grading/sessions`, () => HttpResponse.json({ id: 2 }, { status: 201 })),
+
+  // Stock
+  http.get(`${API_URL}/api/stock/products`, () => {
+    return HttpResponse.json({ products: [
+      { id: 1, name: 'ROAR T-Shirt', sku: 'RTS-001', sell_price: 39.99, stock_qty: 50, min_stock: 10, category: 'apparel' },
+      { id: 2, name: 'ROAR Shorts', sku: 'RSS-001', sell_price: 49.99, stock_qty: 3, min_stock: 10, category: 'apparel' },
+    ]});
+  }),
+
+  http.get(`${API_URL}/api/stock/alerts`, () => {
+    return HttpResponse.json({ alerts: [
+      { id: 1, product_name: 'ROAR Shorts', type: 'low_stock', current_qty: 3, min_stock: 10 },
+    ]});
+  }),
+
+  http.post(`${API_URL}/api/stock/sales`, () => HttpResponse.json({ id: 1 }, { status: 201 })),
+  http.post(`${API_URL}/api/stock/alerts/:id/resolve`, () => HttpResponse.json({ success: true })),
+
+  // Lead interactions
+  http.get(`${API_URL}/api/leads/:id/interactions`, () => {
+    return HttpResponse.json({ interactions: [
+      { id: 1, interaction_type: 'note', notes: 'Called and left voicemail', created_at: new Date().toISOString(), staff_name: 'Kane Mousah' },
+    ]});
+  }),
+
+  http.post(`${API_URL}/api/leads/:id/interactions`, () => HttpResponse.json({ id: 2 }, { status: 201 })),
 ];

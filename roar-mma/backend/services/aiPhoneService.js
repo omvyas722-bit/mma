@@ -295,7 +295,7 @@ class AIPhoneService {
       if (info.name && info.phone) {
         // Deduplication: check if lead with this phone already exists
         const db = getDatabase();
-        const existingLead = db.prepare('SELECT id, ? as source FROM leads WHERE phone = ? UNION ALL SELECT id, \'member\' as source FROM members WHERE phone = ? LIMIT 1').get(info.phone, info.phone);
+        const existingLead = db.prepare('SELECT id, \'lead\' as source FROM leads WHERE phone = ? UNION ALL SELECT id, \'member\' as source FROM members WHERE phone = ? LIMIT 1').get(info.phone, info.phone);
         if (existingLead) {
           phoneCallsData.updatePhoneCall(callId, {
             lead_id: existingLead.id,

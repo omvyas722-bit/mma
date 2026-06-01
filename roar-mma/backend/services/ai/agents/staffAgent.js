@@ -2,7 +2,7 @@
 const staffPerformanceData = require('../../../data/staffPerformance');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
+async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
     console.log('[STAFF-AGENT] Starting staff performance check...');
 

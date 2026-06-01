@@ -91,6 +91,8 @@ jobs:
         working-directory: ./backend
         run: npm test
         if: always()
+        env:
+          OPENROUTER_RETRY_DELAY_MS: '1'
 
   # Backend audit
   backend-audit:

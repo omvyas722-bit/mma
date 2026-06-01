@@ -12,7 +12,7 @@ class TeamAgent {
     return '';
   }
 
-  async run(db, _aiState, openRouterClient, broadcast, _config) {
+  async run(db, openRouterClient, broadcast, _config) {
     const client = openRouterClient;
     try {
       const context = this.buildDepartmentContext(db);
@@ -127,31 +127,22 @@ class TeamAgent {
 
   _resolveLead(db, lead_id) {
     if (lead_id && db.prepare('SELECT id FROM leads WHERE id = ?').get(lead_id)) return lead_id;
-    const any = db.prepare('SELECT id FROM leads ORDER BY id LIMIT 1').get();
-    return any ? any.id : null;
+    return null;
   }
 
   _resolveMember(db, member_id) {
     if (member_id && db.prepare('SELECT id FROM members WHERE id = ?').get(member_id)) return member_id;
-    const any = db.prepare('SELECT id FROM members ORDER BY id LIMIT 1').get();
-    return any ? any.id : null;
+    return null;
   }
 
   _resolveProduct(db, product_id) {
     if (product_id && db.prepare('SELECT id FROM products WHERE id = ?').get(product_id)) return product_id;
-    const any = db.prepare('SELECT id FROM products ORDER BY id LIMIT 1').get();
-    return any ? any.id : null;
-  }
-
-  _getFirstLead(db) {
-    const r = db.prepare('SELECT id FROM leads ORDER BY id LIMIT 1').get();
-    return r ? r.id : null;
+    return null;
   }
 
   async actionCreateTask(db, { lead_id, member_id, assigned_to, task_type, priority, title, description, due_date }) {
     lead_id = this._resolveLead(db, lead_id);
     member_id = this._resolveMember(db, member_id);
-    if (!lead_id && !member_id) member_id = this._resolveMember(db, 1);
     const validTaskTypes = ['call_hot_lead', 'follow_up_trial', 'check_no_show', 'warm_lead_checkin', 'trial_reminder', 'conversion_push', 'reengagement', 'retention_check_in', 'failed_payment', 'celebration'];
     const safeTaskType = validTaskTypes.includes(task_type) ? task_type : 'follow_up_trial';
     const result = db.prepare(`INSERT INTO staff_tasks (lead_id, member_id, assigned_to, task_type, priority, title, description, due_date, status, created_at) VALUES (?,?,?,?,?,?,?,?,'pending',datetime('now'))`).run(

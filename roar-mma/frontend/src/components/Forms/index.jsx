@@ -37,6 +37,7 @@ export const Input = forwardRef(({
         `}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
+        {...props}
       />  
       {error && (
         <p id={`${inputId}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400">

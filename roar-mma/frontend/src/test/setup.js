@@ -1,12 +1,16 @@
 // Test setup file
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
+import { server } from './mocks/server';
 
 // Cleanup after each test
 afterEach(() => {
   cleanup();
 });
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+afterAll(() => server.close());
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -47,7 +51,7 @@ global.ResizeObserver = class ResizeObserver {
 // Mock scrollIntoView (not available in jsdom)
 Element.prototype.scrollIntoView = vi.fn();
 
-// Suppress console errors in tests (optional)
+const originalConsoleError = console.error;
 // eslint-disable-next-line no-undef
 beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation((...args) => {
@@ -57,11 +61,11 @@ beforeAll(() => {
     ) {
       return;
     }
-    console.error(...args);
+    originalConsoleError(...args);
   });
 });
 
 // eslint-disable-next-line no-undef
 afterAll(() => {
-  console.error.mockRestore();
+  try { console.error.mockRestore(); } catch (e) { /* already restored */ }
 });

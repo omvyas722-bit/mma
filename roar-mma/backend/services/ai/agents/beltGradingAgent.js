@@ -3,7 +3,7 @@ const membersData = require('../../../data/members');
 const beltGradingData = require('../../../data/beltGrading');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
+async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
     console.log('[BELT-GRADING-AGENT] Starting eligibility check...');
 

@@ -1,6 +1,4 @@
 // Main server file
-// Suppress url.parse() deprecation warning from dependencies
-process.noDeprecation = true;
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -39,6 +37,7 @@ const beltGradingRoutes = require('./routes/beltGrading');
 const aiRoutes = require('./routes/ai');
 const agentsRoutes = require('./routes/agents');
 const studentCoachingRoutes = require('./routes/studentCoaching');
+const notificationsRoutes = require('./routes/notifications');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
@@ -214,6 +213,7 @@ app.use('/api/grading', beltGradingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/agents', agentsRoutes.router);
 app.use('/api/coaching', studentCoachingRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // 404 handler
 app.use((req, res) => {

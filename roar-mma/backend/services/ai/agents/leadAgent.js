@@ -14,7 +14,7 @@ function hasExistingTrialBooking(leadId) {
   return !!existing;
 }
 
-async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
+async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
     console.log('[LEAD-AGENT] Starting lead processing...');
 

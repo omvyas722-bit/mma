@@ -529,12 +529,18 @@ VITE_WS_URL=ws://localhost:3001
 - Lightspeed webhooks
 - Real-time WebSocket updates
 
+### ✅ Implemented AI System
+- **AI Chat Assistant** — Natural language Q&A about members, leads, revenue, classes via LLM
+- **14 AI Agents** — Mix of rule-based and LLM-powered automation
+  - Rule-based: leads, trials, retention, tasks, analytics, billing, belt grading, stock, staff, messaging
+  - LLM-powered: sales team, member success, operations, finance
+- **AI Phone Receptionist** — Rule-based IVR for call routing, trial bookings, FAQs
+- **Mission Control dashboard** — Real-time status, agent toggles, activity feed
+- **Email/SMS communications** — Automated scheduled messages via Brevo/Twilio
+- **Belt gradings** — Member belt/stripe tracking and eligibility checks
+
 ### 🚧 Planned Features (Not Yet Implemented)
-- AI agents (ZEUS, HERMES, MIDAS, ORACLE, PIXEL, SCOUT, HEALER)
-- Mission Control dashboard
-- Email/SMS communications
 - Digital waivers
-- Belt gradings
 - Point of Sale (POS)
 - Social media management
 - Advanced reporting

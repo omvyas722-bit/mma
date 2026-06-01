@@ -200,8 +200,9 @@ async function updateAgentConfig(agentName, config) {
     const enabled = config.enabled !== undefined ? (config.enabled ? 1 : 0) : (existing?.enabled ?? 1);
     const intervalMs = config.intervalMs || config.interval_ms || existing?.interval_ms || 60000;
     const modelOverride = config.modelOverride || config.model_override || existing?.model_override || null;
-    const configJson = config.configJson || config.config_json
-      ? JSON.stringify(config.configJson || config.config_json)
+    const raw = config.configJson || config.config_json;
+    const configJson = raw !== undefined && raw !== null
+      ? (typeof raw === 'string' ? raw : JSON.stringify(raw))
       : (existing?.config_json || null);
 
     if (existing) {

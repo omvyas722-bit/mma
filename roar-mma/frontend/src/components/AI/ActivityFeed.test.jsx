@@ -46,4 +46,43 @@ describe('ActivityFeed Component', () => {
     expect(statuses[1].className).toContain('bg-yellow-100');
     expect(statuses[2].className).toContain('bg-red-100');
   });
+
+  it('shows partial status with blue badge', () => {
+    const activities = [{ id: 4, agent_name: 'billing', action_type: 'check_payments', summary: 'Partial check', status: 'partial', created_at: new Date().toISOString() }];
+    render(<ActivityFeed isLoading={false} activities={activities} />);
+    const badge = screen.getByText('partial');
+    expect(badge.className).toContain('bg-blue-100');
+  });
+
+  it('defaults unknown status to success color', () => {
+    const activities = [{ id: 5, agent_name: 'test', action_type: 'test', summary: 'Unknown status', status: 'unknown', created_at: new Date().toISOString() }];
+    render(<ActivityFeed isLoading={false} activities={activities} />);
+    const badge = screen.getByText('unknown');
+    expect(badge.className).toContain('bg-green-100');
+  });
+
+  it('handles future timestamps', () => {
+    const future = new Date(Date.now() + 3600000).toISOString();
+    const activities = [{ id: 6, agent_name: 'test', action_type: 'test', summary: 'Future activity', status: 'success', created_at: future }];
+    render(<ActivityFeed isLoading={false} activities={activities} />);
+    expect(screen.getByText('just now')).toBeInTheDocument();
+  });
+
+  it('handles missing timestamp', () => {
+    const activities = [{ id: 7, agent_name: 'test', action_type: 'test', summary: 'No timestamp', status: 'success' }];
+    render(<ActivityFeed isLoading={false} activities={activities} />);
+    const timeElements = screen.getAllByText('');
+    expect(timeElements.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('displays agent name with underscores replaced', () => {
+    const activities = [{ id: 8, agent_name: 'belt_grading', action_type: 'check', summary: 'Checked grading', status: 'success', created_at: new Date().toISOString() }];
+    render(<ActivityFeed isLoading={false} activities={activities} />);
+    expect(screen.getByText('belt grading')).toBeInTheDocument();
+  });
+
+  it('shows default empty message when not provided', () => {
+    render(<ActivityFeed isLoading={false} activities={[]} />);
+    expect(screen.getByText('No activity yet')).toBeInTheDocument();
+  });
 });

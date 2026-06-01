@@ -2,10 +2,11 @@ const axios = require('axios');
 
 const BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
-const MAX_RPM = 20;
-const MAX_DAILY = 50;
-const MAX_RETRIES = 3;
-const REQUEST_TIMEOUT = 30000;
+const MAX_RPM = parseInt(process.env.OPENROUTER_MAX_RPM, 10) || 20;
+const MAX_DAILY = parseInt(process.env.OPENROUTER_DAILY_LIMIT, 10) || 50;
+const MAX_RETRIES = parseInt(process.env.OPENROUTER_MAX_RETRIES, 10) || 3;
+const RETRY_BASE_DELAY = parseInt(process.env.OPENROUTER_RETRY_DELAY_MS, 10) || 1000;
+const REQUEST_TIMEOUT = parseInt(process.env.OPENROUTER_TIMEOUT_MS, 10) || 30000;
 
 const state = {
   requestsToday: 0,
@@ -13,7 +14,7 @@ const state = {
   rpmRemaining: MAX_RPM,
   isRateLimited: false,
   model: DEFAULT_MODEL,
-  lastResetDate: new Date().toDateString(),
+  lastResetDate: new Date().toISOString().split('T')[0],
   minuteStart: Date.now(),
   minuteCount: 0,
   totalRequests: 0,
@@ -110,7 +111,7 @@ function buildRequestBody(messages, options = {}) {
 
 async function executeWithRetry(requestFn, retries = MAX_RETRIES) {
   let lastError = null;
-  let delay = 1000;
+  let delay = RETRY_BASE_DELAY;
 
   for (let attempt = 1; attempt <= retries + 1; attempt++) {
     try {

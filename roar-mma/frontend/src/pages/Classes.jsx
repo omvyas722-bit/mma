@@ -1,171 +1,164 @@
-// Classes page
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { useNotifications } from '../contexts/NotificationContext';
-import logger from '../lib/logger';
 import AddClassModal from '../components/Classes/AddClassModal';
 import EditClassModal from '../components/Classes/EditClassModal';
 import CheckInModal from '../components/Classes/CheckInModal';
 import ConfirmDialog from '../components/Shared/ConfirmDialog';
 
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const TYPE_COLORS = { bjj: 'bg-blue-100 text-blue-800', muay_thai: 'bg-red-100 text-red-800', mma: 'bg-purple-100 text-purple-800', boxing: 'bg-orange-100 text-orange-800', fitness: 'bg-green-100 text-green-800', kids: 'bg-yellow-100 text-yellow-800' };
+
+function useEscapeKey(handler) {
+  useEffect(() => { const listener = (e) => { if (e.key === 'Escape') handler(e); }; document.addEventListener('keydown', listener); return () => document.removeEventListener('keydown', listener); }, [handler]);
+}
+
+function useFocusTrap(ref, active) {
+  useEffect(() => {
+    if (!active || !ref.current) return;
+    const container = ref.current;
+    const focusable = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length === 0) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    first.focus();
+    const handler = (e) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    container.addEventListener('keydown', handler);
+    return () => container.removeEventListener('keydown', handler);
+  }, [active, ref]);
+}
+
 export default function Classes() {
   const queryClient = useQueryClient();
-  const { error } = useNotifications();
+  const { error, success } = useNotifications();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [deletingClass, setDeletingClass] = useState(null);
   const [checkInClass, setCheckInClass] = useState(null);
-  const [weekStart, setWeekStart] = useState(() => {
-    const today = new Date();
-    return startOfWeek(today, { weekStartsOn: 1 }); // Monday
-  });
+  const [detailInstance, setDetailInstance] = useState(null);
+  const [locationFilter, setLocationFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   const weekEnd = addDays(weekStart, 6);
 
-  const deleteClass = useMutation({
-    mutationFn: async (classId) => {
-      await api.delete(`/api/classes/${classId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['class-instances'] });
-      setDeletingClass(null);
-    },
-    onError: (err) => {
-      logger.error('Error deleting class:', err);
-      error('Failed to delete class. Please try again.');
-    }
-  });
-
-  const handleDeleteConfirm = () => {
-    if (deletingClass) {
-      deleteClass.mutate(deletingClass.id);
-    }
-  };
-
-  const { data: instances, isLoading } = useQuery({
-    queryKey: ['class-instances', format(weekStart, 'yyyy-MM-dd')],
+  const { data: instances, isLoading, isError, refetch } = useQuery({
+    queryKey: ['class-instances', format(weekStart, 'yyyy-MM-dd'), locationFilter, typeFilter],
     queryFn: async () => {
-      const response = await api.get('/api/classes/instances', {
-        params: {
-          week_start: format(weekStart, 'yyyy-MM-dd'),
-          week_end: format(weekEnd, 'yyyy-MM-dd'),
-        },
-      });
-      return response.data;
+      const params = { week_start: format(weekStart, 'yyyy-MM-dd'), week_end: format(weekEnd, 'yyyy-MM-dd') };
+      if (locationFilter) params.location = locationFilter;
+      if (typeFilter) params.class_type = typeFilter;
+      const r = await api.get('/api/classes/instances', { params });
+      return r.data;
     },
+    retry: 2,
+    staleTime: 10000,
   });
 
-  function previousWeek() {
-    setWeekStart(addDays(weekStart, -7));
-  }
+  const instanceList = Array.isArray(instances) ? instances : [];
 
-  function nextWeek() {
-    setWeekStart(addDays(weekStart, 7));
-  }
+  const invalidate = useCallback(() => queryClient.invalidateQueries({ queryKey: ['class-instances'] }), [queryClient]);
 
-  function thisWeek() {
-    const today = new Date();
-    setWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
-  }
+  const deleteClass = useMutation({
+    mutationFn: (id) => api.delete(`/api/classes/${id}`),
+    onSuccess: () => { invalidate(); setDeletingClass(null); success('Class deleted'); },
+    onError: () => error('Failed to delete class'),
+  });
 
-  // Group instances by day
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const cancelInstance = useMutation({
+    mutationFn: ({ id, reason, notify }) => api.post(`/api/classes/instances/${id}/cancel`, { reason, notify_members: notify }),
+    onSuccess: () => { invalidate(); setDetailInstance(null); success('Class cancelled'); },
+    onError: () => error('Failed to cancel class'),
+  });
 
   const instancesByDay = useMemo(() => {
     const grouped = {};
-    days.forEach((day, index) => {
-      const date = addDays(weekStart, index);
-      const dateStr = format(date, 'yyyy-MM-dd');
-      grouped[day] = {
-        date: dateStr,
-        displayDate: format(date, 'MMM d'),
-        instances: (instances || []).filter((inst) => inst.date === dateStr),
-      };
+    DAYS.forEach((day, i) => {
+      const date = addDays(weekStart, i);
+      grouped[day] = { date: format(date, 'yyyy-MM-dd'), displayDate: format(date, 'MMM d'), instances: instanceList.filter(inst => inst.date === format(date, 'yyyy-MM-dd')) };
     });
     return grouped;
-  }, [instances, weekStart]);
+  }, [instanceList, weekStart]);
+
+  const totalBookings = useMemo(() => instanceList.reduce((s, i) => s + (i.booked_count || 0), 0), [instanceList]);
+  const avgFill = useMemo(() => instanceList.length > 0 ? Math.round(instanceList.reduce((s, i) => s + ((i.booked_count || 0) / (i.capacity || 20) * 100), 0) / instanceList.length) : 0, [instanceList]);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Classes</h1>
-        <button type="button" onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          Add Class
-        </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Classes</h1>
+        <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Class</button>
       </div>
 
       <AddClassModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
-      <EditClassModal
-        isOpen={!!editingClass}
-        onClose={() => setEditingClass(null)}
-        classData={editingClass}
-      />
-      <CheckInModal
-        isOpen={!!checkInClass}
-        onClose={() => setCheckInClass(null)}
-        classInstance={checkInClass}
-      />
-      <ConfirmDialog
-        isOpen={!!deletingClass}
-        onClose={() => setDeletingClass(null)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Class"
-        message={`Are you sure you want to delete ${deletingClass?.name}? This will remove all scheduled instances of this class.`}
-        confirmText="Delete"
-        type="danger"
-      />
+      <EditClassModal isOpen={!!editingClass} onClose={() => setEditingClass(null)} classData={editingClass} />
+      <CheckInModal isOpen={!!checkInClass} onClose={() => setCheckInClass(null)} classInstance={checkInClass} />
+      <ConfirmDialog isOpen={!!deletingClass} onClose={() => setDeletingClass(null)} onConfirm={() => deleteClass.mutate(deletingClass.id)} title="Delete Class" message={`Delete ${deletingClass?.name}?`} confirmText="Delete" type="danger" />
+      {detailInstance && detailInstance.id && <InstanceDrawer instance={detailInstance} onClose={() => setDetailInstance(null)}
+        onCancel={(reason, notify) => cancelInstance.mutate({ id: detailInstance.id, reason, notify })}
+        onCheckIn={() => { setCheckInClass(detailInstance); setDetailInstance(null); }}
+        onEdit={() => { setEditingClass(detailInstance); setDetailInstance(null); }} />}
 
-      {/* Week navigation */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <button type="button" onClick={previousWeek} className="btn btn-secondary">
-            ◀ Previous
-          </button>
-          <div className="text-center">
-            <p className="text-lg font-semibold">
-              {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-            </p>
-            <button type="button" onClick={thisWeek} className="text-sm text-red-600 hover:underline">
-              This Week
-            </button>
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <StatBox label="Classes This Week" value={instanceList.length} />
+        <StatBox label="Total Bookings" value={totalBookings} />
+        <StatBox label="Avg Fill" value={`${avgFill}%`} />
+      </div>
+
+      {/* Week nav + filters */}
+      <div className="bg-white rounded-lg shadow p-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex items-center gap-2 flex-1">
+            <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-2 py-1 border rounded text-sm hover:bg-gray-50" aria-label="Previous week">◀</button>
+            <span className="text-sm font-semibold flex-1 text-center">{format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}</span>
+            <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-2 py-1 border rounded text-sm hover:bg-gray-50" aria-label="Next week">▶</button>
+            <button onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))} className="text-xs text-red-600 hover:underline whitespace-nowrap">This Week</button>
           </div>
-          <button type="button" onClick={nextWeek} className="btn btn-secondary">
-            Next ▶
-          </button>
+          <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className="input text-sm" aria-label="Filter by location">
+            <option value="">All Locations</option><option value="rockingham">Rockingham</option><option value="bibra_lake">Bibra Lake</option>
+          </select>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input text-sm" aria-label="Filter by type">
+            <option value="">All Types</option><option value="bjj">BJJ</option><option value="muay_thai">Muay Thai</option><option value="mma">MMA</option><option value="boxing">Boxing</option><option value="fitness">Fitness</option><option value="kids">Kids</option>
+          </select>
         </div>
       </div>
 
-      {/* Weekly timetable */}
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      {/* Error state */}
+      {isError ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert">
+          <p className="text-red-700 text-sm mb-3">Failed to load classes</p>
+          <button onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
+        </div>
+      ) : isLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          {DAYS.map(day => <SkeletonDay key={day} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {days.map((day) => {
-            const dayData = instancesByDay[day];
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          {DAYS.map(day => {
+            const dd = instancesByDay[day];
             return (
               <div key={day} className="bg-white rounded-lg shadow">
                 <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-900">{day}</h3>
-                  <p className="text-sm text-gray-500">{dayData.displayDate}</p>
+                  <h3 className="font-semibold text-gray-900 text-sm">{day}</h3>
+                  <p className="text-xs text-gray-500">{dd.displayDate}</p>
                 </div>
-                <div className="p-4 space-y-3">
-                  {dayData.instances.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">No classes</p>
-                  ) : (
-                    dayData.instances.map((instance) => (
-                      <ClassInstanceCard
-                        key={instance.id}
-                        instance={instance}
-                        onEdit={() => setEditingClass(instance)}
-                        onDelete={() => setDeletingClass(instance)}
-                        onCheckIn={() => setCheckInClass(instance)}
-                      />
-                    ))
-                  )}
+                <div className="p-3 space-y-2">
+                  {dd.instances.length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-4">No classes</p>
+                  ) : dd.instances.map(inst => (
+                    <ClassCard key={inst.id} instance={inst}
+                      onClick={() => setDetailInstance(inst)}
+                      onEdit={() => setEditingClass(inst)}
+                      onDelete={() => setDeletingClass(inst)}
+                      onCheckIn={() => setCheckInClass(inst)} />
+                  ))}
                 </div>
               </div>
             );
@@ -176,97 +169,142 @@ export default function Classes() {
   );
 }
 
-function ClassInstanceCard({ instance, onEdit, onDelete, onCheckIn }) {
-  const fillPercentage = instance.capacity ? (instance.booked_count / instance.capacity) * 100 : 0;
-  const fillColor =
-    fillPercentage >= 90
-      ? 'bg-red-500'
-      : fillPercentage >= 80
-      ? 'bg-yellow-500'
-      : fillPercentage >= 50
-      ? 'bg-blue-500'
-      : 'bg-green-500';
+function StatBox({ label, value }) {
+  return <div className="bg-white rounded-lg shadow p-3 text-center"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-bold text-gray-900">{value}</p></div>;
+}
 
-  const classTypeColors = {
-    bjj: 'bg-blue-100 text-blue-800',
-    muay_thai: 'bg-red-100 text-red-800',
-    mma: 'bg-purple-100 text-purple-800',
-    kids: 'bg-yellow-100 text-yellow-800',
-    pt: 'bg-green-100 text-green-800',
-  };
+function SkeletonDay() {
+  return (
+    <div className="bg-white rounded-lg shadow animate-pulse">
+      <div className="px-4 py-3 border-b border-gray-200"><div className="h-4 bg-gray-200 rounded w-20 mb-1"></div><div className="h-3 bg-gray-200 rounded w-16"></div></div>
+      <div className="p-3 space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-28 bg-gray-100 rounded-lg"></div>)}</div>
+    </div>
+  );
+}
+
+function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn }) {
+  const fillPct = instance.capacity ? Math.min(100, (instance.booked_count / instance.capacity) * 100) : 0;
+  const fillColor = instance.status === 'cancelled' ? 'bg-gray-300' : fillPct >= 90 ? 'bg-red-500' : fillPct >= 80 ? 'bg-yellow-500' : fillPct >= 50 ? 'bg-blue-500' : 'bg-green-500';
+  return (
+    <div onClick={onClick} className={`border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer relative group ${instance.status === 'cancelled' ? 'opacity-60 bg-gray-50' : 'border-gray-200'}`}
+      role="button" tabIndex={0} aria-label={`${instance.class_name}, ${instance.start_time}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}>
+      <div className="flex items-start justify-between mb-1">
+        <div className="flex-1 min-w-0"><p className="font-medium text-gray-900 text-sm truncate">{instance.class_name}</p><p className="text-xs text-gray-500">{instance.start_time}{instance.end_time ? ` - ${instance.end_time}` : ''}</p></div>
+        <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${TYPE_COLORS[instance.class_type] || 'bg-gray-100 text-gray-600'}`}>{instance.class_type?.toUpperCase() || 'CLASS'}</span>
+      </div>
+      {instance.coach_name && <p className="text-xs text-gray-600 mb-1.5">{instance.coach_name}</p>}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 bg-gray-200 rounded-full h-1.5" role="progressbar" aria-valuenow={instance.booked_count} aria-valuemin={0} aria-valuemax={instance.capacity}>
+          <div className={`${fillColor} h-1.5 rounded-full`} style={{ width: `${fillPct}%` }}></div>
+        </div>
+        <span className="text-xs text-gray-600">{instance.booked_count}/{instance.capacity}</span>
+      </div>
+      {instance.status === 'cancelled' && <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 mt-1">Cancelled</span>}
+      {instance.waitlist_count > 0 && <span className="text-xs text-orange-600 font-medium mt-1 block">⚠ {instance.waitlist_count} on waitlist</span>}
+      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onEdit} className="p-1 text-gray-500 hover:text-gray-700" title="Edit" aria-label="Edit class">✎</button>
+        <button onClick={onCheckIn} className="p-1 text-green-600 hover:text-green-800" title="Check In" aria-label="Check in members">✓</button>
+        <button onClick={onDelete} className="p-1 text-red-500 hover:text-red-700" title="Delete" aria-label="Delete class">🗑</button>
+      </div>
+    </div>
+  );
+}
+
+function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
+  const drawerRef = useRef(null);
+  useEscapeKey(onClose);
+  useFocusTrap(drawerRef, true);
+
+  const { data: roster } = useQuery({
+    queryKey: ['class-roster', instance.id],
+    queryFn: async () => { const r = await api.get(`/api/classes/instances/${instance.id}/roster`); return r.data; },
+    enabled: !!instance.id,
+  });
+
+  const bookings = roster?.bookings || [];
+  const waitlisted = roster?.waitlist || [];
 
   return (
-    <div className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative group">
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="text-red-600 hover:text-red-900 p-1"
-          title="Edit class"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="text-red-600 hover:text-red-900 p-1"
-          title="Delete class"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
-      </div>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
-          <p className="font-medium text-gray-900 text-sm">{instance.class_name}</p>
-          <p className="text-xs text-gray-500">{instance.start_time}</p>
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div ref={drawerRef} className="w-full max-w-md bg-white shadow-xl h-full overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Class details: ${instance.class_name}`}>
+        <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">{instance.class_name}</h2>
+            <p className="text-xs text-gray-500">{instance.date} · {instance.start_time}{instance.end_time ? ` - ${instance.end_time}` : ''}</p>
+            {instance.location && <p className="text-xs text-gray-500 capitalize">{instance.location.replace(/_/g, ' ')}</p>}
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl" aria-label="Close">&times;</button>
         </div>
-        <span className={`badge text-xs ${classTypeColors[instance.class_type] || 'badge-gray'}`}>
-          {instance.class_type?.toUpperCase()}
-        </span>
-      </div>
+        <div className="p-5 space-y-4">
+          <dl className="space-y-1 text-sm">
+            {instance.coach_name && <div><dt className="text-gray-500 inline">Coach:</dt><dd className="inline ml-1">{instance.coach_name}</dd></div>}
+            <div><dt className="text-gray-500 inline">Capacity:</dt><dd className="inline ml-1">{instance.booked_count}/{instance.capacity}</dd></div>
+          </dl>
 
-      {instance.coach_name && (
-        <p className="text-xs text-gray-600 mb-2">Coach: {instance.coach_name}</p>
-      )}
+          <div className="flex gap-2 pt-2">
+            {instance.status !== 'cancelled' && <button onClick={onCheckIn} className="btn-primary text-xs flex-1">Mark Attendance</button>}
+            <button onClick={onEdit} className="btn-outline text-xs">Edit</button>
+          </div>
 
-      <div className="flex items-center gap-2">
-        <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-          <div
-            className={`${fillColor} h-1.5 rounded-full transition-all`}
-            style={{ width: `${fillPercentage}%` }}
-          ></div>
+          <section>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Roster ({bookings.length})</h3>
+            <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto divide-y divide-gray-100">
+              {bookings.length === 0 ? <p className="text-xs text-gray-500 text-center py-4">No bookings yet</p> :
+              bookings.map(b => (
+                <div key={b.id} className="px-3 py-2 flex items-center justify-between">
+                  <span className="text-sm text-gray-900">{b.member_name}</span>
+                  <div className="flex items-center gap-1">
+                    {b.status === 'attended' && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 rounded">✓</span>}
+                    {b.waitlist > 0 && <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 rounded">WL #{b.waitlist_position}</span>}
+                    {b.is_trial && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 rounded">Trial</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {waitlisted.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Waitlist ({waitlisted.length})</h3>
+              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+                {waitlisted.map(w => (
+                  <div key={w.id} className="px-3 py-2 text-sm text-gray-700 flex justify-between">
+                    <span>{w.member_name}</span>
+                    <span className="text-xs text-gray-400">#{w.waitlist_position}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {instance.status !== 'cancelled' && (
+            <section className="border-t pt-4">
+              <h3 className="text-sm font-semibold text-red-600 mb-2">Cancel This Class</h3>
+              <CancelForm instance={instance} onCancel={onCancel} />
+            </section>
+          )}
+          {instance.status === 'cancelled' && instance.cancellation_reason && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">Cancelled: {instance.cancellation_reason}</div>
+          )}
         </div>
-        <span className="text-xs text-gray-600 font-medium">
-          {instance.booked_count}/{instance.capacity}
-        </span>
       </div>
+    </div>
+  );
+}
 
-      {instance.status === 'cancelled' && (
-        <div className="mt-2">
-          <span className="badge badge-red text-xs">Cancelled</span>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onCheckIn();
-        }}
-        className="mt-3 w-full btn btn-primary text-xs py-1"
-      >
-        Check In
-      </button>
+function CancelForm({ instance, onCancel }) {
+  const [reason, setReason] = useState('');
+  const [notify, setNotify] = useState(true);
+  return (
+    <div className="space-y-2">
+      <input type="text" placeholder="Reason for cancellation" value={reason} onChange={e => setReason(e.target.value)} className="input text-sm w-full" aria-label="Cancellation reason" />
+      <label className="flex items-center gap-2 text-xs text-gray-600">
+        <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+        Notify booked members via SMS/email
+      </label>
+      <button type="button" disabled={!reason.trim()} onClick={() => onCancel(reason, notify)}
+        className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-red-700 disabled:opacity-40">Confirm Cancellation</button>
     </div>
   );
 }

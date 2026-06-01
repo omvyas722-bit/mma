@@ -5,6 +5,7 @@ const aiDaemon = require('../services/ai/aiDaemon');
 const providerChain = require('../services/ai/providerChain');
 const chatEngine = require('../services/ai/chatEngine');
 const openRouterClient = require('../services/ai/openRouterClient');
+const dbConn = require('../db/connection');
 
 const router = express.Router();
 
@@ -162,6 +163,66 @@ router.get('/stats', authenticateToken, requirePermission('reports:read'), async
   } catch (error) {
     console.error('Error fetching AI stats:', error);
     res.status(500).json({ error: 'Failed to fetch AI stats' });
+  }
+});
+
+router.get('/pending-approval', authenticateToken, requirePermission('reports:read'), async (req, res) => {
+  try {
+    const db = dbConn.getDatabase();
+    const pending = db.prepare(`
+      SELECT eq.id, eq.agent, eq.payload, eq.created_at,
+             COALESCE(l.first_name || ' ' || l.last_name, 'Unknown') as recipient_name
+      FROM event_queue eq
+      LEFT JOIN leads l ON l.id = json_extract(eq.payload, '$.lead_id')
+      WHERE eq.status = 'pending' AND eq.agent IS NOT NULL
+      ORDER BY eq.created_at DESC
+      LIMIT 50
+    `).all();
+
+    const mapped = pending.map(eq => {
+      let payload = {};
+      try { payload = typeof eq.payload === 'string' ? JSON.parse(eq.payload) : (eq.payload || {}); } catch {}
+      return {
+        id: eq.id,
+        agent: eq.agent,
+        channel: payload.channel || 'sms',
+        recipient_name: eq.recipient_name,
+        subject: payload.subject || null,
+        body: payload.body || payload.message || '',
+        created_at: eq.created_at,
+      };
+    });
+
+    res.json({ pending: mapped, total: mapped.length });
+  } catch (error) {
+    console.error('Error fetching pending approvals:', error);
+    res.status(500).json({ error: 'Failed to fetch pending approvals' });
+  }
+});
+
+router.post('/approve/:id', authenticateToken, requirePermission('staff:update'), async (req, res) => {
+  try {
+    const db = dbConn.getDatabase();
+    const result = db.prepare(`UPDATE event_queue SET status = 'approved', processed_at = datetime('now'), processed_by = ? WHERE id = ? AND status = 'pending'`)
+      .run(req.user.id, req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Pending item not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error approving item:', error);
+    res.status(500).json({ error: 'Failed to approve' });
+  }
+});
+
+router.post('/reject/:id', authenticateToken, requirePermission('staff:update'), async (req, res) => {
+  try {
+    const db = dbConn.getDatabase();
+    const result = db.prepare(`UPDATE event_queue SET status = 'rejected', processed_at = datetime('now'), processed_by = ? WHERE id = ? AND status = 'pending'`)
+      .run(req.user.id, req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Pending item not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error rejecting item:', error);
+    res.status(500).json({ error: 'Failed to reject' });
   }
 });
 

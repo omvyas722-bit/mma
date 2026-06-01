@@ -2,7 +2,7 @@
 const scheduledMessagesData = require('../../../data/scheduledMessages');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
+async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
     console.log('[MESSAGING-AGENT] Starting messaging check...');
 

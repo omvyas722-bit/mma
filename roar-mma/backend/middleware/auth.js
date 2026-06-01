@@ -14,12 +14,12 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  if (!JWT_SECRET) {
+  if (!process.env.JWT_SECRET) {
     return res.status(500).json({ error: 'Server authentication configuration error' });
   }
 
   try {
-    const user = jwt.verify(token, JWT_SECRET);
+    const user = jwt.verify(token, process.env.JWT_SECRET);
     req.user = user;
     next();
   } catch (error) {

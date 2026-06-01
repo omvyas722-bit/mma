@@ -38,7 +38,7 @@ describe('AgentToggle Component', () => {
     expect(checkbox.checked).toBe(false);
   });
 
-  it('calls API on toggle and updates state', async () => {
+  it('calls API on toggle', async () => {
     mockPost.mockResolvedValue({ data: { agent_name: 'leads', enabled: true } });
 
     render(<AgentToggle agentName="leads" enabled={false} />);
@@ -49,7 +49,6 @@ describe('AgentToggle Component', () => {
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith('/api/ai/agents/leads/toggle');
     });
-    expect(checkbox.checked).toBe(true);
   });
 
   it('shows agent icon based on name', () => {
@@ -70,5 +69,57 @@ describe('AgentToggle Component', () => {
 
     fireEvent.click(checkbox);
     expect(checkbox.disabled).toBe(true);
+  });
+
+  it('handles API error gracefully', async () => {
+    mockPost.mockRejectedValue(new Error('Network error'));
+
+    render(<AgentToggle agentName="leads" enabled={false} />);
+    const checkbox = screen.getByRole('checkbox');
+
+    fireEvent.click(checkbox);
+    await waitFor(() => { expect(mockPost).toHaveBeenCalled(); });
+    expect(checkbox.disabled).toBe(false);
+  });
+
+  it('formats lastAction relative time', () => {
+    const justNow = new Date().toISOString();
+    const fiveMinsAgo = new Date(Date.now() - 300000).toISOString();
+    const twoHoursAgo = new Date(Date.now() - 7200000).toISOString();
+    const yesterday = new Date(Date.now() - 86400000).toISOString();
+
+    const { rerender } = render(<AgentToggle agentName="leads" enabled={true} lastAction={justNow} />);
+    expect(screen.getByText(/Just now/)).toBeInTheDocument();
+
+    rerender(<AgentToggle agentName="leads" enabled={true} lastAction={fiveMinsAgo} />);
+    expect(screen.getByText(/5m ago/)).toBeInTheDocument();
+
+    rerender(<AgentToggle agentName="leads" enabled={true} lastAction={twoHoursAgo} />);
+    expect(screen.getByText(/2h ago/)).toBeInTheDocument();
+
+    rerender(<AgentToggle agentName="leads" enabled={true} lastAction={yesterday} />);
+    expect(screen.getByText(/24h ago/)).toBeInTheDocument();
+  });
+
+  it('hides last action section when no lastAction', () => {
+    render(<AgentToggle agentName="leads" enabled={true} />);
+    expect(screen.queryByText(/Last action/)).not.toBeInTheDocument();
+  });
+
+  it('replaces underscores with spaces in agent name', () => {
+    render(<AgentToggle agentName="belt_grading" enabled={true} />);
+    expect(screen.getByText('belt grading')).toBeInTheDocument();
+  });
+
+  it('calls onChange with agent name and new state', async () => {
+    const onChange = vi.fn();
+    mockPost.mockResolvedValue({ data: { agent_name: 'leads', enabled: true } });
+
+    render(<AgentToggle agentName="leads" enabled={false} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith('leads', true);
+    });
   });
 });

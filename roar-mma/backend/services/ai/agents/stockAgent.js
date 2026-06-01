@@ -2,7 +2,7 @@
 const stockData = require('../../../data/stock');
 const { getDatabase } = require('../../../db/connection');
 
-async function handler({ db, aiState, openRouter, broadcast, config, agentName }) {
+async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
     console.log('[STOCK-AGENT] Starting stock check...');
 

@@ -80,4 +80,4 @@ Rules:
 }
 
 const instance = new FinanceTeamAgent();
-module.exports = { handler: ({ db, aiState, openRouter, broadcast, config }) => instance.run(db, aiState, openRouter, broadcast, config) };
+module.exports = { handler: ({ db, openRouter, broadcast, config }) => instance.run(db, openRouter, broadcast, config) };

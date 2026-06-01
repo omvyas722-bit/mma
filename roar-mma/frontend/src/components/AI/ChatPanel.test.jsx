@@ -76,4 +76,49 @@ describe('ChatPanel Component', () => {
     expect(messageRows[0].className).toContain('justify-start');
     expect(messageRows[1].className).toContain('justify-end');
   });
+
+  it('does not send empty message', async () => {
+    const handleSend = vi.fn();
+    render(<ChatPanel messages={[sampleMessages[0]]} onSend={handleSend} isLoading={false} />);
+
+    await userEvent.click(screen.getByText('Send'));
+    expect(handleSend).not.toHaveBeenCalled();
+  });
+
+  it('does not send whitespace-only message', async () => {
+    const handleSend = vi.fn();
+    render(<ChatPanel messages={[sampleMessages[0]]} onSend={handleSend} isLoading={false} />);
+
+    const input = screen.getByPlaceholderText('Ask me anything...');
+    await userEvent.type(input, '   ');
+    await userEvent.click(screen.getByText('Send'));
+    expect(handleSend).not.toHaveBeenCalled();
+  });
+
+  it('clears input after sending', async () => {
+    const handleSend = vi.fn();
+    render(<ChatPanel messages={[sampleMessages[0]]} onSend={handleSend} isLoading={false} />);
+
+    const input = screen.getByPlaceholderText('Ask me anything...');
+    await userEvent.type(input, 'test query');
+    await userEvent.click(screen.getByText('Send'));
+    expect(input.value).toBe('');
+  });
+
+  it('shows custom placeholder', () => {
+    render(<ChatPanel messages={[sampleMessages[0]]} onSend={() => {}} isLoading={false} placeholder="Custom prompt..." />);
+    expect(screen.getByPlaceholderText('Custom prompt...')).toBeInTheDocument();
+  });
+
+  it('renders no suggestion chips when suggestions array is empty', () => {
+    const { container } = render(<ChatPanel messages={[sampleMessages[0]]} onSend={() => {}} isLoading={false} suggestions={[]} />);
+    const suggestionSection = container.querySelector('.flex-wrap');
+    expect(suggestionSection).toBeNull();
+  });
+
+  it('handles message with no timestamp', () => {
+    const msg = [{ role: 'ai', content: 'No timestamp' }];
+    render(<ChatPanel messages={msg} onSend={() => {}} isLoading={false} />);
+    expect(screen.getByText('No timestamp')).toBeInTheDocument();
+  });
 });

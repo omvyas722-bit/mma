@@ -81,55 +81,43 @@ async function callFallback(provider, messages, options) {
 }
 
 async function completeChat(messages, options = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout || 60000);
+  const orResult = await openRouter.completeChat(messages, options);
 
-  try {
-    const orResult = await openRouter.completeChat(messages, { ...options, signal: controller.signal });
-
-    if (!orResult.error && orResult.content) {
-      return orResult;
-    }
-
-    console.warn(`[PROVIDER-CHAIN] OpenRouter unavailable (${orResult.error || 'empty response'}), trying fallbacks in parallel...`);
-
-    // Try all fallbacks in parallel with staggered start delays
-    const results = await Promise.race(
-      FALLBACKS.map((provider, i) =>
-        new Promise((resolve) => {
-          setTimeout(async () => {
-            if (controller.signal.aborted) {
-              resolve({ error: 'aborted' });
-              return;
-            }
-            const result = await callFallback(provider, messages, { ...options, timeout: 15000 });
-            if (!result.error && result.content) {
-              console.log(`[PROVIDER-CHAIN] ✓ ${provider.name} responded (model: ${result.model})`);
-              resolve(result);
-            } else {
-              resolve({ error: `${provider.name} failed` });
-            }
-          }, i * 2000);
-        })
-      ).concat(
-        new Promise(resolve => { setTimeout(() => resolve({ error: 'timeout' }), 20000); })
-      )
-    );
-
-    if (results && !results.error && results.content) {
-      return results;
-    }
-
-    return {
-      error: 'All AI providers failed. Check API keys and try again.',
-      content: null,
-      finishReason: 'error',
-      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-      model: 'none'
-    };
-  } finally {
-    clearTimeout(timeoutId);
+  if (!orResult.error && orResult.content) {
+    return orResult;
   }
+
+  console.warn(`[PROVIDER-CHAIN] OpenRouter unavailable (${orResult.error || 'empty response'}), trying fallbacks in parallel...`);
+
+  const results = await Promise.race(
+    FALLBACKS.map((provider, i) =>
+      new Promise((resolve) => {
+        setTimeout(async () => {
+          const result = await callFallback(provider, messages, { ...options, timeout: 15000 });
+          if (!result.error && result.content) {
+            console.log(`[PROVIDER-CHAIN] ✓ ${provider.name} responded (model: ${result.model})`);
+            resolve(result);
+          } else {
+            resolve({ error: `${provider.name} failed` });
+          }
+        }, i * 2000);
+      })
+    ).concat(
+      new Promise(resolve => { setTimeout(() => resolve({ error: 'timeout' }), 20000); })
+    )
+  );
+
+  if (results && !results.error && results.content) {
+    return results;
+  }
+
+  return {
+    error: 'All AI providers failed. Check API keys and try again.',
+    content: null,
+    finishReason: 'error',
+    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    model: 'none'
+  };
 }
 
 module.exports = {

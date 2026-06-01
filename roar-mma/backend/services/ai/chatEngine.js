@@ -106,7 +106,6 @@ function getConversationHistory(userId) {
 }
 
 function pruneHistory() {
-  const cutoff = Date.now() - 86400000;
   for (const [uid, msgs] of conversationHistory) {
     for (let i = msgs.length - 1; i >= 0; i--) {
       const ts = msgs[i].timestamp || 0;
@@ -144,8 +143,8 @@ function stripPii(text) {
   if (!text) return '';
   return text
     .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]')
-    .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]')
-    .replace(/\b\d{10,}\b/g, '[NUMBER]');
+    .replace(/\+?\d{1,4}[-\s.]?\d{2,4}[-\s.]?\d{2,4}[-\s.]?\d{2,4}/g, '[PHONE]')
+    .replace(/\b\d{8,}\b/g, '[NUMBER]');
 }
 
 function buildSystemPrompt(dataContext, history) {
@@ -163,7 +162,7 @@ ${safeData}`;
     prompt += `\n\nCONVERSATION HISTORY (most recent first):\n`;
     const recent = history.slice(-6);
     recent.forEach(msg => {
-      const safeContent = sanitizeInput(msg.content || '');
+      const safeContent = stripPii(sanitizeInput(msg.content || ''));
       prompt += `${msg.role === 'user' ? 'User' : 'You'}: ${safeContent}\n`;
     });
   }
@@ -438,7 +437,7 @@ async function handleTaskQuery(query) {
 }
 
 async function handleHelpQuery() {
-  return null;
+  return { context: null };
 }
 
 async function processQuery(query, userContext) {
@@ -473,7 +472,7 @@ async function processQuery(query, userContext) {
         break;
     }
 
-    const dataContext = (result && result.context) ? result.context : await gatherComprehensiveContext();
+    const dataContext = result ? (result.context || '') : await gatherComprehensiveContext();
 
     const responseText = await callOpenRouter(query, dataContext, userContext, history);
 

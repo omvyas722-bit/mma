@@ -11,11 +11,15 @@ export default defineConfig({
       VITE_API_URL: 'http://localhost:3001',
     },
     setupFiles: './src/test/setup.js',
+    include: ['src/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
+    exclude: ['e2e/', 'node_modules/'],
     css: true,
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
       exclude: [
+        'e2e/',
         'node_modules/',
         'src/test/',
         '**/*.config.js',

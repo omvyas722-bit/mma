@@ -2,15 +2,16 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
 import Dashboard from './Dashboard';
 import { server } from '../test/mocks/server';
 
-// Setup MSW
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+vi.mock('../contexts/WebSocketContext', () => ({
+  useWebSocket: () => ({}),
+}));
 
+// Setup MSW
+afterEach(() => server.resetHandlers());
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -39,8 +40,8 @@ describe('Dashboard Page', () => {
     await waitFor(() => {
       expect(screen.getByText('Active Members')).toBeInTheDocument();
       expect(screen.getByText('Monthly Revenue')).toBeInTheDocument();
-      expect(screen.getByText("Today's Classes")).toBeInTheDocument();
-      expect(screen.getByText('New Leads')).toBeInTheDocument();
+      expect(screen.getAllByText("Today's Classes").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('New This Week')).toBeInTheDocument();
     });
   });
 
@@ -49,7 +50,7 @@ describe('Dashboard Page', () => {
 
     await waitFor(() => {
       expect(screen.getByText('BJJ Fundamentals')).toBeInTheDocument();
-      expect(screen.getByText('Kane Mousah')).toBeInTheDocument();
+      expect(screen.getByText(/Kane Mousah/)).toBeInTheDocument();
     });
   });
 
