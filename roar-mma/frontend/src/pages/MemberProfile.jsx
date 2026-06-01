@@ -8,6 +8,7 @@ import EditMemberModal from '../components/Members/EditMemberModal';
 import ConfirmDialog from '../components/Shared/ConfirmDialog';
 import { PageLoader } from '../components/Shared/Spinner';
 import { useNotifications } from '../contexts/NotificationContext';
+import StudentCoachingPanel from '../components/Coaching/StudentCoachingPanel';
 
 export default function MemberProfile() {
   const { id } = useParams();
@@ -145,6 +146,16 @@ export default function MemberProfile() {
             >
               Payments
             </button>
+            <button type="button"
+              onClick={() => setActiveTab('coaching')}
+              className={`px-6 py-3 text-sm font-medium ${
+                activeTab === 'coaching'
+                  ? 'border-b-2 border-red-500 text-red-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Coaching
+            </button>
           </nav>
         </div>
       </div>
@@ -242,6 +253,12 @@ export default function MemberProfile() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'coaching' && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <StudentCoachingPanel member={member} />
         </div>
       )}
 

@@ -21,7 +21,8 @@ const migrations = [
   '008_add_belt_grading_system.sql',
   '009_add_ai_system.sql',
   '010_expand_schema.sql',
-  '011_add_transaction_columns.sql'
+  '011_add_transaction_columns.sql',
+  '012_add_student_coaching.sql'
 ];
 
 function initDatabase(seedDefaults = false) {

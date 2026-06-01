@@ -14,7 +14,8 @@ const DEFAULT_AGENTS = [
   { name: 'sales_team', enabled: 1 },
   { name: 'member_success_team', enabled: 1 },
   { name: 'operations_team', enabled: 1 },
-  { name: 'finance_team', enabled: 1 }
+  { name: 'finance_team', enabled: 1 },
+  { name: 'student_coaching', enabled: 1 }
 ];
 
 let startupTime = Date.now();

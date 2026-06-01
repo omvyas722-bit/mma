@@ -26,6 +26,7 @@ const Payments = lazy(() => import('./pages/Payments'));
 const Settings = lazy(() => import('./pages/Settings'));
 const TrialConversionDashboard = lazy(() => import('./pages/TrialConversionDashboard'));
 const MemberProfile = lazy(() => import('./pages/MemberProfile'));
+const Coaching = lazy(() => import('./pages/Coaching'));
 
 // Layout
 import AppShell from './components/Layout/AppShell';
@@ -70,6 +71,7 @@ function App() {
                     <Route path="payments" element={<Payments />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="trial-conversion" element={<TrialConversionDashboard />} />
+                    <Route path="coaching" element={<Coaching />} />
                   </Route>
 
                   {/* Catch all */}

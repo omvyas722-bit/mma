@@ -23,6 +23,7 @@ export default function AppShell() {
     { name: 'Trial Conversion', path: '/trial-conversion', icon: '🔄' },
     { name: 'Settings', path: '/settings', icon: '⚙️' },
     { name: 'AI Assistant', path: '/ai', icon: '🤖' },
+    { name: 'Coaching', path: '/coaching', icon: '🎓' },
     { name: 'AI Dashboard', path: '/ai-dashboard', icon: '⚙️' },
     { name: 'AI Agents', path: '/agents', icon: '🧠' },
   ];

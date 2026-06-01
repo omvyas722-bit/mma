@@ -38,6 +38,7 @@ const stockRoutes = require('./routes/stock');
 const beltGradingRoutes = require('./routes/beltGrading');
 const aiRoutes = require('./routes/ai');
 const agentsRoutes = require('./routes/agents');
+const studentCoachingRoutes = require('./routes/studentCoaching');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
@@ -60,6 +61,7 @@ const salesTeamAgent = require('./services/ai/agents/salesTeamAgent');
 const memberSuccessTeamAgent = require('./services/ai/agents/memberSuccessTeamAgent');
 const operationsTeamAgent = require('./services/ai/agents/operationsTeamAgent');
 const financeTeamAgent = require('./services/ai/agents/financeTeamAgent');
+const studentCoachingAgent = require('./services/ai/agents/studentCoachingAgent');
 
 const app = express();
 const server = http.createServer(app);
@@ -211,6 +213,7 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/grading', beltGradingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/agents', agentsRoutes.router);
+app.use('/api/coaching', studentCoachingRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -438,6 +441,7 @@ server.listen(PORT, HOST, () => {
   aiDaemon.registerAgent('stock', stockAgent.handler);
   aiDaemon.registerAgent('staff', staffAgent.handler);
   aiDaemon.registerAgent('messaging', messagingAgent.handler);
+  aiDaemon.registerAgent('student_coaching', studentCoachingAgent.handler);
 
   // Register LLM-powered team agents
   aiDaemon.registerAgent('sales_team', salesTeamAgent.handler);
