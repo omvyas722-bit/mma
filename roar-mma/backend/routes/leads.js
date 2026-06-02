@@ -81,13 +81,13 @@ router.post('/', authenticateToken, requirePermission('leads:create'), (req, res
       return res.status(400).json({ error: 'first_name, last_name, and phone required' });
     }
 
-    const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'source', 'location', 'interests', 'notes', 'assigned_to'];
-    const leadData = {};
-    for (const [key, value] of Object.entries(req.body)) {
-      if (allowedFields.includes(key)) {
-        leadData[key] = value;
+      const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'source', 'location', 'interests', 'notes', 'assigned_to', 'utm_source', 'utm_medium', 'utm_campaign'];
+      const leadData = {};
+      for (const [key, value] of Object.entries(req.body)) {
+        if (allowedFields.includes(key)) {
+          leadData[key] = value;
+        }
       }
-    }
 
     const lead = leadsData.createLead(leadData);
 

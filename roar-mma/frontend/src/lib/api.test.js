@@ -88,7 +88,7 @@ describe('settingsApi', () => {
 
   it('update calls api.put with /api/settings', () => {
     settingsApi.update({ gymName: 'Test' });
-    expect(api.put).toHaveBeenCalledWith('/api/settings', { gymName: 'Test' });
+    expect(api.put.mock.calls[0]).toEqual(['/api/settings', { gymName: 'Test' }, expect.any(Object)]);
   });
 
   it('getLocations calls api.get with /api/settings/locations', () => {
@@ -98,12 +98,12 @@ describe('settingsApi', () => {
 
   it('createLocation calls api.post', () => {
     settingsApi.createLocation({ name: 'New' });
-    expect(api.post).toHaveBeenCalledWith('/api/settings/locations', { name: 'New' });
+    expect(api.post.mock.calls[0]).toEqual(['/api/settings/locations', { name: 'New' }, expect.any(Object)]);
   });
 
   it('updateLocation calls api.put with id', () => {
     settingsApi.updateLocation(5, { name: 'Updated' });
-    expect(api.put).toHaveBeenCalledWith('/api/settings/locations/5', { name: 'Updated' });
+    expect(api.put.mock.calls[0]).toEqual(['/api/settings/locations/5', { name: 'Updated' }, expect.any(Object)]);
   });
 
   it('deleteLocation calls api.delete with id', () => {
@@ -113,11 +113,11 @@ describe('settingsApi', () => {
 
   it('testEmailConfig calls api.post', () => {
     settingsApi.testEmailConfig({ apiKey: 'key' });
-    expect(api.post).toHaveBeenCalledWith('/api/settings/test-email', { apiKey: 'key' });
+    expect(api.post.mock.calls[0]).toEqual(['/api/settings/test-email', { apiKey: 'key' }, expect.any(Object)]);
   });
 
   it('testSMSConfig calls api.post', () => {
     settingsApi.testSMSConfig({ accountSid: 'sid' });
-    expect(api.post).toHaveBeenCalledWith('/api/settings/test-sms', { accountSid: 'sid' });
+    expect(api.post.mock.calls[0]).toEqual(['/api/settings/test-sms', { accountSid: 'sid' }, expect.any(Object)]);
   });
 });

@@ -203,14 +203,32 @@ router.post('/participants/:participantId/result', authenticateToken, requirePer
       req.body.awarded_stripes || 0
     );
 
-    if (req.body.result === 'passed' && global.wsBroadcast) {
-      global.wsBroadcast({
-        type: 'grading_passed',
-        data: participant
-      });
-    }
+    if (req.body.result === 'passed') {
+        if (global.wsBroadcast) {
+          global.wsBroadcast({
+            type: 'grading_passed',
+            data: participant
+          });
+        }
+        try {
+          const db = require('../db/connection').getDatabase();
+          const member = db.prepare('SELECT id, first_name, phone FROM members WHERE id = ?').get(participant.member_id);
+          if (member && member.phone) {
+            const scheduledMessagesData = require('../data/scheduledMessages');
+            scheduledMessagesData.createScheduledMessage({
+              member_id: member.id,
+              message_type: 'sms',
+              scheduled_for: new Date().toISOString(),
+              recipient_phone: member.phone,
+              body: `Congrats ${member.first_name}! You passed your grading! 🎊 Keep up the great work at ROAR MMA!`
+            });
+          }
+        } catch (notifyErr) {
+          console.error('Failed to send congrats SMS:', notifyErr);
+        }
+      }
 
-    res.json(participant);
+      res.json(participant);
   } catch (error) {
     console.error('Error recording result:', error);
     res.status(500).json({ error: 'Failed to record result' });

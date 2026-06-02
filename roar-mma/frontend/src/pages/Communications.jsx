@@ -78,6 +78,7 @@ function ComposeModal({ onClose }) {
   const [recipientMode, setRecipientMode] = useState('group');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [memberSearch, setMemberSearch] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const { data: searchResults } = useQuery({
@@ -189,8 +190,12 @@ function ComposeModal({ onClose }) {
         </div>
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="btn-outline text-sm">Cancel</button>
+          <button type="button" onClick={() => setShowPreview(true)} disabled={!form.body.trim()} className="btn-outline text-sm">Preview</button>
           <button onClick={send.mutate} disabled={!isValid || send.isPending} className="btn-primary text-sm">{send.isPending ? 'Sending...' : form.schedule ? 'Schedule' : 'Send Now'}</button>
         </div>
+        {showPreview && (
+          <PreviewModal form={form} recipientMode={recipientMode} selectedMembers={selectedMembers} onClose={() => setShowPreview(false)} />
+        )}
       </div>
     </div>
   );
@@ -351,6 +356,47 @@ function StatusBadge({ status }) {
 }
 
 const TRIGGER_LABELS = { birthday: '🎂 Birthday', membership_anniversary: '🎉 Membership Anniversary', inactive_30_days: '👋 30 Days Inactive', trial_expiring: '⏳ Trial Expiring' };
+
+function PreviewModal({ form, recipientMode, selectedMembers, onClose }) {
+  const renderBody = form.body
+    .replace(/\{first_name\}/g, 'John')
+    .replace(/\{last_name\}/g, 'Smith')
+    .replace(/\{class_name\}/g, 'BJJ Fundamentals')
+    .replace(/\{date\}/g, new Date().toLocaleDateString('en-AU'))
+    .replace(/\{time\}/g, new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }));
+  const recipients = recipientMode === 'group' ? form.recipients.replace(/_/g, ' ') : selectedMembers.map(m => `${m.first_name} ${m.last_name}`).join(', ');
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <h3 className="text-lg font-semibold mb-4">Preview Message</h3>
+        <div className="space-y-3 text-sm">
+          <div className="flex gap-2"><span className="text-gray-500 font-medium">To:</span><span className="text-gray-700 capitalize">{recipients}</span></div>
+          <div className="flex gap-2"><span className="text-gray-500 font-medium">Channel:</span><span className="text-gray-700 uppercase">{form.type}</span></div>
+          {(form.type === 'email' || form.type === 'both') && <div className="flex gap-2"><span className="text-gray-500 font-medium">Subject:</span><span className="text-gray-700">{form.subject || '(no subject)'}</span></div>}
+          <div className="border-t pt-3">
+            <div className={`p-4 rounded-lg border ${form.type === 'sms' ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-200'}`}>
+              {form.type === 'email' ? (
+                <div className="space-y-2">
+                  <div className="border-b pb-2"><p className="font-medium text-base">{form.subject}</p></div>
+                  <p className="text-gray-700 whitespace-pre-wrap">{renderBody}</p>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">RM</div>
+                  <div><p className="text-xs text-gray-400">ROAR MMA</p><p className="text-gray-800 whitespace-pre-wrap">{renderBody}</p></div>
+                </div>
+              )}
+            </div>
+            {form.type === 'sms' && <p className="text-xs text-gray-400 mt-1 text-right">{renderBody.length}/160 characters • ~{Math.ceil(renderBody.length / 160)} SMS</p>}
+          </div>
+        </div>
+        <div className="flex justify-end mt-6">
+          <button onClick={onClose} className="btn-primary text-sm">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AutomatedMessagesPanel() {
   const { data: msgs = [], isLoading } = useQuery({ queryKey: ['automated-messages'], queryFn: () => api.get('/api/automated-messages').then(r => r.data?.messages || []) });

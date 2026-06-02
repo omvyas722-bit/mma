@@ -99,7 +99,7 @@ router.post('/', authenticateToken, requirePermission('classes:create'), (req, r
       return res.status(400).json({ error: 'day_of_week must be between 0 (Sunday) and 6 (Saturday)' });
     }
 
-    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active'];
+    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active', 'min_belt', 'fighter_only'];
     const classData = {};
     allowedFields.forEach(f => { if (req.body[f] !== undefined) classData[f] = req.body[f]; });
     const classInfo = classesData.createClass(classData);
@@ -120,7 +120,7 @@ router.put('/:id', authenticateToken, requirePermission('classes:update'), (req,
       return res.status(404).json({ error: 'Class not found' });
     }
 
-    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active'];
+    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active', 'min_belt', 'fighter_only'];
     const updateData = {};
     allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
 
@@ -169,6 +169,24 @@ router.post('/:id/generate-instances', authenticateToken, requirePermission('cla
   } catch (error) {
     console.error('Error generating class instances:', error);
     res.status(500).json({ error: 'Failed to generate class instances' });
+  }
+});
+
+// Update class instance (notes, coach, etc)
+router.put('/instances/:id', authenticateToken, requirePermission('classes:update'), (req, res) => {
+  try {
+    const instance = classesData.getClassInstanceById(req.params.id);
+    if (!instance) return res.status(404).json({ error: 'Class instance not found' });
+
+    const allowedFields = ['start_time', 'coach_id', 'capacity', 'status', 'class_notes'];
+    const updateData = {};
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+
+    const updated = classesData.updateClassInstance(req.params.id, updateData);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating class instance:', error);
+    res.status(500).json({ error: 'Failed to update class instance' });
   }
 });
 

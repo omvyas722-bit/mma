@@ -56,7 +56,7 @@ describe('authenticateToken', () => {
     };
     authenticateToken(req, res, () => {});
     assert.equal(statusCode, 401);
-    assert.equal(jsonBody.error, 'Access token required');
+    assert.equal(jsonBody.error, 'Access token or API key required');
   });
 
   it('returns 401 with invalid token', () => {

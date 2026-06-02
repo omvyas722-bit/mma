@@ -37,6 +37,12 @@ export default function MemberProfile() {
     queryFn: async () => { const r = await api.get(`/api/members/${id}/attendance`); return r.data; },
   });
 
+  const { data: attStats } = useQuery({
+    queryKey: ['member-attendance-stats', id],
+    queryFn: async () => { const r = await api.get(`/api/members/${id}/attendance-stats`); return r.data; },
+    staleTime: 60000,
+  });
+
   const { data: payments = [] } = useQuery({
     queryKey: ['member-payments', id],
     queryFn: async () => { const r = await api.get(`/api/members/${id}/transactions`); return r.data; },
@@ -71,6 +77,11 @@ export default function MemberProfile() {
   const { data: referrals = [] } = useQuery({
     queryKey: ['member-referrals', id],
     queryFn: async () => { const r = await api.get(`/api/members/${id}/referrals`); return r.data; },
+  });
+
+  const { data: makeups = [] } = useQuery({
+    queryKey: ['member-makeups', id],
+    queryFn: async () => { const r = await api.get(`/api/makeup-classes/member/${id}`); return r.data?.makeups || []; },
   });
 
   const deleteMember = useMutation({
@@ -147,6 +158,7 @@ export default function MemberProfile() {
             {member.location && <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">{member.location.replace('_', ' ')}</span>}
             {isFighter && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-bold">FIGHTER ★</span>}
             {member.parent_id && <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">Family</span>}
+            <span className={`px-2 py-0.5 text-xs rounded-full ${member.waiver_signed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{member.waiver_signed ? '✓ Waiver Signed' : '⚠ No Waiver'}</span>
             {disciplines.map(d => (
               <span key={d.discipline} className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: (DISCIPLINE_COLORS[d.discipline] || '#666') + '20', color: DISCIPLINE_COLORS[d.discipline] || '#666', border: `1px solid ${DISCIPLINE_COLORS[d.discipline] || '#666'}40` }}>
                 {DISCIPLINE_LABELS[d.discipline] || d.discipline}: {d.belt_name}
@@ -192,6 +204,7 @@ export default function MemberProfile() {
               {member.trial_end_date && <InfoRow label="Trial Ends" value={formatDate(member.trial_end_date)} />}
               {member.pause_start && <InfoRow label="Paused" value={`${formatDate(member.pause_start)} → ${member.pause_end ? formatDate(member.pause_end) : 'open'}`} />}
               {member.cancellation_date && <InfoRow label="Cancelled" value={formatDate(member.cancellation_date)} />}
+              <InfoRow label="Health Score" value={<HealthScoreBadge score={member.health_score} />} />
             </dl>
           </div>
 
@@ -246,6 +259,23 @@ export default function MemberProfile() {
             )}
           </div>
 
+          {makeups.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Makeup Classes</h2>
+              <div className="space-y-2">
+                {makeups.map(m => (
+                  <div key={m.id} className="flex justify-between items-center p-2 border-b border-gray-100 last:border-0">
+                    <div>
+                      <p className="text-sm text-gray-900">Original: {m.original_date ? formatDate(m.original_date) : 'N/A'}</p>
+                      {m.expires_at && <p className="text-xs text-gray-500">Expires: {formatDate(m.expires_at)}</p>}
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${m.used_at ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'}`}>{m.used_at ? 'Used' : 'Available'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4">Enrolled Classes This Week</h2>
             {enrolledClasses.length === 0 ? <p className="text-gray-500 text-sm">No classes enrolled this week</p> : (
@@ -273,27 +303,74 @@ export default function MemberProfile() {
       )}
 
       {activeTab === 'attendance' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Attendance History</h2>
-          {attendance.length === 0 ? <p className="text-gray-500 text-center py-8">No attendance records</p> : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Checked In</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {attendance.map(r => (
-                    <tr key={r.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(r.date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.class_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.start_time}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.attended_at ? new Date(r.attended_at).toLocaleTimeString() : 'N/A'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="space-y-6">
+          {/* Streak Stats */}
+          {attStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-lg shadow p-4 text-center">
+                <p className="text-3xl font-bold text-green-600">{attStats.currentStreak}</p>
+                <p className="text-xs text-gray-500 mt-1">Current Streak</p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 text-center">
+                <p className="text-3xl font-bold text-blue-600">{attStats.longestStreak}</p>
+                <p className="text-xs text-gray-500 mt-1">Longest Streak</p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 text-center">
+                <p className="text-3xl font-bold text-gray-900">{attStats.totalAttendance}</p>
+                <p className="text-xs text-gray-500 mt-1">Total Classes</p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 text-center">
+                <p className="text-3xl font-bold text-indigo-600">{attStats.thisMonth}</p>
+                <p className="text-xs text-gray-500 mt-1">This Month</p>
+              </div>
             </div>
           )}
+
+          {/* Heatmap (12 weeks) */}
+          {attStats?.heatmap && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Attendance Heatmap (12 weeks)</h3>
+              <div className="flex gap-0.5">
+                {Array.from({ length: 7 }, (_, dayIdx) => (
+                  <div key={dayIdx} className="flex flex-col gap-0.5">
+                    {attStats.heatmap.filter(d => d.day === dayIdx).map(d => (
+                      <div key={d.date} className={`w-3 h-3 rounded-sm ${d.attended ? 'bg-green-500' : 'bg-gray-100'}`} title={`${d.date}: ${d.attended ? 'Attended' : 'No class'}`} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                <span>Less</span>
+                <div className="w-3 h-3 rounded-sm bg-gray-100" />
+                <div className="w-3 h-3 rounded-sm bg-green-500" />
+                <span>More</span>
+              </div>
+            </div>
+          )}
+
+          {/* Attendance Table */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Attendance History</h2>
+            {attendance.length === 0 ? <p className="text-gray-500 text-center py-8">No attendance records</p> : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Checked In</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {attendance.map(r => (
+                      <tr key={r.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(r.date)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.class_name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.start_time}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.attended_at ? new Date(r.attended_at).toLocaleTimeString() : 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -543,4 +620,14 @@ function AddCompetitionDialog({ isOpen, onClose, onConfirm }) {
       </div>
     </Modal>
   );
+}
+
+function HealthScoreBadge({ score }) {
+  if (score === null || score === undefined) return <span className="text-sm text-gray-400">—</span>;
+  const color = score >= 80 ? 'text-green-600' : score >= 50 ? 'text-yellow-600' : score >= 30 ? 'text-orange-600' : 'text-red-600';
+  const bg = score >= 80 ? 'bg-green-50' : score >= 50 ? 'bg-yellow-50' : score >= 30 ? 'bg-orange-50' : 'bg-red-50';
+  return <span className={`inline-flex items-center gap-1 text-sm font-medium ${color} ${bg} px-2 py-0.5 rounded-full`}>
+    <span className={`w-2 h-2 rounded-full ${color.replace('text-', 'bg-')}`} />
+    {score}/100
+  </span>;
 }

@@ -2,7 +2,7 @@
 const express = require('express');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const membersData = require('../data/members');
-const { isUniqueConstraintError } = require('../db/connection');
+const { getDatabase, isUniqueConstraintError } = require('../db/connection');
 
 const router = express.Router();
 const HOLD_FEE_PER_DAY = parseFloat(process.env.HOLD_FEE_PER_DAY) || 0.71;
@@ -47,6 +47,11 @@ router.get('/:id', authenticateToken, requirePermission('members:read'), (req, r
       return res.status(404).json({ error: 'Member not found' });
     }
 
+    // Add waiver signed status
+    const db = getDatabase();
+    const waiverRecord = db.prepare("SELECT id, signed_at, template_id FROM member_waivers WHERE member_id = ? ORDER BY signed_at DESC LIMIT 1").get(req.params.id);
+    member.waiver_signed = !!waiverRecord;
+
     res.json(member);
   } catch (error) {
     console.error('Error fetching member:', error);
@@ -63,6 +68,78 @@ router.get('/:id/attendance', authenticateToken, requirePermission('members:read
   } catch (error) {
     console.error('Error fetching member attendance:', error);
     res.status(500).json({ error: 'Failed to fetch attendance' });
+  }
+});
+
+// Get member attendance stats (streak + heatmap)
+router.get('/:id/attendance-stats', authenticateToken, requirePermission('members:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const id = req.params.id;
+
+    // All attendance dates ordered desc
+    const attendedDates = db.prepare(`
+      SELECT DISTINCT ci.date FROM bookings b
+      JOIN class_instances ci ON b.class_instance_id = ci.id
+      WHERE b.member_id = ? AND b.status = 'attended'
+      ORDER BY ci.date DESC
+    `).all(id).map(r => r.date);
+
+    // Current streak (consecutive days backwards from today)
+    let currentStreak = 0;
+    const today = new Date().toISOString().split('T')[0];
+    const checkDate = new Date(today);
+    const attendedSet = new Set(attendedDates);
+    for (let i = 0; i < 365; i++) {
+      const ds = checkDate.toISOString().split('T')[0];
+      if (attendedSet.has(ds)) { currentStreak++; checkDate.setDate(checkDate.getDate() - 1); }
+      else if (i === 0) { /* didn't attend today, check yesterday */ checkDate.setDate(checkDate.getDate() - 1); continue; }
+      else break;
+    }
+
+    // Longest streak
+    let longestStreak = 0;
+    let tempStreak = 0;
+    const sortedAsc = [...attendedDates].sort();
+    for (let i = 0; i < sortedAsc.length; i++) {
+      if (i === 0) { tempStreak = 1; }
+      else {
+        const prev = new Date(sortedAsc[i - 1]);
+        const curr = new Date(sortedAsc[i]);
+        const diff = (curr - prev) / 86400000;
+        if (diff === 1) tempStreak++;
+        else { longestStreak = Math.max(longestStreak, tempStreak); tempStreak = 1; }
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+
+    // Total attendance
+    const totalAttendance = attendedDates.length;
+
+    // This month
+    const monthStart = new Date(); monthStart.setDate(1);
+    const monthStartStr = monthStart.toISOString().split('T')[0];
+    const thisMonth = attendedDates.filter(d => d >= monthStartStr).length;
+
+    // Heatmap data: last 12 weeks (84 days)
+    const heatmapDays = [];
+    for (let i = 83; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ds = d.toISOString().split('T')[0];
+      heatmapDays.push({ date: ds, day: d.getDay(), attended: attendedSet.has(ds) });
+    }
+
+    res.json({
+      currentStreak,
+      longestStreak,
+      totalAttendance,
+      thisMonth,
+      heatmap: heatmapDays
+    });
+  } catch (error) {
+    console.error('Error fetching attendance stats:', error);
+    res.status(500).json({ error: 'Failed to fetch attendance stats' });
   }
 });
 

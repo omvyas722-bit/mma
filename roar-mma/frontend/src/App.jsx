@@ -31,6 +31,9 @@ const Waivers = lazy(() => import('./pages/Waivers'));
 const SocialMedia = lazy(() => import('./pages/SocialMedia'));
 const KioskWaiver = lazy(() => import('./pages/KioskWaiver'));
 const ApprovalQueue = lazy(() => import('./pages/ApprovalQueue'));
+const LeadsWizard = lazy(() => import('./pages/LeadsWizard'));
+const MemberPortal = lazy(() => import('./pages/MemberPortal'));
+const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'));
 
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -48,6 +51,7 @@ function App() {
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/kiosk/waiver" element={<KioskWaiver />} />
+                  <Route path="/portal/*" element={<MemberPortal />} />
 
                   <Route
                     path="/"
@@ -63,6 +67,7 @@ function App() {
                     <Route path="members/:id" element={<MemberProfile />} />
                     <Route path="classes" element={<Classes />} />
                     <Route path="leads" element={<Leads />} />
+                    <Route path="leads/wizard" element={<LeadsWizard />} />
                     <Route path="billing" element={<Billing />} />
                     <Route path="staff" element={<Staff />} />
                     <Route path="reports" element={<Reports />} />
@@ -79,6 +84,7 @@ function App() {
                     <Route path="waivers" element={<Waivers />} />
                     <Route path="social-media" element={<SocialMedia />} />
                     <Route path="approval-queue" element={<ApprovalQueue />} />
+                    <Route path="workflows" element={<WorkflowBuilder />} />
                   </Route>
 
                   <Route path="*" element={<Navigate to="/" replace />} />

@@ -30,10 +30,12 @@ apiClient.interceptors.request.use(
     }
 
     // Log request in development
-    logger.api(config.method.toUpperCase(), config.url, {
-      params: config.params,
-      data: config.data,
-    });
+    if (config.method) {
+      logger.api(config.method.toUpperCase(), config.url, {
+        params: config.params,
+        data: config.data,
+      });
+    }
 
     return config;
   },
@@ -46,17 +48,18 @@ apiClient.interceptors.request.use(
 // Response interceptor - handle errors and logging
 apiClient.interceptors.response.use(
   (response) => {
-    // Log successful response
-    logger.apiSuccess(
-      response.config.method.toUpperCase(),
-      response.config.url,
-      response.data
-    );
+    if (response.config) {
+      logger.apiSuccess(
+        response.config.method.toUpperCase(),
+        response.config.url,
+        response.data
+      );
+    }
 
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
 
     // Log error
     logger.apiError(
@@ -279,7 +282,7 @@ export const reportsApi = {
 
 // Settings API
 export const settingsApi = {
-  getAll: () => api.get('/api/settings'),
+  getAll: (params) => api.get('/api/settings', params),
   update: (data) => api.put('/api/settings', data),
   getLocations: () => api.get('/api/settings/locations'),
   createLocation: (data) => api.post('/api/settings/locations', data),

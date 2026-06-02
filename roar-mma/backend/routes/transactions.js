@@ -4,6 +4,14 @@ const { authenticateToken, requirePermission } = require('../middleware/auth');
 const transactionsData = require('../data/transactions');
 
 const router = express.Router();
+let stripe = null;
+function getStripe() {
+  if (!stripe) {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (secretKey) stripe = require('stripe')(secretKey);
+  }
+  return stripe;
+}
 
 // Get all transactions (with filters)
 router.get('/', authenticateToken, requirePermission('reports:read'), (req, res) => {
@@ -125,7 +133,7 @@ router.put('/:id', authenticateToken, requirePermission('transactions:update'), 
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    if (updates.status && !['completed', 'failed', 'pending', 'refunded'].includes(updates.status)) {
+    if (updates.status && !['completed', 'failed', 'pending', 'refunded', 'write_off'].includes(updates.status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
@@ -163,6 +171,104 @@ router.post('/:id/refund', authenticateToken, requirePermission('transactions:re
   } catch (error) {
     console.error('Error refunding transaction:', error);
     res.status(500).json({ error: 'Failed to refund transaction' });
+  }
+});
+
+// === Write-offs ===
+router.post('/:id/write-off', authenticateToken, requirePermission('transactions:update'), (req, res) => {
+  try {
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ error: 'Write-off reason required' });
+    const tx = transactionsData.getTransactionById(req.params.id);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    if (tx.status === 'write_off') return res.status(400).json({ error: 'Already written off' });
+    const updated = transactionsData.writeOffTransaction(req.params.id, reason, req.user.id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error writing off transaction:', error);
+    res.status(500).json({ error: 'Failed to write off transaction' });
+  }
+});
+
+router.get('/write-offs', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    res.json(transactionsData.getWriteOffs({ date_from: req.query.date_from, date_to: req.query.date_to }));
+  } catch (error) {
+    console.error('Error fetching write-offs:', error);
+    res.status(500).json({ error: 'Failed to fetch write-offs' });
+  }
+});
+
+// === Stripe ===
+router.post('/stripe/intent', authenticateToken, requirePermission('transactions:create'), async (req, res) => {
+  try {
+    const s = getStripe();
+    if (!s) return res.status(400).json({ error: 'Stripe not configured (missing STRIPE_SECRET_KEY)' });
+    const { amount, member_id, description } = req.body;
+    if (!amount || !member_id) return res.status(400).json({ error: 'amount and member_id required' });
+    const paymentIntent = await s.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'aud',
+      metadata: { member_id: String(member_id), description: description || '' }
+    });
+    res.json({ client_secret: paymentIntent.client_secret, intent_id: paymentIntent.id });
+  } catch (error) {
+    console.error('Error creating Stripe intent:', error);
+    res.status(500).json({ error: 'Failed to create payment intent' });
+  }
+});
+
+router.post('/stripe/confirm', authenticateToken, requirePermission('transactions:create'), async (req, res) => {
+  try {
+    const s = getStripe();
+    if (!s) return res.status(400).json({ error: 'Stripe not configured' });
+    const { intent_id, member_id, amount, type, description, payment_method } = req.body;
+    if (!intent_id || !member_id || !amount || !type) return res.status(400).json({ error: 'intent_id, member_id, amount, type required' });
+    const paymentIntent = await s.paymentIntents.retrieve(intent_id);
+    if (paymentIntent.status !== 'succeeded') return res.status(400).json({ error: 'Payment has not succeeded' });
+    const tx = transactionsData.createTransaction({
+      member_id, amount, type, status: 'completed',
+      payment_method: payment_method || 'card',
+      stripe_payment_intent_id: intent_id,
+      stripe_payment_method: paymentIntent.payment_method_types?.[0] || 'card',
+      description, processed_at: new Date().toISOString()
+    });
+    res.json(tx);
+  } catch (error) {
+    console.error('Error confirming Stripe payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  }
+});
+
+// === MRR History ===
+router.get('/mrr-history', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    res.json(transactionsData.getMrrHistory(parseInt(req.query.months) || 12));
+  } catch (error) {
+    console.error('Error fetching MRR history:', error);
+    res.status(500).json({ error: 'Failed to fetch MRR history' });
+  }
+});
+
+// === Subscriptions ===
+router.get('/subscriptions', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    res.json(transactionsData.getSubscriptions({ status: req.query.status, member_id: req.query.member_id }));
+  } catch (error) {
+    console.error('Error fetching subscriptions:', error);
+    res.status(500).json({ error: 'Failed to fetch subscriptions' });
+  }
+});
+
+router.post('/subscriptions', authenticateToken, requirePermission('transactions:create'), (req, res) => {
+  try {
+    const { member_id, plan_name, amount, status, stripe_subscription_id, stripe_price_id, current_period_start, current_period_end } = req.body;
+    if (!member_id || !plan_name || amount === undefined) return res.status(400).json({ error: 'member_id, plan_name, amount required' });
+    const sub = transactionsData.createSubscription({ member_id, plan_name, amount, status, stripe_subscription_id, stripe_price_id, current_period_start, current_period_end });
+    res.status(201).json(sub);
+  } catch (error) {
+    console.error('Error creating subscription:', error);
+    res.status(500).json({ error: 'Failed to create subscription' });
   }
 });
 

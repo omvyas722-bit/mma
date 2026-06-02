@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS social_posts (
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'published', 'failed', 'cancelled')),
   scheduled_at TEXT,
   published_at TEXT,
-  created_by INTEGER REFERENCES users(id),
+  created_by INTEGER REFERENCES staff(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

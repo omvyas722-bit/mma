@@ -74,6 +74,54 @@ function upsertAnalytics({ post_id, platform, impressions, reach, engagement, li
   return getAnalytics(post_id);
 }
 
+// Campaigns
+function getCampaigns(filters = {}) {
+  const db = getDatabase();
+  let query = 'SELECT * FROM social_campaigns WHERE 1=1';
+  const params = [];
+  if (filters.status) { query += ' AND status = ?'; params.push(filters.status); }
+  if (filters.platform) { query += ' AND platform = ?'; params.push(filters.platform); }
+  query += ' ORDER BY created_at DESC';
+  return db.prepare(query).all(...params);
+}
+
+function getCampaignById(id) {
+  return getDatabase().prepare('SELECT * FROM social_campaigns WHERE id = ?').get(id);
+}
+
+function createCampaign(data) {
+  const db = getDatabase();
+  const r = db.prepare(`INSERT INTO social_campaigns (name, platform, campaign_type, budget, start_date, end_date, target_url, utm_campaign, utm_source, utm_medium, status, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(data.name, data.platform, data.campaign_type || 'promotion', data.budget || null, data.start_date || null, data.end_date || null, data.target_url || null, data.utm_campaign || null, data.utm_source || null, data.utm_medium || null, data.status || 'draft', data.notes || null, data.created_by || null);
+  return getCampaignById(r.lastInsertRowid);
+}
+
+function updateCampaign(id, fields) {
+  const db = getDatabase();
+  const allowed = ['name','platform','campaign_type','budget','start_date','end_date','target_url','utm_campaign','utm_source','utm_medium','status','notes'];
+  const sets = []; const vals = [];
+  for (const k of allowed) { if (fields[k] !== undefined) { sets.push(`${k}=?`); vals.push(fields[k]); } }
+  if (sets.length === 0) return getCampaignById(id);
+  sets.push("updated_at=datetime('now')"); vals.push(id);
+  db.prepare(`UPDATE social_campaigns SET ${sets.join(',')} WHERE id=?`).run(...vals);
+  return getCampaignById(id);
+}
+
+function deleteCampaign(id) {
+  return getDatabase().prepare('DELETE FROM social_campaigns WHERE id = ?').run(id);
+}
+
+function getCampaignLeads(campaignId) {
+  const c = getCampaignById(campaignId);
+  if (!c || !c.utm_campaign) return [];
+  return getDatabase().prepare("SELECT * FROM leads WHERE utm_campaign = ? ORDER BY created_at DESC").all(c.utm_campaign);
+}
+
+// Lead-from-post correlation
+function getLeadsByUtmSource(source) {
+  return getDatabase().prepare("SELECT * FROM leads WHERE utm_source = ? ORDER BY created_at DESC").all(source);
+}
+
 function getTemplates(category) {
   const db = getDatabase();
   if (category) {
@@ -117,4 +165,11 @@ module.exports = {
   upsertAnalytics,
   getTemplates,
   getSummary,
+  getCampaigns,
+  getCampaignById,
+  createCampaign,
+  updateCampaign,
+  deleteCampaign,
+  getCampaignLeads,
+  getLeadsByUtmSource,
 };

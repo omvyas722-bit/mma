@@ -117,7 +117,8 @@ export function validateEmail(email, required = true) {
 
 // Phone validation (Australian format)
 export function isValidPhone(phone) {
-  return VALIDATION.PHONE_REGEX.test(phone);
+  if (!phone) return false;
+  return VALIDATION.PHONE_REGEX.test(phone.replace(/\s+/g, ''));
 }
 
 export function validatePhone(phone, required = true) {
@@ -128,7 +129,10 @@ export function validatePhone(phone, required = true) {
   }
 
   if (phone) {
-    validator.pattern(VALIDATION.PHONE_REGEX, 'Invalid phone number (must be 10 digits starting with 0)');
+    validator.custom(
+      (val) => VALIDATION.PHONE_REGEX.test(val.replace(/\s+/g, '')),
+      'Invalid phone number (must be 10 digits starting with 0)'
+    );
   }
 
   return validator.validate();

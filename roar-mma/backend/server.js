@@ -43,12 +43,22 @@ const certificationsRoutes = require('./routes/certifications');
 const approvalQueueRoutes = require('./routes/approvalQueue');
 const makeupClassesRoutes = require('./routes/makeupClasses');
 const automatedMessagesRoutes = require('./routes/automatedMessages');
+const familyDiscountsRoutes = require('./routes/familyDiscounts');
+const staffScheduleRoutes = require('./routes/staffSchedule');
+const privacyRoutes = require('./routes/privacy');
+const documentsRoutes = require('./routes/documents');
+const pixelRoutes = require('./routes/pixel');
+const memberPortalRoutes = require('./routes/memberPortal');
+const workflowsRoutes = require('./routes/workflows');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
 const aiDaemon = require('./services/ai/aiDaemon');
 
 // Import AI agents
+const scoutAgent = require('./services/ai/agents/scoutAgent');
+const healerAgent = require('./services/ai/agents/healerAgent');
+const pixelAgent = require('./services/ai/agents/pixelAgent');
 const leadAgent = require('./services/ai/agents/leadAgent');
 const trialAgent = require('./services/ai/agents/trialAgent');
 const retentionAgent = require('./services/ai/agents/retentionAgent');
@@ -225,6 +235,13 @@ app.use('/api/certifications', certificationsRoutes);
 app.use('/api/approval-queue', approvalQueueRoutes);
 app.use('/api/makeup-classes', makeupClassesRoutes);
 app.use('/api/automated-messages', automatedMessagesRoutes);
+app.use('/api/family-discounts', familyDiscountsRoutes);
+app.use('/api/staff-schedule', staffScheduleRoutes);
+app.use('/api/privacy', privacyRoutes);
+app.use('/api/documents', documentsRoutes);
+app.use('/api/pixel', pixelRoutes);
+app.use('/api/portal', memberPortalRoutes);
+app.use('/api/workflows', workflowsRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -442,6 +459,9 @@ server.listen(PORT, HOST, () => {
   console.log('Message scheduler started');
 
   // Start AI daemon heartbeat
+  aiDaemon.registerAgent('scout', scoutAgent.handler);
+  aiDaemon.registerAgent('healer', healerAgent.handler);
+  aiDaemon.registerAgent('pixel', pixelAgent.handler);
   aiDaemon.registerAgent('leads', leadAgent.handler);
   aiDaemon.registerAgent('trials', trialAgent.handler);
   aiDaemon.registerAgent('retention', retentionAgent.handler);

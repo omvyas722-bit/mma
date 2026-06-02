@@ -88,8 +88,41 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
       new: db.prepare("SELECT COUNT(*) as count FROM leads WHERE stage = 'new'").get().count,
       contacted: db.prepare("SELECT COUNT(*) as count FROM leads WHERE stage = 'contacted'").get().count,
       trial_booked: db.prepare("SELECT COUNT(*) as count FROM leads WHERE stage = 'trial_booked'").get().count,
-      converted: db.prepare("SELECT COUNT(*) as count FROM leads WHERE stage = 'converted' AND DATE(updated_at) >= date('now', '-30 days')").get().count
+      converted: db.prepare("SELECT COUNT(*) as count FROM leads WHERE stage = 'converted' AND DATE(updated_at) >= date('now', '-30 days')").get().count,
+      hot: db.prepare("SELECT COUNT(*) as count FROM leads WHERE stage NOT IN ('converted','lost') AND interest_level IN ('hot','high')").get().count,
+      open: db.prepare("SELECT COUNT(*) as count FROM leads WHERE stage NOT IN ('converted','lost')").get().count
     };
+
+    // Class fill % for today
+    const classFillRow = db.prepare(`
+      SELECT AVG(CAST(bc AS REAL) / CAST(c.capacity AS REAL)) * 100 as fill_pct FROM (
+        SELECT ci.id, ci.class_id, ci.capacity, (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as bc
+        FROM class_instances ci WHERE ci.date = ? AND ci.status = 'scheduled'
+      ) sub JOIN classes c ON sub.class_id = c.id WHERE c.capacity > 0
+    `).get(today);
+    const classFillPct = classFillRow?.fill_pct != null ? Math.round(classFillRow.fill_pct) : null;
+
+    // Goal sub-metrics
+    const trialsThisMonth = db.prepare("SELECT COUNT(*) as c FROM members WHERE status = 'trial'").get().c;
+    const referralsThisMonth = db.prepare("SELECT COUNT(*) as c FROM members WHERE referred_by IS NOT NULL AND DATE(joined_date) >= ?").get(monthStartStr).c;
+    const totalLeadsContacted = db.prepare("SELECT COUNT(*) as c FROM leads WHERE stage != 'new'").get().c;
+    const conversionRate = totalLeadsContacted > 0 ? ((leadsStats.converted / totalLeadsContacted) * 100).toFixed(1) : 0;
+
+    // MIDAS chase note (latest billing chase)
+    const midasChase = db.prepare(`
+      SELECT description, timestamp FROM activity_log
+      WHERE type = 'midas_chase' OR description LIKE '%MIDAS%'
+      ORDER BY timestamp DESC LIMIT 1
+    `).get();
+
+    // Expiring staff certifications
+    const expiringCerts = db.prepare(`
+      SELECT sc.id, sc.cert_name, sc.expiry_date, s.first_name, s.last_name
+      FROM staff_certifications sc
+      JOIN staff s ON sc.staff_id = s.id
+      WHERE sc.expiry_date >= date('now') AND sc.expiry_date <= date('now', '+60 days')
+      ORDER BY sc.expiry_date
+    `).all();
 
     // Calculate deltas (vs last 30 days)
     const thirtyDaysAgo = new Date();
@@ -229,8 +262,27 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
         new_leads: {
           value: leadsStats.new,
           delta: parseFloat(leadsDelta)
+        },
+        open_leads: {
+          value: leadsStats.open,
+          delta: null
+        },
+        class_fill: {
+          value: classFillPct != null ? `${classFillPct}%` : '—',
+          delta: null
+        },
+        hot_leads: {
+          value: leadsStats.hot,
+          delta: null
         }
       },
+      goal_sub_metrics: {
+        trials: trialsThisMonth,
+        conversion_rate: conversionRate,
+        referrals: referralsThisMonth
+      },
+      midas_chase: midasChase || null,
+      expiring_certs: expiringCerts,
       todays_classes: todaysClasses,
       recent_activity: recentActivity,
       member_stats: memberStats,
@@ -349,6 +401,53 @@ router.get('/sparklines', authenticateToken, requirePermission('dashboard:read')
   } catch (error) {
     console.error('Error fetching sparklines:', error);
     res.status(500).json({ error: 'Failed to fetch sparklines' });
+  }
+});
+
+// Revenue forecast (simple linear based on last 90 days)
+router.get('/revenue-forecast', authenticateToken, requirePermission('dashboard:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const daily = db.prepare(`
+      SELECT DATE(created_at) as date, COALESCE(SUM(amount), 0) as revenue
+      FROM transactions WHERE created_at >= date('now', '-90 days') AND status = 'completed'
+      GROUP BY DATE(created_at) ORDER BY date
+    `).all();
+
+    const values = daily.map(d => d.revenue);
+    const n = values.length;
+    const avg = n > 0 ? values.reduce((a, b) => a + b, 0) / n : 0;
+    const variance = n > 1 ? values.reduce((sum, v) => sum + (v - avg) ** 2, 0) / (n - 1) : 0;
+    const stddev = Math.sqrt(variance);
+
+    const activeMembers = db.prepare("SELECT COUNT(*) as c FROM members WHERE status = 'active'").get().c;
+    const churnRate = db.prepare(`
+      SELECT CAST(COUNT(*) AS REAL) / MAX(?, 1) as rate
+      FROM members WHERE status = 'cancelled' AND cancellation_date >= date('now', '-30 days')
+    `).get(activeMembers).rate || 0;
+
+    const projectedGrowth = activeMembers * (1 - churnRate);
+    const projectedRevenue = projectedGrowth * avg * 30;
+
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const now = new Date();
+    const forecast = Array.from({ length: 6 }, (_, i) => {
+      const m = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+      const members = activeMembers * Math.pow(1 - churnRate, i + 1);
+      return { month: `${monthNames[m.getMonth()]} ${m.getFullYear()}`, projectedRevenue: Math.round(members * avg * 30), projectedMembers: Math.round(members) };
+    });
+
+    res.json({
+      currentDailyAvg: Math.round(avg * 100) / 100,
+      dailyStdDev: Math.round(stddev * 100) / 100,
+      monthlyProjection: Math.round(avg * 30),
+      projectedNextMonth: Math.round(projectedRevenue),
+      churnRate: Math.round(churnRate * 10000) / 100,
+      forecast,
+    });
+  } catch (error) {
+    console.error('Error forecasting revenue:', error);
+    res.status(500).json({ error: 'Failed to forecast revenue' });
   }
 });
 

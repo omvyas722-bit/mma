@@ -4,7 +4,7 @@ const { getDatabase } = require('../db/connection');
 function getAllClasses(filters = {}) {
   const db = getDatabase();
 
-  let query = 'SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.created_at, c.updated_at, s.name as coach_name FROM classes c LEFT JOIN staff s ON c.coach_id = s.id WHERE 1=1';
+  let query = 'SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.min_belt, c.fighter_only, c.created_at, c.updated_at, s.name as coach_name FROM classes c LEFT JOIN staff s ON c.coach_id = s.id WHERE 1=1';
   const params = [];
 
   if (filters.location) {
@@ -30,7 +30,7 @@ function getAllClasses(filters = {}) {
 function getClassById(id) {
   const db = getDatabase();
   return db.prepare(`
-    SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.created_at, c.updated_at, s.name as coach_name
+    SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.min_belt, c.fighter_only, c.created_at, c.updated_at, s.name as coach_name
     FROM classes c
     LEFT JOIN staff s ON c.coach_id = s.id
     WHERE c.id = ?
@@ -43,8 +43,9 @@ function createClass(classData) {
   const stmt = db.prepare(`
     INSERT INTO classes (
       name, description, location, day_of_week, start_time,
-      duration_minutes, capacity, class_type, coach_id, active
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      duration_minutes, capacity, class_type, coach_id, active,
+      min_belt, fighter_only
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -57,7 +58,9 @@ function createClass(classData) {
     classData.capacity || 20,
     classData.class_type,
     classData.coach_id || null,
-    classData.active !== undefined ? classData.active : 1
+    classData.active !== undefined ? classData.active : 1,
+    classData.min_belt || null,
+    classData.fighter_only || 0
   );
 
   return getClassById(result.lastInsertRowid);
@@ -68,7 +71,8 @@ function updateClass(id, updates) {
 
   const allowedFields = [
     'name', 'description', 'location', 'day_of_week', 'start_time',
-    'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active'
+    'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active',
+    'min_belt', 'fighter_only'
   ];
 
   const fields = [];
@@ -106,10 +110,11 @@ function getClassInstances(filters = {}) {
 
   let query = `
     SELECT
-      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.cancellation_reason, ci.created_at, ci.updated_at,
+      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.cancellation_reason, ci.class_notes, ci.created_at, ci.updated_at,
       c.name as class_name,
       c.class_type,
       c.location,
+      c.min_belt, c.fighter_only,
       s.name as coach_name,
       (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as booked_count
     FROM class_instances ci
@@ -153,11 +158,12 @@ function getClassInstanceById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.cancellation_reason, ci.created_at, ci.updated_at,
+      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.cancellation_reason, ci.class_notes, ci.created_at, ci.updated_at,
       c.name as class_name,
       c.class_type,
       c.location,
       c.capacity as default_capacity,
+      c.min_belt, c.fighter_only,
       s.name as coach_name,
       (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as booked_count
     FROM class_instances ci
@@ -172,8 +178,8 @@ function createClassInstance(instanceData) {
 
   const stmt = db.prepare(`
     INSERT INTO class_instances (
-      class_id, date, start_time, coach_id, capacity, status
-    ) VALUES (?, ?, ?, ?, ?, ?)
+      class_id, date, start_time, coach_id, capacity, status, class_notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -182,7 +188,8 @@ function createClassInstance(instanceData) {
     instanceData.start_time,
     instanceData.coach_id || null,
     instanceData.capacity,
-    instanceData.status || 'scheduled'
+    instanceData.status || 'scheduled',
+    instanceData.class_notes || null
   );
 
   return getClassInstanceById(result.lastInsertRowid);
@@ -192,7 +199,7 @@ function updateClassInstance(id, updates) {
   const db = getDatabase();
 
   const allowedFields = [
-    'date', 'start_time', 'coach_id', 'capacity', 'status', 'cancellation_reason'
+    'date', 'start_time', 'coach_id', 'capacity', 'status', 'cancellation_reason', 'class_notes'
   ];
 
   const fields = [];

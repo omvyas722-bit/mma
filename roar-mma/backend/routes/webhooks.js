@@ -222,11 +222,107 @@ router.post('/lightspeed/sync', require('../middleware/auth').authenticateToken,
   try {
     const { daysBack = 30 } = req.body;
     const lightspeedSync = require('../services/lightspeedSync');
-    const result = await lightspeedSync.syncAll();
+    const result = await lightspeedSync.syncAll(daysBack);
     res.json(result);
   } catch (error) {
     console.error('Lightspeed sync error:', error);
     res.status(500).json({ error: 'Sync failed: ' + error.message });
+  }
+});
+
+// === Stripe webhook ===
+router.post('/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) return res.status(400).json({ error: 'Stripe webhook not configured' });
+
+    let stripe = null;
+    try { stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); } catch {}
+    if (!stripe) return res.status(400).json({ error: 'Stripe not initialized' });
+
+    let event;
+    try { event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret); }
+    catch (err) { return res.status(400).json({ error: 'Webhook signature verification failed' }); }
+
+    const db = getDatabase();
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const pi = event.data.object;
+        const memberId = pi.metadata?.member_id;
+        if (memberId && !db.prepare('SELECT id FROM transactions WHERE stripe_payment_intent_id = ?').get(pi.id)) {
+          transactionsData.createTransaction({
+            member_id: parseInt(memberId),
+            amount: (pi.amount || 0) / 100,
+            currency: pi.currency?.toUpperCase() || 'AUD',
+            type: pi.metadata?.type || 'membership',
+            status: 'completed',
+            payment_method: 'card',
+            stripe_payment_intent_id: pi.id,
+            stripe_payment_method: pi.payment_method_types?.[0] || 'card',
+            description: pi.metadata?.description || pi.description || 'Stripe payment',
+            processed_at: new Date(pi.created * 1000).toISOString()
+          });
+        }
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object;
+        const memberId = pi.metadata?.member_id;
+        if (memberId) {
+          transactionsData.createTransaction({
+            member_id: parseInt(memberId),
+            amount: (pi.amount || 0) / 100,
+            currency: pi.currency?.toUpperCase() || 'AUD',
+            type: pi.metadata?.type || 'membership',
+            status: 'failed',
+            payment_method: 'card',
+            stripe_payment_intent_id: pi.id,
+            description: pi.metadata?.description || 'Stripe payment failed',
+            failure_reason: pi.last_payment_error?.message || 'Unknown',
+            processed_at: new Date().toISOString()
+          });
+        }
+        break;
+      }
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const sub = event.data.object;
+        const member = db.prepare('SELECT id FROM members WHERE stripe_customer_id = ?').get(sub.customer);
+        if (member) {
+          const existing = db.prepare('SELECT id FROM subscriptions WHERE stripe_subscription_id = ?').get(sub.id);
+          const data = {
+            member_id: member.id,
+            plan_name: sub.items?.data?.[0]?.price?.nickname || sub.items?.data?.[0]?.plan?.product?.name || 'Membership',
+            amount: (sub.items?.data?.[0]?.price?.unit_amount || 0) / 100,
+            status: sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'active' : sub.status === 'canceled' ? 'cancelled' : sub.status,
+            stripe_subscription_id: sub.id,
+            stripe_price_id: sub.items?.data?.[0]?.price?.id,
+            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+          };
+          if (sub.status === 'canceled') data.cancelled_at = new Date().toISOString();
+          if (existing) {
+            db.prepare(`UPDATE subscriptions SET plan_name=?, amount=?, status=?, stripe_price_id=?, current_period_start=?, current_period_end=?, cancelled_at=COALESCE(?,cancelled_at), updated_at=datetime('now') WHERE stripe_subscription_id=?`).run(
+              data.plan_name, data.amount, data.status, data.stripe_price_id, data.current_period_start, data.current_period_end, data.cancelled_at || null, sub.id);
+          } else {
+            transactionsData.createSubscription(data);
+          }
+        }
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object;
+        db.prepare("UPDATE subscriptions SET status='cancelled', cancelled_at=datetime('now'), updated_at=datetime('now') WHERE stripe_subscription_id=?").run(sub.id);
+        break;
+      }
+    }
+
+    if (global.wsBroadcast) global.wsBroadcast({ type: event.type.replace('.', ':'), data: event.data.object });
+    res.json({ received: true });
+  } catch (error) {
+    console.error('[STRIPE WEBHOOK] Error:', error.message);
+    res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 

@@ -129,6 +129,32 @@ router.post('/:id/cancel', authenticateToken, requirePermission('bookings:update
   try {
     const result = bookingsData.cancelBooking(req.params.id);
 
+    // If someone was promoted from waitlist, send SMS notification
+    if (result.promoted) {
+      try {
+        const db = require('../db/connection').getDatabase();
+        const member = db.prepare('SELECT id, first_name, phone FROM members WHERE id = ?').get(result.promoted.member_id);
+        const classInfo = db.prepare(`
+          SELECT c.name, ci.start_time, ci.date FROM class_instances ci
+          JOIN classes c ON ci.class_id = c.id WHERE ci.id = ?
+        `).get(result.promoted.class_instance_id);
+
+        if (member && member.phone && classInfo) {
+          const scheduledMessagesData = require('../data/scheduledMessages');
+          scheduledMessagesData.createScheduledMessage({
+            member_id: member.id,
+            message_type: 'sms',
+            scheduled_for: new Date().toISOString(),
+            recipient_phone: member.phone,
+            body: `Hi ${member.first_name}, a spot opened up! You've been auto-promoted from the waitlist for ${classInfo.name} on ${classInfo.date} at ${classInfo.start_time}. See you there!`
+          });
+          console.log(`✓ Waitlist SMS queued for member ${member.id}`);
+        }
+      } catch (notifyErr) {
+        console.error('Failed to send waitlist SMS:', notifyErr);
+      }
+    }
+
     res.json(result);
   } catch (error) {
     console.error('Error cancelling booking:', error);

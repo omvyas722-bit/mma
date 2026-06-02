@@ -9,18 +9,39 @@ if (!JWT_SECRET) {
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const apiKey = req.headers['x-api-key'];
 
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+  if (!token && !apiKey) {
+    return res.status(401).json({ error: 'Access token or API key required' });
   }
 
   if (!process.env.JWT_SECRET) {
     return res.status(500).json({ error: 'Server authentication configuration error' });
   }
 
+  // API key auth
+  if (apiKey) {
+    try {
+      const { getDatabase } = require('../db/connection');
+      const db = getDatabase();
+      const user = db.prepare('SELECT id, name, email, role FROM staff WHERE api_key = ? AND active = 1').get(apiKey);
+      if (user) {
+        req.user = user;
+        req.authMethod = 'api_key';
+        return next();
+      }
+    } catch { /* fall through to JWT */ }
+  }
+
+  // JWT auth
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET);
     req.user = user;
+    req.authMethod = 'jwt';
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Invalid or expired token' });

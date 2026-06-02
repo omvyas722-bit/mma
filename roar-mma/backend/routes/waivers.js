@@ -1,8 +1,11 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const { getDatabase } = require('../db/connection');
 const { waiverTemplates, memberWaivers, memberDocuments } = require('../data/waivers');
 const auth = require('../middleware/auth');
+
+const kioskLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many kiosk requests' } });
 
 // ── Waiver Templates ──
 
@@ -121,7 +124,7 @@ router.delete('/documents/:id', auth.authenticateToken, auth.requireRole('owner'
 });
 
 // Kiosk: lookup member by phone
-router.get('/kiosk/lookup', (req, res) => {
+router.get('/kiosk/lookup', kioskLimiter, (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.length < 3) return res.json({ members: [] });
@@ -140,7 +143,7 @@ router.get('/kiosk/lookup', (req, res) => {
 });
 
 // Kiosk: sign waiver (no auth)
-router.post('/kiosk/sign', (req, res) => {
+router.post('/kiosk/sign', kioskLimiter, (req, res) => {
   try {
     const { member_id, template_id, signature_data, guardian_name, guardian_relation } = req.body;
     if (!member_id || !template_id || !signature_data) {
@@ -171,7 +174,7 @@ router.post('/kiosk/sign', (req, res) => {
 });
 
 // Kiosk: list active waiver templates
-router.get('/kiosk/templates', (req, res) => {
+router.get('/kiosk/templates', kioskLimiter, (req, res) => {
   try {
     const db = getDatabase();
     const templates = db.prepare('SELECT id, name, body_text FROM waiver_templates WHERE active = 1 ORDER BY name').all();

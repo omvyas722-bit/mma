@@ -4,7 +4,7 @@ const { getDatabase } = require('../db/connection');
 function getAllMembers(filters = {}) {
   const db = getDatabase();
 
-  let query = 'SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, experience_level, lightspeed_customer_id, notes, created_at, updated_at FROM members WHERE 1=1';
+  let query = 'SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, experience_level, lightspeed_customer_id, notes, health_score, health_score_updated_at, created_at, updated_at FROM members WHERE 1=1';
   const params = [];
 
   // Apply filters
@@ -60,12 +60,12 @@ function getAllMembers(filters = {}) {
 
 function getMemberById(id) {
   const db = getDatabase();
-  return db.prepare('SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, medical_conditions, injuries, goals, experience_level, lightspeed_customer_id, notes, created_at, updated_at FROM members WHERE id = ?').get(id);
+  return db.prepare('SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, medical_conditions, injuries, goals, experience_level, lightspeed_customer_id, notes, health_score, health_score_updated_at, health_score_factors, created_at, updated_at FROM members WHERE id = ?').get(id);
 }
 
 function getMemberByEmail(email) {
   const db = getDatabase();
-  return db.prepare('SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, medical_conditions, injuries, goals, experience_level, lightspeed_customer_id, notes, created_at, updated_at FROM members WHERE email = ?').get(email);
+  return db.prepare('SELECT id, first_name, last_name, email, phone, date_of_birth, location, status, plan, joined_date, trial_end_date, pause_start, pause_end, cancellation_date, emergency_contact_name, emergency_contact_phone, medical_conditions, injuries, goals, experience_level, lightspeed_customer_id, notes, health_score, health_score_updated_at, created_at, updated_at FROM members WHERE email = ?').get(email);
 }
 
 function createMember(memberData) {

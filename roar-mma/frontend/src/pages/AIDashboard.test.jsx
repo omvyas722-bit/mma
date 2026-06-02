@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AIDashboard from './AIDashboard';
 
@@ -44,7 +45,9 @@ const createWrapper = () => {
     },
   });
   return ({ children }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </BrowserRouter>
   );
 };
 

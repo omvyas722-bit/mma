@@ -109,6 +109,34 @@ router.post('/sales', authenticateToken, requirePermission('stock:write'), (req,
   }
 });
 
+// POS bulk sale with receipt
+router.post('/pos-sale', authenticateToken, requirePermission('stock:write'), (req, res) => {
+  try {
+    const { items, tendered, payment_method = 'cash', member_id } = req.body;
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items array required' });
+    const db = require('../db/connection').getDatabase();
+    const receiptItems = [];
+    let total = 0;
+    for (const item of items) {
+      const sale = stockData.createProductSale({
+        product_id: item.product_id, quantity: item.quantity, unit_price: item.unit_price,
+        total_price: item.unit_price * item.quantity, payment_method, member_id: member_id || null, sold_by: req.user.id,
+      });
+      const product = db.prepare('SELECT name FROM stock_items WHERE id = ?').get(item.product_id);
+      total += item.unit_price * item.quantity;
+      receiptItems.push({ ...sale, product_name: product?.name || 'Unknown' });
+    }
+    const discountPct = parseFloat(req.body.discount) || 0;
+    const discountAmt = total * discountPct / 100;
+    const finalTotal = total - discountAmt;
+    const change = Math.max(0, (parseFloat(tendered) || finalTotal) - finalTotal);
+    res.json({ sale_id: Date.now(), items: receiptItems, subtotal: total, discount: discountPct > 0 ? { pct: discountPct, amount: discountAmt } : null, total: finalTotal, tendered: parseFloat(tendered) || finalTotal, change, sold_by: req.user.first_name || req.user.id, sold_at: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error processing POS sale:', error);
+    res.status(500).json({ error: 'Failed to process sale' });
+  }
+});
+
 router.get('/sales', authenticateToken, requirePermission('stock:read'), (req, res) => {
   try {
     const filters = {

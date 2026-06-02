@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -104,7 +105,7 @@ export default function Leads() {
         <div className="flex gap-2">
           <button type="button" onClick={() => setTab('pipeline')} className={`text-sm px-4 py-2 rounded-lg ${tab === 'pipeline' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Pipeline</button>
           <button type="button" onClick={() => setTab('analytics')} className={`text-sm px-4 py-2 rounded-lg ${tab === 'analytics' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Analytics</button>
-          {tab === 'pipeline' && <><button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Lead</button><button type="button" onClick={() => setShowImport(true)} className="btn-outline text-sm">Import CSV</button></>}
+          {tab === 'pipeline' && <><button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Lead</button><Link to="/leads/wizard" className="btn-outline text-sm">+ Wizard</Link><button type="button" onClick={() => setShowImport(true)} className="btn-outline text-sm">Import CSV</button></>}
         </div>
       </div>
 

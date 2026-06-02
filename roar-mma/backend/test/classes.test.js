@@ -23,6 +23,8 @@ before(() => {
       capacity INTEGER DEFAULT 20,
       location TEXT,
       active INTEGER DEFAULT 1,
+      min_belt TEXT,
+      fighter_only INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT (datetime('now')),
       updated_at DATETIME DEFAULT (datetime('now'))
     );
@@ -44,6 +46,7 @@ before(() => {
       capacity INTEGER DEFAULT 20,
       status TEXT DEFAULT 'scheduled',
       cancellation_reason TEXT,
+      class_notes TEXT,
       created_at DATETIME DEFAULT (datetime('now')),
       updated_at DATETIME DEFAULT (datetime('now'))
     );

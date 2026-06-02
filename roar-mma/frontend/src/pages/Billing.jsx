@@ -66,6 +66,12 @@ export default function Billing() {
     onError: () => error('Failed to email bill'),
   });
 
+  const writeOffTx = useMutation({
+    mutationFn: ({ id, reason }) => api.post(`/api/transactions/${id}/write-off`, { reason }),
+    onSuccess: () => { invalidate(); success('Transaction written off'); },
+    onError: () => error('Failed to write off'),
+  });
+
   const transactions = txData?.transactions || [];
   const total = txData?.total || 0;
   const totalPages = Math.ceil(total / LIMIT);
@@ -99,7 +105,7 @@ export default function Billing() {
       {/* Stats */}
       {!statsError && stats && !statsLoading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard label="MRR" value={stats.mrr != null ? formatCurrency(stats.mrr) : '—'} color="purple" />
+          <StatCard label="MRR" value={stats.mrr != null ? formatCurrency(stats.mrr) : '—'} color="purple" sub={stats.active_subscriptions != null ? `${stats.active_subscriptions} active subs` : null} />
           <StatCard label="Today" value={stats.today != null ? formatCurrency(stats.today) : '—'} color="green" />
           <StatCard label="Failed This Month" value={stats.failed_this_month ? `${stats.failed_this_month.count || 0} ($${(stats.failed_this_month.total || 0).toFixed(2)})` : '—'} color="red" />
           <StatCard label="This Month" value={stats.this_month != null ? formatCurrency(stats.this_month) : '—'} color="blue" />
@@ -210,7 +216,10 @@ export default function Billing() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 capitalize hidden md:table-cell">{tx.payment_method || '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-right">
                           {tx.status === 'failed' && (
-                            <span className="text-xs text-gray-400">Retry</span>
+                            <>
+                              <button onClick={() => { const r = prompt('Write-off reason:'); if (r) writeOffTx.mutate({ id: tx.id, reason: r }); }}
+                                className="text-xs text-gray-500 hover:underline mr-2">Write Off</button>
+                            </>
                           )}
                           {tx.status === 'completed' && (
                             <>
@@ -245,9 +254,9 @@ export default function Billing() {
   );
 }
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, sub }) {
   const colors = { blue: 'text-blue-600', green: 'text-green-600', purple: 'text-purple-600', red: 'text-red-600' };
-  return <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500 mb-1">{label}</p><p className={`text-xl font-bold ${colors[color] || 'text-gray-900'}`}>{value}</p></div>;
+  return <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500 mb-1">{label}</p><p className={`text-xl font-bold ${colors[color] || 'text-gray-900'}`}>{value}</p>{sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}</div>;
 }
 
 function StatusBadge({ status }) {

@@ -1,6 +1,9 @@
 const { getDatabase } = require('../../db/connection');
 
 const DEFAULT_AGENTS = [
+  { name: 'scout', enabled: 1 },
+  { name: 'healer', enabled: 1 },
+  { name: 'pixel', enabled: 1 },
   { name: 'leads', enabled: 1 },
   { name: 'trials', enabled: 1 },
   { name: 'retention', enabled: 1 },

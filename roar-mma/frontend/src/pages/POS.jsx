@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -40,17 +40,56 @@ function POSScreen() {
 
   const [cart, setCart] = useState([]);
   const [tendered, setTendered] = useState('');
+  const [lastReceipt, setLastReceipt] = useState(null);
+  const [discount, setDiscount] = useState(0);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [barcodeBuffer, setBarcodeBuffer] = useState('');
+  const barcodeTimer = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Enter') {
+        const code = barcodeBuffer.trim();
+        if (code.length >= 4) {
+          const found = products.find(p => p.barcode === code || p.sku === code);
+          if (found) addToCart(found);
+          else error(`Product not found: ${code}`);
+        }
+        setBarcodeBuffer('');
+        if (barcodeTimer.current) clearTimeout(barcodeTimer.current);
+      } else if (e.key.length === 1) {
+        setBarcodeBuffer(prev => prev + e.key);
+        if (barcodeTimer.current) clearTimeout(barcodeTimer.current);
+        barcodeTimer.current = setTimeout(() => setBarcodeBuffer(''), 200);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => { window.removeEventListener('keydown', handler); if (barcodeTimer.current) clearTimeout(barcodeTimer.current); };
+  }, [products, barcodeBuffer]);
+
+  const { data: memberResults = [] } = useQuery({
+    queryKey: ['pos-member-search', memberSearch],
+    queryFn: async () => { const r = await api.get(`/api/members?query=${encodeURIComponent(memberSearch)}&limit=5`); return r.data?.members || []; },
+    enabled: memberSearch.length >= 2,
+  });
 
   const addToCart = (p) => {
     setCart(c => { const ex = c.find(i => i.id === p.id); return ex ? c.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...c, { id: p.id, name: p.name, price: p.sell_price || 0, qty: 1 }]; });
   };
 
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const discountAmt = subtotal * (parseFloat(discount) || 0) / 100;
+  const total = subtotal - discountAmt;
   const change = tendered ? Math.max(0, parseFloat(tendered) - total) : 0;
 
   const recordSale = useMutation({
-    mutationFn: () => Promise.all(cart.map(i => api.post('/api/stock/sales', { product_id: i.id, quantity: i.qty, unit_price: i.price, total_price: i.price * i.qty, tendered: parseFloat(tendered), change }))),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['stock-products'] }); setCart([]); setTendered(''); success(`Sale recorded. Change: $${change.toFixed(2)}`); },
+    mutationFn: () => api.post('/api/stock/pos-sale', {
+      items: cart.map(i => ({ product_id: i.id, quantity: i.qty, unit_price: i.price })),
+      tendered: parseFloat(tendered) || total,
+      member_id: selectedMember?.id || null,
+    }),
+    onSuccess: (res) => { queryClient.invalidateQueries({ queryKey: ['stock-products'] }); setLastReceipt(res.data); setCart([]); setTendered(''); setDiscount(0); setSelectedMember(null); setMemberSearch(''); success(`Sale recorded. Change: $${(res.data?.change || 0).toFixed(2)}`); },
     onError: () => error('Sale failed'),
   });
 
@@ -80,13 +119,59 @@ function POSScreen() {
             </div>
           ))}
         </div>
-        <div className="flex justify-between items-center mt-2 text-lg font-bold"><span>Total</span><span>${total.toFixed(2)}</span></div>
+        <div className="mt-2">
+          <label className="block text-xs text-gray-500 mb-1">Member (for discount)</label>
+          <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Search member..." className="input text-xs w-full mb-1" />
+          {selectedMember && <div className="flex items-center justify-between bg-blue-50 rounded px-2 py-1 mb-1"><span className="text-xs text-blue-700">{selectedMember.first_name} {selectedMember.last_name}</span><button onClick={() => { setSelectedMember(null); setMemberSearch(''); }} className="text-blue-500 text-xs">&times;</button></div>}
+          {memberSearch.length >= 2 && !selectedMember && (
+            <div className="border border-gray-200 rounded max-h-32 overflow-y-auto bg-white shadow text-xs">
+              {memberResults.length === 0 ? <p className="px-2 py-1 text-gray-400">No members</p> :
+              memberResults.map(m => <button key={m.id} type="button" onClick={() => { setSelectedMember(m); setMemberSearch(''); }} className="w-full text-left px-2 py-1 hover:bg-gray-50">{m.first_name} {m.last_name}</button>)}
+            </div>
+          )}
+          <label className="block text-xs text-gray-500 mb-1 mt-1">Discount %</label>
+          <input type="number" min="0" max="100" step="1" value={discount} onChange={e => setDiscount(e.target.value)} className="input text-xs w-full" placeholder="0%" />
+        </div>
+        {discount > 0 && <div className="flex justify-between text-sm text-green-600"><span>Discount ({discount}%)</span><span>-${discountAmt.toFixed(2)}</span></div>}
+        <div className="flex justify-between items-center mt-1 text-lg font-bold"><span>Total</span><span>${total.toFixed(2)}</span></div>
         <div className="mt-3">
           <input type="number" step="0.01" placeholder="Tendered $" value={tendered} onChange={e => setTendered(e.target.value)} className="input text-sm w-full" />
           {tendered && <p className="text-xs text-green-600 mt-1">Change: ${change.toFixed(2)}</p>}
         </div>
         <button onClick={recordSale.mutate} disabled={cart.length === 0 || !tendered || parseFloat(tendered) < total}
           className="w-full mt-3 bg-red-600 text-white py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-40">Complete Sale</button>
+
+        {lastReceipt && <ReceiptPreview receipt={lastReceipt} onClose={() => setLastReceipt(null)} />}
+      </div>
+    </div>
+  );
+}
+
+function ReceiptPreview({ receipt, onClose }) {
+  const printRef = useRef(null);
+  const handlePrint = () => { const w = window.open('', '_blank'); w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;padding:20px;max-width:280px;margin:auto}table{width:100%;border-collapse:collapse}th,td{padding:4px 0;text-align:left}hr{border:none;border-top:1px dashed #000}.total{font-weight:bold;font-size:14px}.center{text-align:center}.right{text-align:right}</style></head><body>${printRef.current?.innerHTML}</body></html>`); w.document.close(); w.print(); };
+  if (!receipt) return null;
+  return (
+    <div className="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50 text-xs font-mono">
+      <div ref={printRef}>
+        <div className="text-center mb-3"><p className="font-bold text-sm">ROAR MMA</p><p className="text-gray-500">{new Date(receipt.sold_at).toLocaleString()}</p></div>
+        <hr className="border-dashed my-2" />
+        <table className="w-full text-xs mb-2"><thead><tr className="text-gray-500"><th className="text-left">Item</th><th className="text-right">Qty</th><th className="text-right">Price</th></tr></thead>
+          <tbody>{receipt.items?.map((item, i) => <tr key={i}><td>{item.product_name}</td><td className="text-right">{item.quantity}</td><td className="text-right">${(item.unit_price * item.quantity).toFixed(2)}</td></tr>)}</tbody>
+        </table>
+        <hr className="border-dashed my-2" />
+        <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal?.toFixed(2)}</span></div>
+        {receipt.discount && <div className="flex justify-between text-green-600"><span>Discount ({receipt.discount.pct}%)</span><span>-${receipt.discount.amount?.toFixed(2)}</span></div>}
+        <div className="flex justify-between font-bold text-sm"><span>Total</span><span>${receipt.total?.toFixed(2)}</span></div>
+        <div className="flex justify-between text-gray-600"><span>Tendered</span><span>${receipt.tendered?.toFixed(2)}</span></div>
+        <div className="flex justify-between text-green-600"><span>Change</span><span>${receipt.change?.toFixed(2)}</span></div>
+        <hr className="border-dashed my-2" />
+        <p className="text-gray-400 text-center text-[10px]">Sold by: {receipt.sold_by || 'Staff'} | #{receipt.sale_id}</p>
+        <p className="text-gray-400 text-center text-[10px] mt-1">Thank you for your support!</p>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button onClick={handlePrint} className="flex-1 bg-gray-800 text-white py-1.5 rounded text-xs hover:bg-gray-700">🖨 Print</button>
+        <button onClick={onClose} className="flex-1 bg-gray-100 text-gray-600 py-1.5 rounded text-xs hover:bg-gray-200">Close</button>
       </div>
     </div>
   );

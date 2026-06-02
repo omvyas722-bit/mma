@@ -96,12 +96,17 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparkli
   return (
     <div>
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <KpiCard title="Active Members" value={kpis.active_members?.value ?? '—'} change={kpis.active_members?.delta} sparkline={sparklines.activeMembers} color="#22c55e" onClick={() => navigate('/members')} loading={false} />
+        <KpiCard title="Monthly Revenue" value={kpis.monthly_revenue?.value != null ? `$${Number(kpis.monthly_revenue.value).toLocaleString()}` : '—'} change={kpis.monthly_revenue?.delta} sparkline={sparklines.revenue} color="#dc2626" onClick={() => navigate('/billing')} loading={false} />
+        <KpiCard title="Open Leads" value={kpis.open_leads?.value ?? '—'} onClick={() => navigate('/leads')} loading={false} />
+        <KpiCard title="Class Fill %" value={kpis.class_fill?.value ?? '—'} onClick={() => navigate('/classes')} loading={false} />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <KpiCard title="New This Week" value={kpis.new_leads?.value ?? '—'} change={kpis.new_leads?.delta} sparkline={sparklines.leads} color="#f59e0b" onClick={() => navigate('/leads')} loading={false} />
         <KpiCard title="Active Trials" value={kpis.trial_members?.value ?? '—'} change={kpis.trial_members?.delta} onClick={() => navigate('/members?status=trial')} loading={false} />
-        <KpiCard title="Monthly Revenue" value={kpis.monthly_revenue?.value != null ? `$${Number(kpis.monthly_revenue.value).toLocaleString()}` : '—'} change={kpis.monthly_revenue?.delta} sparkline={sparklines.revenue} color="#dc2626" onClick={() => navigate('/billing')} loading={false} />
         <KpiCard title="Today's Bookings" value={kpis.today_bookings?.value ?? '—'} change={kpis.today_bookings?.delta} sparkline={sparklines.attendance} color="#3b82f6" onClick={() => navigate('/classes')} loading={false} />
+        <KpiCard title="Hot Leads" value={kpis.hot_leads?.value ?? '—'} color="#ef4444" onClick={() => navigate('/leads?interest=hot')} loading={false} />
       </div>
 
       {/* Charts + AI Status */}
@@ -124,20 +129,51 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparkli
         <AiStatusPanel aiStatus={aiStatus} pendingApproval={data?.ai_pending_approval || 0} navigate={navigate} />
       </div>
 
-      {/* Failed Payments Alert + Goal Tracker + EOD Preview */}
+      {/* Failed Payments Alert + Goal Tracker + MIDAS + EOD Preview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {failedPayments.count > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4" role="alert">
-            <div className="flex items-start gap-3">
-              <span className="text-lg mt-0.5" aria-hidden="true">⚠</span>
-              <div>
-                <h3 className="text-sm font-semibold text-red-800">Failed Payments</h3>
-                <p className="text-sm text-red-700 mt-1">{failedPayments.count} member{failedPayments.count !== 1 ? 's' : ''} · ${(failedPayments.total || 0).toFixed(2)} at risk</p>
-                <button type="button" onClick={() => navigate('/billing?status=failed')} className="mt-2 text-xs font-medium text-red-700 underline hover:no-underline">Resolve →</button>
+        <div className="space-y-4">
+          {failedPayments.count > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4" role="alert">
+              <div className="flex items-start gap-3">
+                <span className="text-lg mt-0.5" aria-hidden="true">⚠</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-red-800">Failed Payments</h3>
+                  <p className="text-sm text-red-700 mt-1">{failedPayments.count} member{failedPayments.count !== 1 ? 's' : ''} · ${(failedPayments.total || 0).toFixed(2)} at risk</p>
+                  <button type="button" onClick={() => navigate('/billing?status=failed')} className="mt-2 text-xs font-medium text-red-700 underline hover:no-underline">Resolve →</button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+          {data?.midas_chase && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-lg mt-0.5" aria-hidden="true">🤖</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-indigo-800">MIDAS Chase</h3>
+                  <p className="text-sm text-indigo-700 mt-1">{data.midas_chase.description}</p>
+                  <p className="text-[10px] text-indigo-500 mt-0.5">{new Date(data.midas_chase.timestamp).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {data?.expiring_certs?.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-lg mt-0.5" aria-hidden="true">📋</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-yellow-800">Certifications Expiring Soon</h3>
+                  <div className="text-xs text-yellow-700 mt-1 space-y-0.5">
+                    {data.expiring_certs.slice(0, 4).map(c => (
+                      <p key={c.id}>{c.first_name} {c.last_name} — {c.cert_name} (expires {new Date(c.expiry_date).toLocaleDateString()})</p>
+                    ))}
+                    {data.expiring_certs.length > 4 && <p className="text-yellow-600">+{data.expiring_certs.length - 4} more</p>}
+                  </div>
+                  <button type="button" onClick={() => navigate('/staff')} className="mt-2 text-xs font-medium text-yellow-700 underline hover:no-underline">View Staff →</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="bg-white rounded-lg shadow p-5">
           <h2 className="text-sm font-semibold text-gray-900 mb-3">Monthly Membership Goal</h2>
@@ -151,6 +187,11 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparkli
           {data?.goal_progress?.conversion_rate != null && (
             <p className="text-xs text-gray-500">{data.goal_progress.conversion_rate}% trial→paid conversion</p>
           )}
+          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center text-xs">
+            <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.trials ?? 0}</span><span className="text-gray-500">Trials</span></div>
+            <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.conversion_rate ?? 0}%</span><span className="text-gray-500">Conversion</span></div>
+            <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.referrals ?? 0}</span><span className="text-gray-500">Referrals</span></div>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-5">
@@ -164,6 +205,9 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparkli
           <button type="button" onClick={() => navigate('/reports')} className="mt-3 text-xs text-red-600 hover:underline">Preview Full Report →</button>
         </div>
       </div>
+
+      {/* Revenue Forecast */}
+      <RevenueForecastCard />
 
       {/* Today's Classes + Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -366,6 +410,42 @@ function LoadingState() {
         </div>
         <div className="bg-white rounded-lg shadow p-5 animate-pulse"><div className="h-4 bg-gray-200 rounded w-32 mb-4"></div><div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded"></div>)}</div></div>
       </div>
+    </div>
+  );
+}
+
+function RevenueForecastCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['revenue-forecast'],
+    queryFn: () => api.get('/api/dashboard/revenue-forecast').then(r => r.data),
+    staleTime: 60000,
+  });
+  if (isLoading) return <div className="bg-white rounded-lg shadow p-5 animate-pulse mb-6"><div className="h-4 bg-gray-200 rounded w-40 mb-4"></div><div className="flex gap-8">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded w-24"></div>)}</div></div>;
+  if (!data) return null;
+  return (
+    <div className="bg-white rounded-lg shadow p-5 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-900">Revenue Forecast</h2>
+        <span className="text-xs text-gray-400">Based on 90d trend</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div><p className="text-xs text-gray-500">Daily Avg</p><p className="text-lg font-bold text-gray-900">${data.currentDailyAvg?.toFixed(0) || 0}</p></div>
+        <div><p className="text-xs text-gray-500">Monthly Projection</p><p className="text-lg font-bold text-gray-900">${data.monthlyProjection?.toLocaleString() || 0}</p></div>
+        <div><p className="text-xs text-gray-500">Next Month Est.</p><p className="text-lg font-bold text-green-600">${data.projectedNextMonth?.toLocaleString() || 0}</p></div>
+        <div><p className="text-xs text-gray-500">Churn Rate (30d)</p><p className="text-lg font-bold text-red-600">{data.churnRate || 0}%</p></div>
+      </div>
+      {data.forecast?.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-left text-gray-500 uppercase"><th className="pb-1.5 pr-4">Month</th><th className="pb-1.5 pr-4">Projected Revenue</th><th className="pb-1.5">Projected Members</th></tr></thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.forecast.map(f => (
+                <tr key={f.month} className="text-gray-700"><td className="py-1.5 pr-4 font-medium">{f.month}</td><td className="py-1.5 pr-4">${f.projectedRevenue?.toLocaleString()}</td><td className="py-1.5">{f.projectedMembers}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

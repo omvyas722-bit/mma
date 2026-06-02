@@ -5,11 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function daysUntil(d) { if (!d) return null; const diff = new Date(d) - new Date(); return Math.ceil(diff / 86400000); }
 
 export default function Staff() {
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
+  const [tab, setTab] = useState('list');
   const [roleFilter, setRoleFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [detailStaff, setDetailStaff] = useState(null);
@@ -31,69 +33,95 @@ export default function Staff() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <h1 className="text-2xl font-bold text-gray-900">Staff & Coaches</h1>
-        {canManageStaff && <button onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Staff Member</button>}
+        <div className="flex gap-2">{canManageStaff && <button onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Staff Member</button>}</div>
       </div>
+
+      <nav className="flex gap-1 border-b border-gray-200 mb-4">
+        <button onClick={() => setTab('list')} className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'list' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-500'}`}>Staff List</button>
+        <button onClick={() => setTab('schedule')} className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'schedule' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-500'}`}>Schedule</button>
+      </nav>
 
       {showAddModal && <AddStaffModal onClose={() => setShowAddModal(false)} />}
 
-      {isError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4" role="alert">
-          <p className="text-red-700 text-sm">Failed to load staff. <button onClick={refetch} className="underline hover:no-underline">Try again</button></p>
-        </div>
-      )}
+      {tab === 'schedule' && <StaffScheduleView />}
 
-      {/* Stats */}
-      {!statsError && stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
-          <StatCard label="Total" value={stats.total} />
-          {(stats.by_role || []).map(r => <StatCard key={r.role} label={r.role.replace(/_/g, ' ')} value={r.count} />)}
-        </div>
-      )}
-
-      {/* Filter */}
-      <div className="bg-white rounded-lg shadow p-3 mb-4">
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="input text-sm" aria-label="Filter by role">
-          <option value="">All Roles</option>
-          <option value="owner">Owner</option><option value="gm">GM</option><option value="front_desk">Front Desk</option>
-          <option value="coach">Coach</option><option value="sales">Sales</option><option value="social">Social Media</option>
-        </select>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {isLoading ? (
-          <div className="p-4 space-y-3 animate-pulse" aria-label="Loading">{[...Array(6)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded"></div>)}</div>
-        ) : staff.length === 0 ? (
-          <div className="text-center py-12"><p className="text-gray-500">No staff members found</p></div>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-200" role="table">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Location</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Joined</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {staff.map(member => (
-                <tr key={member.id} onClick={() => setDetailStaff(member)} className="hover:bg-gray-50 cursor-pointer">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{member.name}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">{member.email}</td>
-                  <td className="px-4 py-3 whitespace-nowrap"><RoleBadge role={member.role} /></td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 capitalize hidden lg:table-cell">{member.location || '—'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{member.active ? <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span> : <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">Inactive</span>}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{new Date(member.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {tab === 'list' && (<>
+        {isError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4" role="alert">
+            <p className="text-red-700 text-sm">Failed to load staff. <button onClick={refetch} className="underline hover:no-underline">Try again</button></p>
+          </div>
         )}
-      </div>
+
+        {/* Stats */}
+        {!statsError && stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+            <StatCard label="Total" value={stats.total} />
+            <StatCard label="Active" value={stats.active} />
+            <StatCard label="Coaches" value={stats.coaches} />
+            <StatCard label="Front Desk" value={stats.front_desk} />
+            <StatCard label="Sales" value={stats.sales} />
+            <StatCard label="GM" value={stats.gm} />
+            <StatCard label="Owner" value={stats.owner} />
+          </div>
+        )}
+
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="input max-w-xs text-sm" aria-label="Filter by role">
+              <option value="">All Roles</option>
+              <option value="owner">Owner</option>
+              <option value="gm">General Manager</option>
+              <option value="front_desk">Front Desk</option>
+              <option value="coach">Coach</option>
+              <option value="sales">Sales</option>
+              <option value="social">Social Media</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Staff Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {isLoading ? (
+            <div className="p-6 space-y-4 animate-pulse" aria-label="Loading">
+              {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded"></div>)}
+            </div>
+          ) : staff.length === 0 ? (
+            <div className="text-center py-12"><p className="text-gray-500">No staff found.</p></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3 hidden sm:table-cell">Phone</th>
+                    <th className="px-4 py-3 hidden lg:table-cell">Location</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 hidden sm:table-cell">Joined</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {staff.map((member) => (
+                    <tr key={member.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setDetailStaff(member)}>
+                      <td className="px-4 py-3 whitespace-nowrap"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center text-xs font-medium text-red-700">{(member.name || '?')[0]}</div><span className="font-medium text-gray-900">{member.name}</span></div></td>
+                      <td className="px-4 py-3 whitespace-nowrap"><RoleBadge role={member.role} /></td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">{member.email}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-500 hidden sm:table-cell">{member.phone || '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 capitalize hidden lg:table-cell">{member.location || '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{member.active ? <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span> : <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">Inactive</span>}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{new Date(member.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        </>)}
 
       {detailStaff && <StaffProfile staff={detailStaff} onClose={() => setDetailStaff(null)} />}
     </div>
@@ -270,6 +298,105 @@ function MetricBox({ label, value }) {
   return <div className="bg-gray-50 rounded p-3 text-center"><p className="text-lg font-bold text-gray-900">{value}</p><p className="text-xs text-gray-500">{label}</p></div>;
 }
 
-function daysUntil(dateStr) {
-  return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function StaffScheduleView() {
+  const { data: scheduleData, isLoading } = useQuery({
+    queryKey: ['staff-schedule'],
+    queryFn: () => api.get('/api/staff-schedule').then(r => r.data?.schedule || { shifts: [], timeOff: [] }),
+    refetchInterval: 30000,
+  });
+  const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ staff_id: '', day_of_week: 1, start_time: '09:00', end_time: '17:00', location: '' });
+
+  const { data: staffList } = useQuery({ queryKey: ['staff', {}], queryFn: () => api.get('/api/staff').then(r => r.data) });
+
+  const addShift = useMutation({
+    mutationFn: () => api.post('/api/staff-schedule/shifts', form),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }); success('Shift added'); setShowForm(false); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
+
+  const delShift = useMutation({
+    mutationFn: (id) => api.delete(`/api/staff-schedule/shifts/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }); success('Shift removed'); },
+    onError: () => error('Failed to delete'),
+  });
+
+  const shifts = scheduleData?.shifts || [];
+  const timeOff = scheduleData?.timeOff || [];
+
+  if (isLoading) return <div className="bg-white rounded-lg shadow p-6 animate-pulse"><div className="h-8 bg-gray-100 rounded w-48 mb-4"></div><div className="space-y-3">{[1,2,3,4,5].map(i => <div key={i} className="h-10 bg-gray-100 rounded"></div>)}</div></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold text-gray-900">Weekly Schedule</h2>
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary text-xs">{showForm ? 'Cancel' : '+ Add Shift'}</button>
+      </div>
+
+      {showForm && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 grid grid-cols-2 md:grid-cols-5 gap-3">
+          <select value={form.staff_id} onChange={e => setForm(f => ({ ...f, staff_id: e.target.value }))} className="input text-xs" aria-label="Staff"><option value="">Staff...</option>{(staffList || []).map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}</select>
+          <select value={form.day_of_week} onChange={e => setForm(f => ({ ...f, day_of_week: parseInt(e.target.value) }))} className="input text-xs" aria-label="Day">{DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}</select>
+          <input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className="input text-xs" />
+          <input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} className="input text-xs" />
+          <button onClick={addShift.mutate} disabled={!form.staff_id || addShift.isPending} className="bg-red-600 text-white text-xs py-2 rounded-lg hover:bg-red-700 disabled:opacity-40">Save</button>
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead><tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
+            <th className="px-4 py-2.5">Staff</th>{DAY_NAMES.map(d => <th key={d} className="px-3 py-2.5">{d}</th>)}
+          </tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {[...new Set(shifts.map(s => s.staff_id))].map(sid => {
+              const staff = staffList?.find(s => s.id === sid);
+              return <tr key={sid} className="hover:bg-gray-50">
+                <td className="px-4 py-2.5 font-medium text-gray-900 whitespace-nowrap">{staff?.first_name} {staff?.last_name}</td>
+                {DAY_NAMES.map((_, di) => {
+                  const dayShifts = shifts.filter(s => s.staff_id === sid && s.day_of_week === di);
+                  return <td key={di} className="px-3 py-2.5 text-xs">{dayShifts.map(s => <div key={s.id} className="flex items-center gap-1"><span className="text-gray-700">{s.start_time}-{s.end_time}</span><button onClick={() => delShift.mutate(s.id)} className="text-red-400 hover:text-red-600">✕</button></div>)}</td>;
+                })}
+              </tr>;
+            })}
+            {shifts.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No shifts scheduled</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {timeOff.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <h3 className="text-sm font-medium text-yellow-800 mb-2">Time Off</h3>
+          <div className="space-y-1 text-xs text-yellow-700">{timeOff.map(t => <p key={t.id}>{t.first_name} {t.last_name}: {t.date_from} → {t.date_to} ({t.type})</p>)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExpiringCertsAlert() {
+  const { data: certs = [] } = useQuery({
+    queryKey: ['expiring-certs'],
+    queryFn: async () => { const r = await api.get('/api/certifications/expiring?days=60'); return r.data?.certs || []; },
+    staleTime: 60000,
+  });
+  if (certs.length === 0) return null;
+  const expired = certs.filter(c => daysUntil(c.expiry_date) < 0);
+  const urgent = certs.filter(c => { const d = daysUntil(c.expiry_date); return d >= 0 && d < 14; });
+  const warning = certs.filter(c => { const d = daysUntil(c.expiry_date); return d >= 14 && d < 60; });
+  return (
+    <div className="bg-white rounded-lg shadow p-4 mb-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <h3 className="text-sm font-semibold text-gray-900">Compliance Summary</h3>
+        {expired.length > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{expired.length} Expired</span>}
+        {urgent.length > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">{urgent.length} Urgent (&lt;14d)</span>}
+        {warning.length > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">{warning.length} Warning (&lt;60d)</span>}
+        {certs.length > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{certs.length} Total Certifications</span>}
+      </div>
+    </div>
+  );
 }

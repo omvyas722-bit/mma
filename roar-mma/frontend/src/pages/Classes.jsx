@@ -205,7 +205,9 @@ function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn }) {
           <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${TYPE_COLORS[instance.class_type] || 'bg-gray-100 text-gray-600'}`}>{instance.class_type?.toUpperCase() || 'CLASS'}</span>
         </div>
         {instance.coach_name && <p className="text-xs text-gray-600 mb-1.5">{instance.coach_name}</p>}
-        <div className="flex items-center gap-2">
+        {instance.min_belt && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 mr-1">Min {instance.min_belt}</span>}
+        {instance.fighter_only === 1 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Fighters Only</span>}
+        <div className="flex items-center gap-2 mt-1">
           <div className="flex-1 bg-gray-200 rounded-full h-1.5" role="progressbar" aria-valuenow={instance.booked_count} aria-valuemin={0} aria-valuemax={instance.capacity}>
             <div className={`${fillColor} h-1.5 rounded-full`} style={{ width: `${fillPct}%` }}></div>
           </div>
@@ -247,7 +249,16 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
           <dl className="space-y-1 text-sm">
             {instance.coach_name && <div><dt className="text-gray-500 inline">Coach:</dt><dd className="inline ml-1">{instance.coach_name}</dd></div>}
             <div><dt className="text-gray-500 inline">Capacity:</dt><dd className="inline ml-1">{instance.booked_count}/{instance.capacity}</dd></div>
+            {instance.min_belt && <div><dt className="text-gray-500 inline">Min Belt:</dt><dd className="inline ml-1 capitalize">{instance.min_belt}</dd></div>}
+            {instance.fighter_only === 1 && <div><dt className="text-gray-500 inline">Type:</dt><dd className="inline ml-1 text-purple-700">Fighters Only</dd></div>}
           </dl>
+
+          {instance.class_notes && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+              <p className="font-medium text-xs text-yellow-700 mb-0.5">Coach Notes</p>
+              {instance.class_notes}
+            </div>
+          )}
 
           <div className="flex gap-2 pt-2">
             {instance.status !== 'cancelled' && <button onClick={onCheckIn} className="btn-primary text-xs flex-1">Mark Attendance</button>}

@@ -106,9 +106,9 @@ function determineType(sale) {
   return 'product';
 }
 
-async function syncAll() {
+async function syncAll(daysBack = 30) {
   const results = {};
-  try { results.sales = await syncSales(30); } catch (e) { results.sales = { error: e.message }; }
+  try { results.sales = await syncSales(daysBack); } catch (e) { results.sales = { error: e.message }; }
   try { results.customers = await syncCustomers(); } catch (e) { results.customers = { error: e.message }; }
   return results;
 }

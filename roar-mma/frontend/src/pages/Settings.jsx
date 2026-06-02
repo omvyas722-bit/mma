@@ -633,6 +633,12 @@ function IntegrationsSettings({ data, onChange }) {
           <p className="text-xs text-gray-400 mt-2">Secret keys are stored server-side only.</p>
         </div>
 
+        {/* Security */}
+        <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+          <h3 className="font-medium text-gray-900">Security Settings</h3>
+          <SecuritySection />
+        </div>
+
         <div className="border border-gray-200 rounded-lg p-4">
           <h3 className="font-medium text-gray-900 mb-4">Email Service (SendGrid)</h3>
           <p className="text-sm text-gray-500">SendGrid API key is configured server-side for security.</p>
@@ -654,6 +660,100 @@ function IntegrationsSettings({ data, onChange }) {
           </div>
           <p className="text-xs text-gray-400 mt-2">Account credentials are stored server-side only.</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SecuritySection() {
+  const { success, error } = useNotifications();
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [code, setCode] = useState('');
+  const [qrUrl, setQrUrl] = useState('');
+  const [secret, setSecret] = useState('');
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+
+  const genKey = useMutation({
+    mutationFn: () => api.post('/api/auth/generate-api-key', { name: 'API Key' }),
+    onSuccess: (res) => { setApiKey(res.data.api_key); setShowApiKey(true); success('API key generated - save it now!'); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
+
+  const revokeKey = useMutation({
+    mutationFn: () => api.delete('/api/auth/revoke-api-key'),
+    onSuccess: () => { setApiKey(''); setShowApiKey(false); success('API key revoked'); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
+
+  const setup2fa = useMutation({
+    mutationFn: () => api.post('/api/auth/setup-2fa'),
+    onSuccess: (res) => { setSecret(res.data.secret); setQrUrl(res.data.url); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
+
+  const verify2fa = useMutation({
+    mutationFn: () => api.post('/api/auth/verify-2fa', { code }),
+    onSuccess: () => { success('2FA enabled'); setCode(''); setQrUrl(''); },
+    onError: (err) => error(err?.response?.data?.error || 'Invalid code'),
+  });
+
+  const disable2fa = useMutation({
+    mutationFn: () => api.post('/api/auth/disable-2fa'),
+    onSuccess: () => success('2FA disabled'),
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
+
+  const changePass = useMutation({
+    mutationFn: () => api.post('/api/auth/change-password', { currentPassword: currentPass, newPassword: newPass }),
+    onSuccess: () => { success('Password changed'); setCurrentPass(''); setNewPass(''); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
+
+  return (
+    <div className="space-y-4 mt-2">
+      <div className="border-t pt-3">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">API Key</h4>
+        {showApiKey && apiKey ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-2">
+            <p className="text-xs font-mono break-all text-yellow-800">{apiKey}</p>
+            <p className="text-xs text-yellow-600 mt-1">⚠ Save this key - it won't be shown again.</p>
+          </div>
+        ) : null}
+        <div className="flex gap-2">
+          <button onClick={genKey.mutate} disabled={genKey.isPending} className="btn-primary text-xs">Generate New Key</button>
+          <button onClick={revokeKey.mutate} disabled={revokeKey.isPending} className="btn-outline text-xs text-red-600">Revoke Key</button>
+        </div>
+      </div>
+
+      <div className="border-t pt-3">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Two-Factor Authentication</h4>
+        {qrUrl ? (
+          <div className="space-y-2 mb-2">
+            <p className="text-xs text-gray-500">Scan this URL in your authenticator app (e.g., Google Authenticator):</p>
+            <div className="bg-gray-50 border rounded p-2 text-xs font-mono break-all text-gray-600">{qrUrl}</div>
+            <p className="text-xs text-gray-500">Or use secret: <code className="font-mono bg-gray-100 px-1">{secret.slice(0, 16)}</code></p>
+            <div className="flex items-center gap-2">
+              <input type="text" value={code} onChange={e => setCode(e.target.value)} className="input text-xs w-32" placeholder="000000" maxLength={6} />
+              <button onClick={verify2fa.mutate} disabled={code.length !== 6 || verify2fa.isPending} className="btn-primary text-xs">Verify & Enable</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <button onClick={setup2fa.mutate} disabled={setup2fa.isPending} className="btn-primary text-xs">Set Up 2FA</button>
+            <button onClick={disable2fa.mutate} disabled={disable2fa.isPending} className="btn-outline text-xs text-red-600">Disable 2FA</button>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t pt-3">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Change Password</h4>
+        <div className="grid grid-cols-2 gap-2 max-w-md">
+          <input type="password" value={currentPass} onChange={e => setCurrentPass(e.target.value)} className="input text-xs" placeholder="Current password" />
+          <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} className="input text-xs" placeholder="New password (min 8 chars)" />
+        </div>
+        <button onClick={changePass.mutate} disabled={!currentPass || !newPass || newPass.length < 8 || changePass.isPending} className="btn-primary text-xs mt-2">Change Password</button>
       </div>
     </div>
   );

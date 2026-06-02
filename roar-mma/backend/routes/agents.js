@@ -141,4 +141,65 @@ router.get('/daemon', authenticateToken, requirePermission('reports:read'), asyn
   }
 });
 
+// Token usage
+router.get('/token-usage', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const { agent, days = 7 } = req.query;
+    const db = require('../db/connection').getDatabase();
+    let query = `SELECT agent_name, SUM(prompt_tokens) as prompt_tokens, SUM(completion_tokens) as completion_tokens, SUM(total_tokens) as total_tokens, SUM(cost) as cost, COUNT(*) as calls FROM ai_token_usage WHERE created_at >= datetime('now', '-' || ? || ' days')`;
+    const params = [days];
+    if (agent) { query += ' AND agent_name = ?'; params.push(agent); }
+    query += ' GROUP BY agent_name ORDER BY total_tokens DESC';
+    const byAgent = db.prepare(query).all(...params);
+    const total = byAgent.reduce((s, a) => ({ prompt_tokens: s.prompt_tokens + a.prompt_tokens, completion_tokens: s.completion_tokens + a.completion_tokens, total_tokens: s.total_tokens + a.total_tokens, cost: s.cost + a.cost, calls: s.calls + a.calls }), { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cost: 0, calls: 0 });
+    const daily = db.prepare(`SELECT DATE(created_at) as date, SUM(total_tokens) as tokens, SUM(cost) as cost FROM ai_token_usage WHERE created_at >= datetime('now', '-' || ? || ' days') GROUP BY DATE(created_at) ORDER BY date`).all(days);
+    res.json({ byAgent, total, daily });
+  } catch (error) { console.error('Token usage error:', error); res.status(500).json({ error: 'Failed to fetch token usage' }); }
+});
+
+// Log token usage (internal)
+router.post('/token-usage', (req, res) => {
+  try {
+    const { agent_name, model, prompt_tokens, completion_tokens, total_tokens, cost, endpoint, user_id } = req.body;
+    if (!agent_name) return res.status(400).json({ error: 'agent_name required' });
+    const db = require('../db/connection').getDatabase();
+    const r = db.prepare('INSERT INTO ai_token_usage (agent_name, model, prompt_tokens, completion_tokens, total_tokens, cost, endpoint, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(agent_name, model || null, prompt_tokens || 0, completion_tokens || 0, total_tokens || 0, cost || 0, endpoint || null, user_id || null);
+    res.status(201).json({ id: r.lastInsertRowid });
+  } catch (error) { res.status(500).json({ error: 'Failed to log tokens' }); }
+});
+
+// Natural language scheduling endpoint
+router.post('/schedule-class', authenticateToken, requirePermission('classes:create'), async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ error: 'query is required' });
+    const llm = require('../services/ai/llm');
+    const classesData = require('../data/classes');
+    const db = require('../db/connection').getDatabase();
+    const coaches = db.prepare("SELECT id, first_name, last_name FROM staff WHERE role IN ('coach', 'gm', 'owner') AND active = 1").all();
+    const locations = [...new Set(db.prepare("SELECT DISTINCT location FROM class_instances WHERE location IS NOT NULL").all().map(r => r.location))];
+    const classTypes = db.prepare("SELECT DISTINCT class_type FROM classes WHERE active = 1").all().map(r => r.class_type);
+
+    const prompt = `Parse this scheduling request into JSON: "${query}".
+Available coaches: ${coaches.map(c => `${c.first_name} ${c.last_name}`).join(', ')}
+Available locations: ${locations.join(', ')}
+Available class types: ${classTypes.join(', ')}
+Respond with valid JSON only: { "class_name": "...", "class_type": "...", "coach_name": "...", "location": "...", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM", "capacity": number, "recurrence": "none|weekly|biweekly" }`;
+
+    const response = await llm.chat([{ role: 'user', content: prompt }], { model: 'gpt-4o-mini', temperature: 0.1 });
+    const parsed = JSON.parse(response.content);
+    const classId = classesData.createClass({ name: parsed.class_name, class_type: parsed.class_type || 'bjj', description: `AI scheduled: ${query}`, active: 1 });
+    const coach = coaches.find(c => parsed.coach_name?.toLowerCase().includes(c.first_name.toLowerCase()));
+    classesData.createClassInstance({
+      class_id: classId.id || classId, date: parsed.date, start_time: parsed.start_time, end_time: parsed.end_time,
+      location: parsed.location || locations[0], coach_id: coach?.id || null, capacity: parsed.capacity || 30, recurrence: parsed.recurrence || 'none',
+    });
+    res.status(201).json({ message: 'Class scheduled', class: parsed });
+  } catch (error) {
+    console.error('NL scheduling error:', error);
+    res.status(400).json({ error: 'Failed to parse scheduling request: ' + error.message });
+  }
+});
+
 module.exports = { router, registerTeamAgent, teamAgents };

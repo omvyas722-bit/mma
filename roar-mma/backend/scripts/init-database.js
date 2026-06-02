@@ -27,7 +27,12 @@ const migrations = [
   '014_member_profile_enhancements.sql',
   '015_social_media.sql',
   '016_kiosk_enhancements.sql',
-  '017_remaining_features.sql'
+  '017_remaining_features.sql',
+  '018_family_discounts.sql',
+  '019_staff_schedule.sql',
+  '020_privacy_compliance.sql',
+  '021_ai_enhancements.sql',
+  '022_class_enhancements.sql'
 ];
 
 function initDatabase(seedDefaults = false) {

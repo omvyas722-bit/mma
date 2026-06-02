@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import Modal from '../Shared/Modal';
-import { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadSourceFields, LeadNotesFields } from './LeadFormFields';
+import { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadSourceFields, LeadNotesFields, LeadUtmFields } from './LeadFormFields';
 
 export default function AddLeadModal({ isOpen, onClose }) {
   const queryClient = useQueryClient();
@@ -62,6 +62,7 @@ export default function AddLeadModal({ isOpen, onClose }) {
         <LeadSourceFields formData={formData} handleChange={handleChange} />
 
         <LeadNotesFields formData={formData} handleChange={handleChange} />
+        <LeadUtmFields formData={formData} handleChange={handleChange} />
 
         <div className="flex justify-end gap-3 pt-4 border-t">
           <button type="button" onClick={onClose} className="btn btn-secondary" disabled={createLead.isPending}>

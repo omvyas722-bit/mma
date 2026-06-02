@@ -139,6 +139,108 @@ router.get('/templates', authenticateToken, requirePermission('reports:read'), (
   }
 });
 
+// Campaign routes
+router.get('/campaigns', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    res.json({ campaigns: socialMedia.getCampaigns(req.query) });
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    res.status(500).json({ error: 'Failed to fetch campaigns' });
+  }
+});
+
+router.get('/campaigns/:id', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const c = socialMedia.getCampaignById(parseInt(req.params.id));
+    if (!c) return res.status(404).json({ error: 'Campaign not found' });
+    const leads = socialMedia.getCampaignLeads(c.id);
+    res.json({ campaign: c, leads });
+  } catch (error) {
+    console.error('Error fetching campaign:', error);
+    res.status(500).json({ error: 'Failed to fetch campaign' });
+  }
+});
+
+router.post('/campaigns', authenticateToken, requirePermission('communications:write'), (req, res) => {
+  try {
+    const c = socialMedia.createCampaign({ ...req.body, created_by: req.user?.id });
+    res.status(201).json(c);
+  } catch (error) {
+    console.error('Error creating campaign:', error);
+    res.status(500).json({ error: 'Failed to create campaign' });
+  }
+});
+
+router.put('/campaigns/:id', authenticateToken, requirePermission('communications:write'), (req, res) => {
+  try {
+    const existing = socialMedia.getCampaignById(parseInt(req.params.id));
+    if (!existing) return res.status(404).json({ error: 'Campaign not found' });
+    res.json(socialMedia.updateCampaign(parseInt(req.params.id), req.body));
+  } catch (error) {
+    console.error('Error updating campaign:', error);
+    res.status(500).json({ error: 'Failed to update campaign' });
+  }
+});
+
+router.delete('/campaigns/:id', authenticateToken, requirePermission('communications:write'), (req, res) => {
+  try {
+    const existing = socialMedia.getCampaignById(parseInt(req.params.id));
+    if (!existing) return res.status(404).json({ error: 'Campaign not found' });
+    socialMedia.deleteCampaign(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting campaign:', error);
+    res.status(500).json({ error: 'Failed to delete campaign' });
+  }
+});
+
+// Meta API connection (OAuth proxy)
+router.post('/connect/meta', authenticateToken, requirePermission('ai:manage'), (req, res) => {
+  try {
+    const { code, redirect_uri } = req.body;
+    if (!code) return res.status(400).json({ error: 'Authorization code required' });
+    const https = require('https');
+    const qs = new URLSearchParams({
+      code, redirect_uri, client_id: process.env.META_APP_ID || '', client_secret: process.env.META_APP_SECRET || '',
+      grant_type: 'authorization_code',
+    });
+    https.get(`https://graph.facebook.com/v19.0/oauth/access_token?${qs}`, (resp) => {
+      let d = '';
+      resp.on('data', c => d += c);
+      resp.on('end', () => {
+        try {
+          const t = JSON.parse(d);
+          if (t.access_token) {
+            const platform = socialMedia.updatePlatformConnection(1, { connected: true, access_token: t.access_token, token_expires_at: t.expires_in ? new Date(Date.now() + t.expires_in * 1000).toISOString() : null });
+            return res.json(platform);
+          }
+          res.status(400).json({ error: t.error?.message || 'Failed to exchange code' });
+        } catch { res.status(500).json({ error: 'Failed to parse Meta response' }); }
+      });
+    }).on('error', (e) => res.status(500).json({ error: e.message }));
+  } catch (error) {
+    console.error('Error connecting Meta:', error);
+    res.status(500).json({ error: 'Failed to connect Meta' });
+  }
+});
+
+// Lead-from-post correlation
+router.get('/lead-correlation', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const db = require('../db/connection').getDatabase();
+    const posts = socialMedia.getPosts({ status: 'published' });
+    const correlations = posts.map(p => {
+      const utm = p.utm_campaign || p.title?.toLowerCase().replace(/\s+/g, '_');
+      const leads = utm ? db.prepare("SELECT COUNT(*) as c FROM leads WHERE utm_campaign = ?").get(utm) : { c: 0 };
+      return { post_id: p.id, title: p.title, utm_campaign: utm, leads_count: leads.c };
+    });
+    res.json({ correlations, total_leads: correlations.reduce((s, c) => s + c.leads_count, 0) });
+  } catch (error) {
+    console.error('Error fetching lead correlation:', error);
+    res.status(500).json({ error: 'Failed to fetch lead correlation' });
+  }
+});
+
 router.get('/analytics', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
     const db = require('../db/connection').getDatabase();

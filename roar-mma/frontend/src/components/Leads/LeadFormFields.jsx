@@ -4,6 +4,7 @@
 const initialLeadForm = {
   first_name: '', last_name: '', email: '', phone: '',
   source: 'website', location: 'rockingham', interests: '', notes: '',
+  utm_source: '', utm_medium: '', utm_campaign: '',
 };
 
 function validateLeadForm(formData, extraFields = []) {
@@ -96,4 +97,17 @@ function LeadNotesFields({ formData, handleChange }) {
   );
 }
 
-export { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadSourceFields, LeadNotesFields };
+function LeadUtmFields({ formData, handleChange }) {
+  return (
+    <details className="text-xs text-gray-500">
+      <summary className="cursor-pointer hover:text-gray-700">UTM Tracking (optional)</summary>
+      <div className="grid grid-cols-3 gap-2 mt-2">
+        <div><label className="block text-xs font-medium text-gray-600 mb-0.5">Source</label><input type="text" name="utm_source" value={formData.utm_source} onChange={handleChange} className="input text-xs" placeholder="e.g. google" /></div>
+        <div><label className="block text-xs font-medium text-gray-600 mb-0.5">Medium</label><input type="text" name="utm_medium" value={formData.utm_medium} onChange={handleChange} className="input text-xs" placeholder="e.g. cpc" /></div>
+        <div><label className="block text-xs font-medium text-gray-600 mb-0.5">Campaign</label><input type="text" name="utm_campaign" value={formData.utm_campaign} onChange={handleChange} className="input text-xs" placeholder="e.g. summer_promo" /></div>
+      </div>
+    </details>
+  );
+}
+
+export { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadSourceFields, LeadNotesFields, LeadUtmFields };

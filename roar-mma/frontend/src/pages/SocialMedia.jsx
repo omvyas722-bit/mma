@@ -7,23 +7,22 @@ import { format } from 'date-fns';
 const TABS = [
   { key: 'compose', label: 'Compose', icon: '✏️' },
   { key: 'calendar', label: 'Calendar', icon: '📅' },
+  { key: 'campaigns', label: 'Campaigns', icon: '📣' },
   { key: 'analytics', label: 'Analytics', icon: '📊' },
   { key: 'platforms', label: 'Platforms', icon: '🔗' },
 ];
 
+const TAB_COMPONENTS = { compose: ComposeTab, calendar: CalendarTab, campaigns: CampaignsTab, analytics: AnalyticsTab, platforms: PlatformsTab };
+
 export default function SocialMedia() {
   const [activeTab, setActiveTab] = useState('compose');
   const { success, error } = useNotifications();
-
-  if (activeTab === 'compose') return <ComposeTab key={activeTab} onSwitch={setActiveTab} success={success} error={error} />;
-  if (activeTab === 'calendar') return <CalendarTab key={activeTab} success={success} error={error} />;
-  if (activeTab === 'analytics') return <AnalyticsTab key={activeTab} />;
-  if (activeTab === 'platforms') return <PlatformsTab key={activeTab} success={success} error={error} />;
-
+  const TabComponent = TAB_COMPONENTS[activeTab];
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Social Media</h1>
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      {TabComponent && <TabComponent key={activeTab} onSwitch={setActiveTab} success={success} error={error} />}
     </div>
   );
 }
@@ -224,6 +223,11 @@ function AnalyticsTab() {
     queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []),
   });
 
+  const { data: leadCorr } = useQuery({
+    queryKey: ['lead-correlation'],
+    queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data),
+  });
+
   const metrics = [
     { key: 'impressions', label: 'Impressions', color: 'text-blue-600' },
     { key: 'reach', label: 'Reach', color: 'text-green-600' },
@@ -278,10 +282,142 @@ function AnalyticsTab() {
               </tbody>
             </table>
           </div>
+
+          {/* Lead-from-post correlation */}
+          {leadCorr?.correlations?.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200"><h3 className="text-sm font-semibold text-gray-700">Post → Lead Correlation</h3></div>
+              <table className="w-full text-sm">
+                <thead><tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5">Post</th><th className="px-3 py-2.5">UTM Campaign</th><th className="px-3 py-2.5">Leads Generated</th>
+                </tr></thead>
+                <tbody className="divide-y divide-gray-100">
+                  {leadCorr.correlations.map(c => (
+                    <tr key={c.post_id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 font-medium text-gray-900 max-w-xs truncate">{c.title || `Post #${c.post_id}`}</td>
+                      <td className="px-3 py-2.5 text-gray-500 font-mono text-xs">{c.utm_campaign || '—'}</td>
+                      <td className="px-3 py-2.5"><span className="font-bold">{c.leads_count}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>
   );
+}
+
+function CampaignsTab({ success, error }) {
+  const queryClient = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+
+  const { data: campaigns = [] } = useQuery({ queryKey: ['social-campaigns'], queryFn: () => api.get('/api/social-media/campaigns').then(r => r.data?.campaigns || []) });
+  const { data: leadCorr } = useQuery({ queryKey: ['lead-correlation'], queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data) });
+
+  const delCampaign = useMutation({
+    mutationFn: (id) => api.delete(`/api/social-media/campaigns/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['social-campaigns'] }); success('Campaign deleted'); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed to delete'),
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Ad Campaigns & Lead Correlation</h2>
+        <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">+ New Campaign</button>
+      </div>
+      {showCreate && <CampaignForm onClose={() => setShowCreate(false)} queryClient={queryClient} success={success} error={error} />}
+
+      {leadCorr && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+          <p className="text-sm text-blue-800 font-medium">Leads from social campaigns</p>
+          <span className="text-2xl font-bold text-blue-600">{leadCorr.total_leads}</span>
+        </div>
+      )}
+
+      {selectedCampaign ? (
+        <CampaignDetail campaign={selectedCampaign} onBack={() => setSelectedCampaign(null)} onDelete={(id) => { delCampaign.mutate(id); setSelectedCampaign(null); }} />
+      ) : (
+        <div className="space-y-3">
+          {campaigns.length === 0 ? <p className="text-center py-8 text-gray-400">No campaigns yet</p> :
+          campaigns.map(c => (
+            <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between hover:shadow-sm cursor-pointer" onClick={() => setSelectedCampaign(c)}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2"><p className="font-medium text-gray-900">{c.name}</p><StatusBadge status={c.status} /></div>
+                <p className="text-xs text-gray-500">{c.platform} · {c.campaign_type} · {c.start_date || 'No start date'} {c.budget ? `· $${c.budget.toFixed(2)}` : ''}</p>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); delCampaign.mutate(c.id); }} className="text-xs text-red-500 hover:underline">Delete</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CampaignForm({ onClose, queryClient, success, error }) {
+  const [form, setForm] = useState({ name: '', platform: 'facebook', campaign_type: 'promotion', budget: '', start_date: '', end_date: '', target_url: '', utm_campaign: '', notes: '', status: 'draft' });
+  const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const createCampaign = useMutation({
+    mutationFn: () => api.post('/api/social-media/campaigns', { ...form, budget: parseFloat(form.budget) || null }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['social-campaigns'] }); success('Campaign created'); onClose(); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2"><label className="text-xs text-gray-600 block mb-0.5">Campaign Name</label><input type="text" value={form.name} onChange={e => u('name', e.target.value)} className="input text-sm w-full" /></div>
+        <div><label className="text-xs text-gray-600 block mb-0.5">Platform</label><select value={form.platform} onChange={e => u('platform', e.target.value)} className="input text-sm w-full"><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="google">Google</option><option value="tiktok">TikTok</option></select></div>
+        <div><label className="text-xs text-gray-600 block mb-0.5">Type</label><select value={form.campaign_type} onChange={e => u('campaign_type', e.target.value)} className="input text-sm w-full"><option value="promotion">Promotion</option><option value="awareness">Awareness</option><option value="retargeting">Retargeting</option><option value="event">Event</option></select></div>
+        <div><label className="text-xs text-gray-600 block mb-0.5">Budget ($)</label><input type="number" value={form.budget} onChange={e => u('budget', e.target.value)} className="input text-sm w-full" /></div>
+        <div><label className="text-xs text-gray-600 block mb-0.5">Status</label><select value={form.status} onChange={e => u('status', e.target.value)} className="input text-sm w-full"><option value="draft">Draft</option><option value="active">Active</option><option value="paused">Paused</option></select></div>
+        <div><label className="text-xs text-gray-600 block mb-0.5">Start Date</label><input type="date" value={form.start_date} onChange={e => u('start_date', e.target.value)} className="input text-sm w-full" /></div>
+        <div><label className="text-xs text-gray-600 block mb-0.5">End Date</label><input type="date" value={form.end_date} onChange={e => u('end_date', e.target.value)} className="input text-sm w-full" /></div>
+        <div className="col-span-2"><label className="text-xs text-gray-600 block mb-0.5">Target URL</label><input type="url" value={form.target_url} onChange={e => u('target_url', e.target.value)} className="input text-sm w-full" placeholder="https://..." /></div>
+        <div className="col-span-2"><label className="text-xs text-gray-600 block mb-0.5">UTM Campaign <span className="text-gray-400">(used to track leads from this campaign)</span></label><input type="text" value={form.utm_campaign} onChange={e => u('utm_campaign', e.target.value)} className="input text-sm w-full" placeholder="e.g. summer_2024" /></div>
+        <div className="col-span-2"><label className="text-xs text-gray-600 block mb-0.5">Notes</label><textarea value={form.notes} onChange={e => u('notes', e.target.value)} className="input text-sm w-full" rows={2} /></div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <button onClick={onClose} className="btn-outline text-xs">Cancel</button>
+        <button onClick={createCampaign.mutate} disabled={!form.name.trim() || createCampaign.isPending} className="btn-primary text-xs">{createCampaign.isPending ? 'Creating...' : 'Create Campaign'}</button>
+      </div>
+    </div>
+  );
+}
+
+function CampaignDetail({ campaign, onBack, onDelete }) {
+  const { data: detail } = useQuery({ queryKey: ['campaign-detail', campaign.id], queryFn: () => api.get(`/api/social-media/campaigns/${campaign.id}`).then(r => r.data), enabled: !!campaign.id });
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2"><button onClick={onBack} className="text-gray-400 hover:text-gray-600">&larr; Back</button><h3 className="text-lg font-semibold">{campaign.name}</h3><StatusBadge status={campaign.status} /></div>
+        <button onClick={() => onDelete(campaign.id)} className="text-xs text-red-500 hover:underline">Delete</button>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div><p className="text-gray-500">Platform</p><p className="font-medium capitalize">{campaign.platform}</p></div>
+        <div><p className="text-gray-500">Type</p><p className="font-medium capitalize">{campaign.campaign_type}</p></div>
+        <div><p className="text-gray-500">Budget</p><p className="font-medium">${campaign.budget?.toFixed(2) || 'N/A'}</p></div>
+        <div><p className="text-gray-500">UTM</p><p className="font-medium font-mono text-xs">{campaign.utm_campaign || 'N/A'}</p></div>
+        <div><p className="text-gray-500">Start</p><p className="font-medium">{campaign.start_date || 'N/A'}</p></div>
+        <div><p className="text-gray-500">End</p><p className="font-medium">{campaign.end_date || 'N/A'}</p></div>
+        {campaign.target_url && <div className="col-span-2"><p className="text-gray-500">URL</p><p className="font-medium text-blue-600 truncate">{campaign.target_url}</p></div>}
+      </div>
+      {/* Leads from this campaign */}
+      <div><h4 className="text-sm font-semibold text-gray-700 mb-2">Leads Generated ({detail?.leads?.length || 0})</h4>
+        {detail?.leads?.length > 0 ? <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+          {detail.leads.map(l => <div key={l.id} className="px-3 py-2 text-xs flex justify-between"><span>{l.first_name} {l.last_name}</span><span className="text-gray-400">{l.stage} · {new Date(l.created_at).toLocaleDateString()}</span></div>)}
+        </div> : <p className="text-xs text-gray-400">No leads tracked yet. Leads with matching UTM campaign will appear here.</p>}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const colors = { draft: 'bg-gray-100 text-gray-600', active: 'bg-green-100 text-green-700', paused: 'bg-yellow-100 text-yellow-700', completed: 'bg-blue-100 text-blue-700', cancelled: 'bg-red-100 text-red-700', published: 'bg-green-100 text-green-700', scheduled: 'bg-blue-100 text-blue-700' };
+  return <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
 }
 
 function PlatformsTab({ success, error }) {
@@ -309,14 +445,27 @@ function PlatformsTab({ success, error }) {
       ) : (
         <div className="space-y-3">
           {platforms.map(p => (
-            <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{p.icon || '📱'}</span>
-                <div><p className="font-medium text-gray-900">{p.display_name}</p><p className="text-xs text-gray-500">{p.connected ? 'Connected' : 'Not connected'}{p.connected ? ` — Page ID: ${p.page_id || 'N/A'}` : ''}</p></div>
+                <span className="text-2xl">{p.icon || { facebook: '📘', instagram: '📷', tiktok: '🎵', google: '🔍' }[p.platform_type] || '📱'}</span>
+                <div><p className="font-medium text-gray-900">{p.display_name || p.name}</p><p className="text-xs text-gray-500">{p.connected ? 'Connected' : 'Not connected'}{p.connected ? ` — Page ID: ${p.page_id || 'N/A'}` : ''}</p></div>
               </div>
-              <button onClick={() => handleConnect.mutate({ id: p.id, connected: p.connected })}
-                className={`px-4 py-1.5 rounded-lg text-xs font-medium ${p.connected ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100' : 'bg-red-600 text-white hover:bg-red-700'}`}
-              >{p.connected ? 'Disconnect' : 'Connect'}</button>
+              {p.platform_type === 'tiktok' ? (
+                <span className="text-xs text-gray-400 italic">Coming soon</span>
+              ) : p.connected ? (
+                <button onClick={() => handleConnect.mutate({ id: p.id, connected: true })}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">Disconnect</button>
+              ) : (
+                <button onClick={() => {
+                  const appId = p.platform_type === 'instagram' || p.platform_type === 'facebook' ? 'META_APP_ID' : null;
+                  if (appId) {
+                    const redirect = encodeURIComponent(`${window.location.origin}/social?platform=${p.platform_type}`);
+                    window.open(`https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env[appId] || ''}&redirect_uri=${redirect}&scope=pages_manage_posts,pages_read_engagement&response_type=code`, '_blank', 'width=600,height=400');
+                  } else {
+                    handleConnect.mutate({ id: p.id, connected: false });
+                  }
+                }} className="px-4 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700">Connect</button>
+              )}
             </div>
           ))}
         </div>
