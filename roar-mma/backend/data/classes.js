@@ -4,7 +4,7 @@ const { getDatabase } = require('../db/connection');
 function getAllClasses(filters = {}) {
   const db = getDatabase();
 
-  let query = 'SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.min_belt, c.fighter_only, c.created_at, c.updated_at, s.name as coach_name FROM classes c LEFT JOIN staff s ON c.coach_id = s.id WHERE 1=1';
+  let query = 'SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.end_time, c.max_capacity as capacity, c.class_type, c.instructor_id as coach_id, c.active, c.min_belt, c.fighter_only, c.created_at, c.updated_at, s.name as coach_name FROM classes c LEFT JOIN staff s ON c.instructor_id = s.id WHERE 1=1';
   const params = [];
 
   if (filters.location) {
@@ -30,9 +30,9 @@ function getAllClasses(filters = {}) {
 function getClassById(id) {
   const db = getDatabase();
   return db.prepare(`
-    SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.duration_minutes, c.capacity, c.class_type, c.coach_id, c.active, c.min_belt, c.fighter_only, c.created_at, c.updated_at, s.name as coach_name
+    SELECT c.id, c.name, c.description, c.location, c.day_of_week, c.start_time, c.end_time, c.max_capacity as capacity, c.class_type, c.instructor_id as coach_id, c.active, c.min_belt, c.fighter_only, c.created_at, c.updated_at, s.name as coach_name
     FROM classes c
-    LEFT JOIN staff s ON c.coach_id = s.id
+    LEFT JOIN staff s ON c.instructor_id = s.id
     WHERE c.id = ?
   `).get(id);
 }
@@ -43,7 +43,7 @@ function createClass(classData) {
   const stmt = db.prepare(`
     INSERT INTO classes (
       name, description, location, day_of_week, start_time,
-      duration_minutes, capacity, class_type, coach_id, active,
+      end_time, max_capacity, class_type, instructor_id, active,
       min_belt, fighter_only
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
@@ -54,10 +54,10 @@ function createClass(classData) {
     classData.location,
     classData.day_of_week,
     classData.start_time,
-    classData.duration_minutes || 60,
-    classData.capacity || 20,
+    classData.end_time || null,
+    classData.max_capacity || classData.capacity || 20,
     classData.class_type,
-    classData.coach_id || null,
+    classData.instructor_id || classData.coach_id || null,
     classData.active !== undefined ? classData.active : 1,
     classData.min_belt || null,
     classData.fighter_only || 0
@@ -71,7 +71,7 @@ function updateClass(id, updates) {
 
   const allowedFields = [
     'name', 'description', 'location', 'day_of_week', 'start_time',
-    'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active',
+    'end_time', 'max_capacity', 'class_type', 'instructor_id', 'active',
     'min_belt', 'fighter_only'
   ];
 
@@ -110,7 +110,7 @@ function getClassInstances(filters = {}) {
 
   let query = `
     SELECT
-      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.cancellation_reason, ci.class_notes, ci.created_at, ci.updated_at,
+      ci.id, ci.class_id, ci.date, ci.start_time, ci.coach_id, ci.capacity, ci.status, ci.class_notes, ci.created_at, ci.updated_at,
       c.name as class_name,
       c.class_type,
       c.location,

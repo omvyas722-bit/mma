@@ -3,7 +3,7 @@ const { getDatabase } = require('../db/connection');
 function getShifts(staffId) {
   const db = getDatabase();
   if (staffId) return db.prepare('SELECT * FROM staff_shifts WHERE staff_id = ? AND active = 1 ORDER BY day_of_week, start_time').all(staffId);
-  return db.prepare('SELECT ss.*, s.first_name, s.last_name, s.role as staff_role FROM staff_shifts ss JOIN staff s ON ss.staff_id = s.id WHERE ss.active = 1 ORDER BY ss.day_of_week, ss.start_time').all();
+  return db.prepare('SELECT ss.*, s.name, s.role as staff_role FROM staff_shifts ss JOIN staff s ON ss.staff_id = s.id WHERE ss.active = 1 ORDER BY ss.day_of_week, ss.start_time').all();
 }
 
 function getShift(id) {
@@ -35,7 +35,7 @@ function deleteShift(id) {
 function getTimeOff(staffId) {
   const db = getDatabase();
   if (staffId) return db.prepare('SELECT * FROM staff_time_off WHERE staff_id = ? ORDER BY date_from').all(staffId);
-  return db.prepare('SELECT sto.*, s.first_name, s.last_name FROM staff_time_off sto JOIN staff s ON sto.staff_id = s.id ORDER BY sto.date_from').all();
+  return db.prepare('SELECT sto.*, s.name FROM staff_time_off sto JOIN staff s ON sto.staff_id = s.id ORDER BY sto.date_from').all();
 }
 
 function createTimeOff({ staff_id, date_from, date_to, reason, type }) {
@@ -57,8 +57,8 @@ function deleteTimeOff(id) {
 
 function getWeeklySchedule() {
   const db = getDatabase();
-  const shifts = db.prepare(`SELECT ss.*, s.first_name, s.last_name, s.role as staff_role FROM staff_shifts ss JOIN staff s ON ss.staff_id = s.id WHERE ss.active = 1 ORDER BY ss.day_of_week, ss.start_time`).all();
-  const timeOff = db.prepare("SELECT sto.*, s.first_name, s.last_name FROM staff_time_off sto JOIN staff s ON sto.staff_id = s.id WHERE sto.approved = 1 AND sto.date_to >= date('now', '-7 days') ORDER BY sto.date_from").all();
+  const shifts = db.prepare(`SELECT ss.*, s.name, s.role as staff_role FROM staff_shifts ss JOIN staff s ON ss.staff_id = s.id WHERE ss.active = 1 ORDER BY ss.day_of_week, ss.start_time`).all();
+  const timeOff = db.prepare("SELECT sto.*, s.name FROM staff_time_off sto JOIN staff s ON sto.staff_id = s.id WHERE sto.approved = 1 AND sto.date_to >= date('now', '-7 days') ORDER BY sto.date_from").all();
   return { shifts, timeOff };
 }
 

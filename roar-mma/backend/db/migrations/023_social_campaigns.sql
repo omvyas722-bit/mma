@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS social_campaign_analytics (
   fetched_at DATETIME DEFAULT (datetime('now'))
 );
 
+-- Add platform_type column to social_platforms if missing
+ALTER TABLE social_platforms ADD COLUMN platform_type TEXT;
+
 -- Add TikTok to social_platforms if not exists
 INSERT OR IGNORE INTO social_platforms (name, platform_type, connected) VALUES ('TikTok', 'tiktok', 0);
 

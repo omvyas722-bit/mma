@@ -125,6 +125,38 @@ router.get('/analytics', authenticateToken, requirePermission('reports:read'), (
   }
 });
 
+// AI caption generation (PIXEL agent)
+router.post('/generate-caption', authenticateToken, requirePermission('communications:write'), async (req, res) => {
+  try {
+    const { topic, tone, platform, keywords } = req.body;
+    if (!topic) return res.status(400).json({ error: 'topic is required' });
+
+    const providerChain = require('../services/ai/providerChain');
+    const prompt = `Write a social media post caption for a martial arts gym.
+Topic: ${topic}
+Tone: ${tone || 'motivational'}
+Platform: ${platform || 'instagram'}
+Keywords to include: ${keywords || 'none'}
+
+Return JSON: { caption (the post text), hashtags (comma-separated), best_time_to_post (string), engagement_tip (string) }`;
+
+    const result = await providerChain.completeChat(
+      [{ role: 'user', content: prompt }],
+      { jsonMode: true, temperature: 0.7, maxTokens: 600 }
+    );
+
+    let captionData = { caption: '', hashtags: '', best_time_to_post: '', engagement_tip: '' };
+    if (result.content) {
+      try { captionData = JSON.parse(result.content); } catch {}
+    }
+
+    res.json(captionData);
+  } catch (error) {
+    console.error('[PIXEL] Caption generation error:', error.message);
+    res.status(500).json({ error: 'Failed to generate caption' });
+  }
+});
+
 // Get pixel code snippet (for embedding)
 router.get('/snippet/:pixelId', authenticateToken, requirePermission('reports:read'), (req, res) => {
   const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;

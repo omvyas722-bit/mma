@@ -33,7 +33,7 @@ router.post('/run', authenticateToken, requirePermission('ai:manage'), async (re
       if (!handler) return res.status(404).json({ error: `Agent "${agentName}" not found` });
       const logEntry = await aiState.logActivity({ agentName, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(agentName)}`, status: 'in_progress' });
       try {
-        const result = await handler(db, aiState, openRouter, broadcast, {});
+        const result = await handler({ db, aiState, openRouter, broadcast, config: {} });
         if (logEntry && logEntry.id) await aiState.updateActivityStatus(logEntry.id, 'completed');
         res.json({ agent: agentName, ...result });
       } catch (handlerError) {
@@ -45,7 +45,7 @@ router.post('/run', authenticateToken, requirePermission('ai:manage'), async (re
       for (const [name, handler] of teamAgents) {
         const logEntry = await aiState.logActivity({ agentName: name, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(name)}`, status: 'in_progress' });
         try {
-          const result = await handler(db, aiState, openRouter, broadcast, {});
+          const result = await handler({ db, aiState, openRouter, broadcast, config: {} });
           if (logEntry && logEntry.id) await aiState.updateActivityStatus(logEntry.id, 'completed');
           results.push({ agent: name, ...result });
         } catch (handlerError) {
@@ -177,12 +177,12 @@ router.post('/schedule-class', authenticateToken, requirePermission('classes:cre
     const llm = require('../services/ai/llm');
     const classesData = require('../data/classes');
     const db = require('../db/connection').getDatabase();
-    const coaches = db.prepare("SELECT id, first_name, last_name FROM staff WHERE role IN ('coach', 'gm', 'owner') AND active = 1").all();
+    const coaches = db.prepare("SELECT id, name FROM staff WHERE role IN ('coach', 'gm', 'owner') AND active = 1").all();
     const locations = [...new Set(db.prepare("SELECT DISTINCT location FROM class_instances WHERE location IS NOT NULL").all().map(r => r.location))];
     const classTypes = db.prepare("SELECT DISTINCT class_type FROM classes WHERE active = 1").all().map(r => r.class_type);
 
     const prompt = `Parse this scheduling request into JSON: "${query}".
-Available coaches: ${coaches.map(c => `${c.first_name} ${c.last_name}`).join(', ')}
+Available coaches: ${coaches.map(c => c.name).join(', ')}
 Available locations: ${locations.join(', ')}
 Available class types: ${classTypes.join(', ')}
 Respond with valid JSON only: { "class_name": "...", "class_type": "...", "coach_name": "...", "location": "...", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM", "capacity": number, "recurrence": "none|weekly|biweekly" }`;
@@ -190,7 +190,7 @@ Respond with valid JSON only: { "class_name": "...", "class_type": "...", "coach
     const response = await llm.chat([{ role: 'user', content: prompt }], { model: 'gpt-4o-mini', temperature: 0.1 });
     const parsed = JSON.parse(response.content);
     const classId = classesData.createClass({ name: parsed.class_name, class_type: parsed.class_type || 'bjj', description: `AI scheduled: ${query}`, active: 1 });
-    const coach = coaches.find(c => parsed.coach_name?.toLowerCase().includes(c.first_name.toLowerCase()));
+    const coach = coaches.find(c => parsed.coach_name?.toLowerCase().includes(c.name.toLowerCase()));
     classesData.createClassInstance({
       class_id: classId.id || classId, date: parsed.date, start_time: parsed.start_time, end_time: parsed.end_time,
       location: parsed.location || locations[0], coach_id: coach?.id || null, capacity: parsed.capacity || 30, recurrence: parsed.recurrence || 'none',

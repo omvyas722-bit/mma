@@ -7,6 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    'process.env': {},
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+  },
   plugins: [react()],
   resolve: {
     alias: {
@@ -15,6 +19,9 @@ export default defineConfig({
   },
   server: {
     port: 5174,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

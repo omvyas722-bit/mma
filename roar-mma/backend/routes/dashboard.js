@@ -56,7 +56,7 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
         c.name,
         c.class_type,
         c.location,
-        c.capacity,
+        c.max_capacity as capacity,
         s.name as coach_name,
         (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as booked_count
       FROM class_instances ci
@@ -95,10 +95,10 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
 
     // Class fill % for today
     const classFillRow = db.prepare(`
-      SELECT AVG(CAST(bc AS REAL) / CAST(c.capacity AS REAL)) * 100 as fill_pct FROM (
+      SELECT AVG(CAST(bc AS REAL) / CAST(c.max_capacity AS REAL)) * 100 as fill_pct FROM (
         SELECT ci.id, ci.class_id, ci.capacity, (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as bc
         FROM class_instances ci WHERE ci.date = ? AND ci.status = 'scheduled'
-      ) sub JOIN classes c ON sub.class_id = c.id WHERE c.capacity > 0
+      ) sub JOIN classes c ON sub.class_id = c.id WHERE c.max_capacity > 0
     `).get(today);
     const classFillPct = classFillRow?.fill_pct != null ? Math.round(classFillRow.fill_pct) : null;
 
@@ -110,14 +110,14 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
 
     // MIDAS chase note (latest billing chase)
     const midasChase = db.prepare(`
-      SELECT description, timestamp FROM activity_log
-      WHERE type = 'midas_chase' OR description LIKE '%MIDAS%'
-      ORDER BY timestamp DESC LIMIT 1
+      SELECT summary as description, created_at as timestamp FROM ai_activity_log
+      WHERE action_type = 'midas_chase' OR summary LIKE '%MIDAS%'
+      ORDER BY created_at DESC LIMIT 1
     `).get();
 
     // Expiring staff certifications
     const expiringCerts = db.prepare(`
-      SELECT sc.id, sc.cert_name, sc.expiry_date, s.first_name, s.last_name
+      SELECT sc.id, sc.cert_name, sc.expiry_date, s.name as staff_name
       FROM staff_certifications sc
       JOIN staff s ON sc.staff_id = s.id
       WHERE sc.expiry_date >= date('now') AND sc.expiry_date <= date('now', '+60 days')

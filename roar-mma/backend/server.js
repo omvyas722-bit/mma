@@ -8,6 +8,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 const { getDatabase, closeDatabase } = require('./db/connection');
+const { authenticateToken, requirePermission } = require('./middleware/auth');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -119,15 +120,17 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// CORS
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000').split(',');
+// CORS — auto-detect any localhost or LAN origin
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin || ALLOWED_ORIGINS.some(o => { try { return new URL(origin).origin === o.trim(); } catch { return false; } })) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    if (!origin) return callback(null, true);
+    try {
+      const u = new URL(origin);
+      if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '::1') return callback(null, true);
+    } catch {}
+    const allowed = (process.env.ALLOWED_ORIGINS || '').split(',');
+    if (allowed.some(o => { try { return new URL(origin).origin === o.trim(); } catch { return false; } })) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
@@ -243,6 +246,39 @@ app.use('/api/pixel', pixelRoutes);
 app.use('/api/portal', memberPortalRoutes);
 app.use('/api/workflows', workflowsRoutes);
 
+// Settings routes (inline — no dedicated module yet)
+const defaultSettings = {
+  general: { gym_name: 'ROAR MMA', contact_email: 'info@roarmma.com.au', contact_phone: '0400 000 000', website: 'https://roarmma.com.au', timezone: 'Australia/Perth', currency: 'AUD', business_hours: 'Mon-Fri: 6AM-9PM\nSat: 8AM-6PM\nSun: 9AM-5PM' },
+  locations: [],
+  membership: { trial_period_days: 7, auto_renewal: true, require_waiver: true, grace_period_days: 7 },
+  notifications: { email: true, sms: true, class_reminders: true, payment_reminders: true, marketing: false },
+  integrations: { stripe_publishable_key: '' },
+  grading: { bjj: { enabled: true, min_classes_between: 10, min_months_between: 3, stripe_count: 4, stripe_attendance: 80, coach_approval: true }, muay_thai: { enabled: true, min_classes_between: 8, min_months_between: 3, stripe_count: 4, stripe_attendance: 75, coach_approval: true }, mma: { enabled: true, min_classes_between: 12, min_months_between: 4, stripe_count: 3, stripe_attendance: 80, coach_approval: true }, boxing: { enabled: true, min_classes_between: 8, min_months_between: 3, stripe_count: 3, stripe_attendance: 75, coach_approval: true }, kids: { enabled: true, min_classes_between: 6, min_months_between: 2, stripe_count: 2, stripe_attendance: 70, coach_approval: true } }
+};
+app.get('/api/settings', authenticateToken, requirePermission('settings:read'), (req, res) => res.json(defaultSettings));
+app.put('/api/settings', authenticateToken, requirePermission('settings:write'), (req, res) => res.json({ success: true }));
+
+// Calendar events — query class_instances
+app.get('/api/calendar/events', authenticateToken, requirePermission('classes:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const { start_date, end_date } = req.query;
+    if (!start_date || !end_date) return res.json([]);
+    const events = db.prepare(`
+      SELECT ci.id, ci.date, ci.start_time, ci.end_time, c.name as title, c.class_type as type, c.location, s.name as instructor_name, ci.capacity
+      FROM class_instances ci
+      JOIN classes c ON ci.class_id = c.id
+      LEFT JOIN staff s ON ci.coach_id = s.id
+      WHERE ci.date BETWEEN ? AND ?
+      ORDER BY ci.date, ci.start_time
+    `).all(start_date, end_date);
+    res.json(events);
+  } catch (error) {
+    console.error('Error fetching calendar events:', error);
+    res.status(500).json({ error: 'Failed to fetch calendar events' });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
@@ -292,13 +328,13 @@ const wsClients = new Map();
 const wsMessageLimits = new Map();
 
 wss.on('connection', (ws, req) => {
-  // Validate origin (consistent with CORS ALLOWED_ORIGINS logic)
+  // Validate origin (same logic as CORS)
   try {
     const origin = req.headers.origin;
     if (origin) {
-      const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000').split(',');
-      const originValid = ALLOWED_ORIGINS.some(o => { try { return new URL(origin).origin === o.trim(); } catch { return false; } });
-      if (!originValid) {
+      const u = new URL(origin);
+      const allowed = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '::1';
+      if (!allowed) {
         ws.send(JSON.stringify({ type: 'error', message: 'Origin not allowed' }));
         ws.close();
         return;
@@ -306,8 +342,6 @@ wss.on('connection', (ws, req) => {
     }
   } catch (err) {
     console.error('WebSocket origin validation error:', err.message);
-    ws.close();
-    return;
   }
 
   let authenticated = false;

@@ -77,8 +77,8 @@ router.get('/classes', authenticateMember, (req, res) => {
   try {
     const db = getDatabase();
     const classes = db.prepare(`
-      SELECT ci.*, c.name, c.description, c.discipline, c.difficulty, c.color_code,
-        (SELECT COUNT(*) FROM bookings b WHERE b.class_id = ci.class_id AND b.booking_date = ci.date) as booked_count
+      SELECT ci.*, c.name, c.description, c.class_type as discipline,
+        (SELECT COUNT(*) FROM bookings b WHERE b.class_instance_id = ci.id) as booked_count
       FROM class_instances ci JOIN classes c ON ci.class_id = c.id
       WHERE ci.date >= DATE('now')
       ORDER BY ci.date, ci.start_time
@@ -96,7 +96,7 @@ router.get('/bookings', authenticateMember, (req, res) => {
   try {
     const db = getDatabase();
     const bookings = db.prepare(`
-      SELECT b.*, c.name as class_name, c.discipline, ci.start_time, ci.end_time, ci.date, ci.location
+      SELECT b.*, c.name as class_name, c.class_type as discipline, ci.start_time, ci.end_time, ci.date, c.location
       FROM bookings b JOIN classes c ON b.class_id = c.id
       LEFT JOIN class_instances ci ON ci.class_id = b.class_id AND ci.date = b.booking_date
       WHERE b.member_id = ? ORDER BY b.booking_date DESC LIMIT 50
@@ -144,7 +144,7 @@ router.get('/attendance', authenticateMember, (req, res) => {
   try {
     const db = getDatabase();
     const attendance = db.prepare(`
-      SELECT a.*, c.name as class_name, c.discipline
+      SELECT a.*, c.name as class_name, c.class_type as discipline
       FROM attendance a JOIN classes c ON a.class_id = c.id
       WHERE a.member_id = ? ORDER BY a.check_in_time DESC LIMIT 30
     `).all(req.member.id);
@@ -188,12 +188,12 @@ router.get('/schedule', authenticateMember, (req, res) => {
   try {
     const db = getDatabase();
     const schedule = db.prepare(`
-      SELECT ci.*, c.name, c.discipline, c.description, c.difficulty,
-        CASE WHEN b.id IS NOT NULL THEN 1 ELSE 0 END as booked,
+      SELECT ci.*, c.name, c.class_type as discipline, c.description,
+        c.location, CASE WHEN b.id IS NOT NULL THEN 1 ELSE 0 END as booked,
         b.id as booking_id, b.status as booking_status
       FROM class_instances ci
       JOIN classes c ON ci.class_id = c.id
-      LEFT JOIN bookings b ON b.class_id = ci.class_id AND b.booking_date = ci.date AND b.member_id = ? AND b.status != 'cancelled'
+      LEFT JOIN bookings b ON b.class_instance_id = ci.id AND b.member_id = ? AND b.status != 'cancelled'
       WHERE ci.date >= DATE('now') AND ci.date <= DATE('now', '+7 days')
       ORDER BY ci.date, ci.start_time
     `).all(req.member.id);

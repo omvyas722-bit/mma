@@ -24,10 +24,10 @@ router.get('/leads-with-scores', authenticateToken, requirePermission('leads:rea
 });
 
 // Get high priority leads
-router.get('/high-priority', authenticateToken, requirePermission('leads:read'), (req, res) => {
+router.get('/high-priority', authenticateToken, requirePermission('leads:read'), async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
-    const leads = leadScoringData.getHighPriorityLeads(limit);
+    const leads = await leadScoringData.getHighPriorityLeads(limit);
     res.json(leads);
   } catch (error) {
     console.error('Error fetching high priority leads:', error);

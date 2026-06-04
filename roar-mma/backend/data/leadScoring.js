@@ -1,92 +1,89 @@
 // Lead scoring system
 const { getDatabase } = require('../db/connection');
+const providerChain = require('../services/ai/providerChain');
 
-// Scoring weights
+// Scoring weights (used by getLeadScoreBreakdown)
 const SCORING = {
-  // Source quality (0-30 points)
-  source: {
-    referral: 30,
-    walk_in: 25,
-    website: 20,
-    facebook: 15,
-    instagram: 15,
-    other: 10
-  },
-
-  // Stage progress (0-25 points)
-  stage: {
-    converted: 25,
-    trial_completed: 20,
-    trial_booked: 15,
-    contacted: 10,
-    new: 5
-  },
-
-  // Trial interest level (0-20 points)
-  interest: {
-    hot: 20,
-    warm: 10,
-    cold: 5
-  },
-
-  // Trial experience rating (0-15 points)
-  experience: {
-    5: 15,
-    4: 12,
-    3: 8,
-    2: 4,
-    1: 0
-  },
-
-  // Response speed bonus (0-10 points)
-  // Responded within 1 hour of first contact
+  source: { referral: 30, walk_in: 25, website: 20, facebook: 15, instagram: 15, other: 10 },
+  stage: { converted: 25, trial_completed: 20, trial_booked: 15, contacted: 10, new: 5 },
+  interest: { hot: 20, warm: 10, cold: 5 },
+  experience: { 5: 15, 4: 12, 3: 8, 2: 4, 1: 0 },
   quick_response: 10
 };
+
+async function calculateAiLeadScore(lead) {
+  const prompt = `Score this MMA gym lead 0-100 based on conversion likelihood.
+Return ONLY a JSON object with score (int 0-100), reasoning (1 sentence), and priority (critical/high/medium/low).
+
+Lead: ${lead.first_name || ''} ${lead.last_name || ''}
+Source: ${lead.source || 'unknown'}
+Stage: ${lead.stage || 'new'}
+Interests: ${lead.interests || 'not specified'}
+Location: ${lead.location || 'unknown'}
+Notes: ${lead.notes || 'none'}
+Days since created: ${lead.created_at ? Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 86400000) : 'unknown'}
+Has email: ${!!lead.email}
+Has phone: ${!!lead.phone}`;
+
+  try {
+    const result = await providerChain.completeChat(
+      [{ role: 'user', content: prompt }],
+      { jsonMode: true, temperature: 0.3, maxTokens: 300 }
+    );
+    if (result.content) {
+      const parsed = JSON.parse(result.content);
+      return {
+        score: Math.max(0, Math.min(100, parsed.score || 50)),
+        reasoning: parsed.reasoning || 'AI scored',
+        priority: parsed.priority || 'medium'
+      };
+    }
+  } catch (err) {
+    console.warn('[AI-SCORING] AI scoring failed, using fallback:', err.message);
+  }
+
+  return { score: 50, reasoning: 'Fallback scoring', priority: 'medium' };
+}
 
 function calculateLeadScore(lead) {
   let score = 0;
 
   // Source quality
-  if (lead.source && SCORING.source[lead.source]) {
-    score += SCORING.source[lead.source];
+  const sourceScores = { referral: 30, walk_in: 25, website: 20, facebook: 15, instagram: 15, other: 10 };
+  if (lead.source && sourceScores[lead.source]) {
+    score += sourceScores[lead.source];
   }
 
   // Stage progress
-  if (lead.stage && SCORING.stage[lead.stage]) {
-    score += SCORING.stage[lead.stage];
+  const stageScores = { converted: 25, trial_completed: 20, trial_booked: 15, contacted: 10, new: 5 };
+  if (lead.stage && stageScores[lead.stage]) {
+    score += stageScores[lead.stage];
   }
 
-  // Trial interest level
-  if (lead.trial_interest_level && SCORING.interest[lead.trial_interest_level]) {
-    score += SCORING.interest[lead.trial_interest_level];
+  // Interest level
+  const interestScores = { hot: 20, warm: 10, cold: 5 };
+  if (lead.trial_interest_level && interestScores[lead.trial_interest_level]) {
+    score += interestScores[lead.trial_interest_level];
   }
 
-  // Trial experience rating
-  if (lead.trial_experience_rating && SCORING.experience[lead.trial_experience_rating]) {
-    score += SCORING.experience[lead.trial_experience_rating];
+  // Experience rating
+  const expScores = { 5: 15, 4: 12, 3: 8, 2: 4, 1: 0 };
+  if (lead.trial_experience_rating && expScores[lead.trial_experience_rating]) {
+    score += expScores[lead.trial_experience_rating];
   }
 
   // Response speed bonus
   if (lead.last_contact_date && lead.created_at) {
-    const created = new Date(lead.created_at);
-    const responded = new Date(lead.last_contact_date);
-    const hoursDiff = Math.abs((responded - created) / (1000 * 60 * 60));
-
-    if (hoursDiff <= 1) {
-      score += SCORING.quick_response;
-    }
+    const hoursDiff = Math.abs((new Date(lead.last_contact_date) - new Date(lead.created_at)) / (1000 * 60 * 60));
+    if (hoursDiff <= 1) score += 10;
   }
 
-  // Recency penalty (lose 1 point per day since last contact, max -20)
+  // Recency penalty
   if (lead.last_contact_date && lead.stage !== 'new') {
-    const lastContact = new Date(lead.last_contact_date);
-    const now = new Date();
-    const daysSince = (now - lastContact) / (1000 * 60 * 60 * 24);
-    const recencyPenalty = Math.min(Math.floor(daysSince), 20);
-    score -= recencyPenalty;
+    const daysSince = (Date.now() - new Date(lead.last_contact_date).getTime()) / 86400000;
+    score -= Math.min(Math.floor(daysSince), 20);
   }
 
-  // Ensure score is between 0-100
   return Math.max(0, Math.min(100, score));
 }
 
@@ -97,7 +94,7 @@ function getLeadPriority(score) {
   return 'low';
 }
 
-function getAllLeadsWithScores(filters = {}) {
+async function getAllLeadsWithScores(filters = {}) {
   const db = getDatabase();
 
   let query = `
@@ -132,25 +129,34 @@ function getAllLeadsWithScores(filters = {}) {
     params.push(filters.assigned_to);
   }
 
-  query += ' ORDER BY l.created_at DESC';
+  query += ' ORDER BY l.created_at DESC LIMIT 200';
 
   const leads = db.prepare(query).all(...params);
 
-  // Calculate scores for each lead
-  return leads.map(lead => {
+  // Rule-based scores first
+  const scored = leads.map(lead => {
     const score = calculateLeadScore(lead);
-    const priority = getLeadPriority(score);
+    return { ...lead, score, priority: getLeadPriority(score) };
+  });
+  scored.sort((a, b) => b.score - a.score);
 
-    return {
-      ...lead,
-      score,
-      priority
-    };
-  }).sort((a, b) => b.score - a.score); // Sort by score descending
+  // AI-score top 30 valuable leads (race-winner pattern)
+  const topLeads = scored.slice(0, 30).filter(l => l.stage !== 'converted' && l.stage !== 'lost');
+  const aiPromises = topLeads.map(l =>
+    calculateAiLeadScore(l).then(ai => {
+      l.score = ai.score;
+      l.priority = ai.priority;
+      l.score_reasoning = ai.reasoning;
+    }).catch(() => {})
+  );
+  await Promise.all(aiPromises);
+  scored.sort((a, b) => b.score - a.score);
+
+  return scored;
 }
 
-function getHighPriorityLeads(limit = 20) {
-  const allLeads = getAllLeadsWithScores({});
+async function getHighPriorityLeads(limit = 20) {
+  const allLeads = await getAllLeadsWithScores({});
 
   return allLeads
     .filter(lead => lead.priority === 'critical' || lead.priority === 'high')

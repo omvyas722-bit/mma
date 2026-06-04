@@ -32,7 +32,7 @@ function deleteCertification(id) {
 
 function getExpiringCertifications(days = 30) {
   return getDatabase().prepare(`
-    SELECT sc.*, s.first_name, s.last_name, s.email
+    SELECT sc.*, s.name, s.email
     FROM staff_certifications sc JOIN staff s ON sc.staff_id = s.id
     WHERE sc.expiry_date BETWEEN date('now') AND date('now', '+' || ? || ' days')
     ORDER BY sc.expiry_date

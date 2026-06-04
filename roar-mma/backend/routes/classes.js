@@ -99,9 +99,12 @@ router.post('/', authenticateToken, requirePermission('classes:create'), (req, r
       return res.status(400).json({ error: 'day_of_week must be between 0 (Sunday) and 6 (Saturday)' });
     }
 
-    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active', 'min_belt', 'fighter_only'];
+    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'end_time', 'max_capacity', 'class_type', 'instructor_id', 'active', 'min_belt', 'fighter_only'];
     const classData = {};
     allowedFields.forEach(f => { if (req.body[f] !== undefined) classData[f] = req.body[f]; });
+    // Accept legacy field names too
+    if (req.body.capacity !== undefined && classData.max_capacity === undefined) classData.max_capacity = req.body.capacity;
+    if (req.body.coach_id !== undefined && classData.instructor_id === undefined) classData.instructor_id = req.body.coach_id;
     const classInfo = classesData.createClass(classData);
 
     res.status(201).json(classInfo);
@@ -120,8 +123,10 @@ router.put('/:id', authenticateToken, requirePermission('classes:update'), (req,
       return res.status(404).json({ error: 'Class not found' });
     }
 
-    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'duration_minutes', 'capacity', 'class_type', 'coach_id', 'active', 'min_belt', 'fighter_only'];
+    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'end_time', 'max_capacity', 'class_type', 'instructor_id', 'active', 'min_belt', 'fighter_only'];
     const updateData = {};
+    if (req.body.capacity !== undefined && updateData.max_capacity === undefined && !allowedFields.includes('capacity')) updateData.max_capacity = req.body.capacity;
+    if (req.body.coach_id !== undefined && updateData.instructor_id === undefined && !allowedFields.includes('coach_id')) updateData.instructor_id = req.body.coach_id;
     allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
 
     const updatedClass = classesData.updateClass(req.params.id, updateData);

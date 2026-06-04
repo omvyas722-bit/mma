@@ -326,12 +326,12 @@ function changeMemberPlan(memberId, newPlan, effectiveDate) {
 function getMemberPtSessions(memberId) {
   const db = getDatabase();
   return db.prepare(`
-    SELECT ps.*, s.name as coach_name, mp.package_name, mp.total_sessions, mp.remaining_sessions
+    SELECT ps.*, s.name as coach_name, mp.sessions_total, mp.sessions_remaining, mp.status as package_status
     FROM pt_sessions ps
     JOIN staff s ON ps.coach_id = s.id
-    LEFT JOIN member_pt_packages mp ON ps.package_id = mp.id
+    LEFT JOIN member_pt_packages mp ON ps.member_package_id = mp.id
     WHERE ps.member_id = ?
-    ORDER BY ps.session_date DESC
+    ORDER BY ps.scheduled_date DESC
   `).all(memberId);
 }
 

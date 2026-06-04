@@ -37,7 +37,7 @@ function requestExport(memberId, exportType, format, requestedBy) {
 }
 
 function getExports() {
-  return getDatabase().prepare('SELECT del.*, s.first_name, s.last_name FROM data_export_log del JOIN staff s ON del.requested_by = s.id ORDER BY del.created_at DESC').all();
+  return getDatabase().prepare('SELECT del.*, s.name FROM data_export_log del JOIN staff s ON del.requested_by = s.id ORDER BY del.created_at DESC').all();
 }
 
 function getMemberData(memberId) {

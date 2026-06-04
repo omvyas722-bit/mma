@@ -11,7 +11,7 @@ function buildSystemNotifications(db) {
   const notifs = [];
 
   const aiApprovalCount = db.prepare(
-    `SELECT COUNT(*) as count FROM event_queue WHERE status = 'pending' AND agent IS NOT NULL`
+    `SELECT COUNT(*) as count FROM event_queue WHERE status = 'pending' AND assigned_agent IS NOT NULL`
   ).get().count;
   if (aiApprovalCount > 0) {
     notifs.push({

@@ -32,7 +32,13 @@ const migrations = [
   '019_staff_schedule.sql',
   '020_privacy_compliance.sql',
   '021_ai_enhancements.sql',
-  '022_class_enhancements.sql'
+  '022_class_enhancements.sql',
+  '023_social_campaigns.sql',
+  '024_security_features.sql',
+  '025_billing_enhancements.sql',
+  '026_ai_enhancements.sql',
+  '027_member_portal.sql',
+  '028_workflow_builder.sql'
 ];
 
 function initDatabase(seedDefaults = false) {
@@ -73,6 +79,47 @@ function initDatabase(seedDefaults = false) {
     );
   } catch {
     applied = new Set();
+  }
+
+  // Apply patch migrations (missing tables/columns that earlier migrations depend on)
+  const patches = [
+    { name: 'patch_class_instances', fn: () => db.exec(`
+      CREATE TABLE IF NOT EXISTS class_instances (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, class_id INTEGER NOT NULL,
+        date DATE NOT NULL, start_time TIME NOT NULL, end_time TIME,
+        capacity INTEGER DEFAULT 20, status TEXT DEFAULT 'scheduled',
+        class_notes TEXT, created_at DATETIME DEFAULT (datetime('now')),
+        updated_at DATETIME DEFAULT (datetime('now'))
+      )`);
+    },
+    { name: 'patch_class_instances_coach_id', fn: () => {
+      const cols = db.prepare("PRAGMA table_info('class_instances')").all().map(c => c.name);
+      if (!cols.includes('coach_id')) db.exec("ALTER TABLE class_instances ADD COLUMN coach_id INTEGER REFERENCES staff(id)");
+    }},
+    { name: 'patch_bookings_columns', fn: () => {
+      const cols = db.prepare("PRAGMA table_info('bookings')").all().map(c => c.name);
+      if (!cols.includes('class_instance_id')) db.exec("ALTER TABLE bookings ADD COLUMN class_instance_id INTEGER REFERENCES class_instances(id)");
+      if (!cols.includes('waitlist')) db.exec("ALTER TABLE bookings ADD COLUMN waitlist INTEGER DEFAULT 0");
+      if (!cols.includes('waitlist_position')) db.exec("ALTER TABLE bookings ADD COLUMN waitlist_position INTEGER");
+      if (!cols.includes('booked_at')) db.exec("ALTER TABLE bookings ADD COLUMN booked_at DATETIME");
+      if (!cols.includes('attended_at')) db.exec("ALTER TABLE bookings ADD COLUMN attended_at DATETIME");
+      if (!cols.includes('cancelled_at')) db.exec("ALTER TABLE bookings ADD COLUMN cancelled_at DATETIME");
+    }}
+  ];
+  for (const p of patches) {
+    if (!applied.has(p.name)) {
+      try {
+        p.fn();
+        const patchVersions = { patch_class_instances: -30, patch_class_instances_coach_id: -29, patch_bookings_columns: -28 };
+        db.prepare('INSERT OR IGNORE INTO schema_version (version, name, checksum, duration_ms, success) VALUES (?, ?, ?, ?, 1)')
+          .run(patchVersions[p.name] || -99, p.name, '', 0);
+        console.log(`🔧 Patch ${p.name} applied`);
+      } catch (e) {
+        console.log(`⚠️  Patch ${p.name} error: ${e.message}`);
+      }
+    } else {
+      console.log(`⏭️  Patch ${p.name} already applied, skipping`);
+    }
   }
 
   console.log('Running migrations...\n');
@@ -228,6 +275,7 @@ function seedDefaultData(db) {
 
 // Run if called directly
 if (require.main === module) {
+  const forceMode = process.argv.includes('--yes') || process.argv.includes('-y');
   let hasData = false;
   try {
     const checkDb = new Database(dbPath, { readonly: true });
@@ -235,7 +283,7 @@ if (require.main === module) {
     checkDb.close();
   } catch { /* first run — no db yet */ }
 
-  if (hasData) {
+  if (hasData && !forceMode) {
     const rl = require('readline').createInterface({
       input: process.stdin,
       output: process.stdout

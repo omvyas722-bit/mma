@@ -45,6 +45,17 @@ router.get('/stats', authenticateToken, requirePermission('leads:read'), (req, r
   }
 });
 
+// Get win-back candidates (lost leads inactive 14+ days)
+router.get('/winback', authenticateToken, requirePermission('leads:read'), (req, res) => {
+  try {
+    const leads = leadsData.getWinBackLeads();
+    res.json({ leads });
+  } catch (error) {
+    console.error('Error fetching win-back leads:', error);
+    res.status(500).json({ error: 'Failed to fetch win-back leads' });
+  }
+});
+
 // Get single lead by ID
 router.get('/:id', authenticateToken, requirePermission('leads:read'), (req, res) => {
   try {
@@ -276,17 +287,6 @@ router.post('/schedule-trial-followups', authenticateToken, requirePermission('l
   }
 });
 
-// Get win-back candidates (lost leads inactive 14+ days)
-router.get('/winback', authenticateToken, requirePermission('leads:read'), (req, res) => {
-  try {
-    const leads = leadsData.getWinBackLeads();
-    res.json({ leads });
-  } catch (error) {
-    console.error('Error fetching win-back leads:', error);
-    res.status(500).json({ error: 'Failed to fetch win-back leads' });
-  }
-});
-
 // Bulk import leads (JSON array from CSV parsing on frontend)
 router.post('/import', authenticateToken, requirePermission('leads:create'), (req, res) => {
   try {
@@ -347,6 +347,39 @@ router.post('/import', authenticateToken, requirePermission('leads:create'), (re
   } catch (error) {
     console.error('Error importing leads:', error);
     res.status(500).json({ error: 'Failed to import leads' });
+  }
+});
+
+// AI enrichment for a lead (SCOUT on-demand research)
+router.post('/:id/enrich', authenticateToken, requirePermission('leads:update'), async (req, res) => {
+  try {
+    const lead = leadsData.getLeadById(req.params.id);
+    if (!lead) return res.status(404).json({ error: 'Lead not found' });
+
+    const providerChain = require('../services/ai/providerChain');
+    const prompt = `Given this lead info, provide a brief research analysis:
+Name: ${lead.first_name || ''} ${lead.last_name || ''}
+Email: ${lead.email || 'N/A'}
+Phone: ${lead.phone || 'N/A'}
+Source: ${lead.source || 'N/A'}
+Interests: ${lead.interests || 'N/A'}
+
+Return a JSON object with: interests_analysis (2-3 sentences), recommended_approach (2-3 sentences), best_class_to_offer, suggested_discount_tier (none/low/medium/high), and communication_tone (friendly/professional/enthusiastic).`;
+
+    const aiResult = await providerChain.completeChat(
+      [{ role: 'user', content: prompt }],
+      { jsonMode: true, temperature: 0.4, maxTokens: 500 }
+    );
+
+    let enrichment = null;
+    if (aiResult.content) {
+      try { enrichment = JSON.parse(aiResult.content); } catch {}
+    }
+
+    res.json({ lead_id: lead.id, enrichment });
+  } catch (error) {
+    console.error('Error enriching lead:', error);
+    res.status(500).json({ error: 'Failed to enrich lead' });
   }
 });
 

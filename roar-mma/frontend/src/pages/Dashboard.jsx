@@ -17,6 +17,7 @@ function useDashboardAnalytics() {
   return useQuery({
     queryKey: ['dashboard-analytics'],
     queryFn: async () => { const r = await api.get('/api/analytics/dashboard'); return r.data; },
+    refetchInterval: 300000,
     retry: 1,
     staleTime: 60000,
   });
@@ -263,9 +264,7 @@ function KpiCard({ title, value, change, onClick, loading, sparkline, color }) {
     <button type="button" onClick={onClick} className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow w-full group" aria-label={`${title}: ${value}`}>
       <p className="text-xs text-gray-500 mb-1">{title}</p>
       <p className="text-xl font-bold text-gray-900">{value}</p>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <Sparkline data={sparkline} color={color} />
-      </div>
+      <Sparkline data={sparkline} color={color} />
       {change != null && <p className={`text-xs mt-0.5 ${changeNum >= 0 ? 'text-green-600' : 'text-red-600'}`}>
         {changeNum >= 0 ? '↑' : '↓'} {Math.abs(changeNum)}%
       </p>}

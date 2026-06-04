@@ -34,6 +34,11 @@ before(() => {
       experience_level TEXT,
       lightspeed_customer_id TEXT,
       notes TEXT,
+      health_score INTEGER DEFAULT 0,
+      health_score_updated_at DATETIME,
+      health_score_factors TEXT,
+      is_fighter INTEGER DEFAULT 0,
+      membership_type TEXT DEFAULT 'adult',
       created_at DATETIME DEFAULT (datetime('now')),
       updated_at DATETIME DEFAULT (datetime('now'))
     );

@@ -33,6 +33,25 @@ before(() => {
       description TEXT,
       processed_at DATETIME,
       failure_reason TEXT,
+      stripe_payment_intent_id TEXT,
+      stripe_payment_method TEXT,
+      write_off_reason TEXT,
+      write_off_at DATETIME,
+      write_off_by INTEGER,
+      created_at DATETIME DEFAULT (datetime('now')),
+      updated_at DATETIME DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_id INTEGER NOT NULL,
+      plan_name TEXT,
+      amount REAL NOT NULL,
+      currency TEXT DEFAULT 'AUD',
+      status TEXT DEFAULT 'active',
+      stripe_subscription_id TEXT,
+      stripe_price_id TEXT,
+      current_period_start DATE,
+      current_period_end DATE,
       created_at DATETIME DEFAULT (datetime('now')),
       updated_at DATETIME DEFAULT (datetime('now'))
     );

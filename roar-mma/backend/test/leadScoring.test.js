@@ -146,44 +146,44 @@ describe('Lead Scoring', () => {
   });
 
   describe('getAllLeadsWithScores', () => {
-    it('returns leads with calculated scores', () => {
+    it('returns leads with calculated scores', async () => {
       const db = getDatabase();
       db.prepare(`INSERT INTO leads (first_name, last_name, phone, source, stage) VALUES ('Test', 'Lead', '0400000000', 'referral', 'contacted')`).run();
-      const results = leadScoring.getAllLeadsWithScores({});
+      const results = await leadScoring.getAllLeadsWithScores({});
       assert.equal(results.length, 1);
       assert.ok(results[0].score > 0);
       assert.equal(typeof results[0].priority, 'string');
     });
 
-    it('filters by stage', () => {
+    it('filters by stage', async () => {
       const db = getDatabase();
       db.prepare(`INSERT INTO leads (first_name, last_name, phone, source, stage) VALUES ('New', 'Lead', '0400000001', 'website', 'new')`).run();
-      const results = leadScoring.getAllLeadsWithScores({ stage: 'new' });
+      const results = await leadScoring.getAllLeadsWithScores({ stage: 'new' });
       assert.equal(results.length, 1);
     });
 
-    it('filters by location', () => {
-      const results = leadScoring.getAllLeadsWithScores({ location: 'rockingham' });
+    it('filters by location', async () => {
+      const results = await leadScoring.getAllLeadsWithScores({ location: 'rockingham' });
       assert.equal(results.length, 0);
     });
 
-    it('filters by source', () => {
+    it('filters by source', async () => {
       const db = getDatabase();
       db.prepare(`INSERT INTO leads (first_name, last_name, phone, source, stage) VALUES ('Src', 'Lead', '0400000002', 'facebook', 'new')`).run();
-      const results = leadScoring.getAllLeadsWithScores({ source: 'facebook' });
+      const results = await leadScoring.getAllLeadsWithScores({ source: 'facebook' });
       assert.equal(results.length, 1);
     });
 
-    it('filters by assigned_to', () => {
+    it('filters by assigned_to', async () => {
       const db = getDatabase();
       db.prepare(`INSERT INTO staff (id, name, email, password_hash, role) VALUES (99, 'Test', 'test@test.com', 'hash', 'sales')`).run();
       db.prepare(`INSERT INTO leads (first_name, last_name, phone, source, stage, assigned_to) VALUES ('Assigned', 'Lead', '0400000003', 'website', 'new', 99)`).run();
-      const results = leadScoring.getAllLeadsWithScores({ assigned_to: 99 });
+      const results = await leadScoring.getAllLeadsWithScores({ assigned_to: 99 });
       assert.equal(results.length, 1);
     });
 
-    it('returns sorted by score descending', () => {
-      const results = leadScoring.getAllLeadsWithScores({});
+    it('returns sorted by score descending', async () => {
+      const results = await leadScoring.getAllLeadsWithScores({});
       if (results.length >= 2) {
         assert.ok(results[0].score >= results[1].score);
       }
@@ -191,8 +191,8 @@ describe('Lead Scoring', () => {
   });
 
   describe('getHighPriorityLeads', () => {
-    it('returns only critical and high priority leads', () => {
-      const results = leadScoring.getHighPriorityLeads();
+    it('returns only critical and high priority leads', async () => {
+      const results = await leadScoring.getHighPriorityLeads();
       assert.ok(Array.isArray(results));
       results.forEach(r => {
         assert.ok(r.priority === 'critical' || r.priority === 'high');
