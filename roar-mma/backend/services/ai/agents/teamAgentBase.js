@@ -26,7 +26,8 @@ class TeamAgent {
       let response;
       try {
         response = await client.completeChat(messages, {
-          model: process.env.AI_MODEL || 'openai/gpt-4o-mini',
+          model: process.env.AI_MODEL || 'meta-llama/llama-3.1-8b-instruct',
+          maxTokens: 512,
           signal: controller.signal
         });
       } finally {
