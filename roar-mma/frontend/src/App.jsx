@@ -44,6 +44,7 @@ const MakeupClasses = lazy(() => import('./pages/MakeupClasses'));
 const PTSessions = lazy(() => import('./pages/PTSessions'));
 const PhoneSystem = lazy(() => import('./pages/PhoneSystem'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const InventoryManagement = lazy(() => import('./pages/InventoryManagement'));
 
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -91,6 +92,7 @@ function App() {
                     <Route path="coaching" element={<Coaching />} />
                     <Route path="gradings" element={<Gradings />} />
                     <Route path="pos" element={<POS />} />
+                    <Route path="inventory" element={<InventoryManagement />} />
                     <Route path="waivers" element={<Waivers />} />
                     <Route path="social-media" element={<SocialMedia />} />
                     <Route path="approval-queue" element={<ApprovalQueue />} />

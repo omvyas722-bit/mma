@@ -72,6 +72,7 @@ const NAV_SECTIONS = [
       { name: 'Billing', path: '/billing', icon: '💰' },
       { name: 'Subscriptions', path: '/subscriptions', icon: '📋' },
       { name: 'POS / Stock', path: '/pos', icon: '🛒' },
+      { name: 'Inventory', path: '/inventory', icon: '📦' },
       { name: 'Family Discounts', path: '/family-discounts', icon: '👪' },
     ],
   },

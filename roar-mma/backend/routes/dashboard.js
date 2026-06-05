@@ -68,15 +68,15 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
 
     // Get recent activity (last 10 events)
     const recentActivity = db.prepare(`
-      SELECT 'member_joined' as type, first_name || ' ' || last_name as description, created_at as timestamp
+      SELECT 'member_joined' as type, first_name || ' ' || last_name as description, created_at as timestamp, id as entity_id
       FROM members
       WHERE DATE(created_at) >= date('now', '-7 days')
       UNION ALL
-      SELECT 'booking_created' as type, 'New class booking' as description, booked_at as timestamp
+      SELECT 'booking_created' as type, 'New class booking' as description, booked_at as timestamp, member_id || ':' || class_instance_id as entity_id
       FROM bookings
       WHERE DATE(booked_at) >= date('now', '-7 days')
       UNION ALL
-      SELECT 'payment_completed' as type, 'Payment received: $' || amount as description, created_at as timestamp
+      SELECT 'payment_completed' as type, 'Payment received: $' || amount as description, created_at as timestamp, member_id as entity_id
       FROM transactions
       WHERE status = 'completed' AND DATE(created_at) >= date('now', '-7 days')
       ORDER BY timestamp DESC

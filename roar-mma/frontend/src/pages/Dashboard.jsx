@@ -352,6 +352,7 @@ function ClassCard({ item, onClick }) {
 }
 
 function ActivityItem({ activity }) {
+  const navigate = useNavigate();
   const fmt = (ts) => {
     if (!ts) return '';
     const diff = Date.now() - new Date(ts).getTime();
@@ -361,15 +362,21 @@ function ActivityItem({ activity }) {
     if (h < 24) return `${h}h ago`;
     return `${Math.floor(diff / 86400000)}d ago`;
   };
-  return (
+  const linkTo = activity.type === 'member_joined' && activity.entity_id ? `/members/${activity.entity_id}` :
+    activity.type === 'payment_completed' && activity.entity_id ? `/billing?member=${activity.entity_id}` : null;
+  const content = (
     <li className="flex items-start gap-2 py-1.5 border-b border-gray-100 last:border-0">
-      <span className="text-base mt-0.5" aria-hidden="true">📌</span>
+      <span className="text-base mt-0.5" aria-hidden="true">
+        {activity.type === 'member_joined' ? '👤' : activity.type === 'booking_created' ? '📅' : '💰'}
+      </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-900 truncate">{activity.description}</p>
         <p className="text-[10px] text-gray-400">{fmt(activity.timestamp)}</p>
       </div>
     </li>
   );
+  if (linkTo) return <button onClick={() => navigate(linkTo)} className="w-full text-left hover:bg-gray-50 rounded">{content}</button>;
+  return content;
 }
 
 function ChartCard({ title, children, loading }) {
