@@ -8,6 +8,7 @@ export default function Gradings() {
   const { error, success } = useNotifications();
   const [showSchedule, setShowSchedule] = useState(false);
   const [sessionFilter, setSessionFilter] = useState('');
+  const [viewParticipants, setViewParticipants] = useState(null);
 
   const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['grading-sessions', sessionFilter],
@@ -57,11 +58,12 @@ export default function Gradings() {
             <p className="text-xs text-gray-500">{s.date} · {s.location?.replace(/_/g, ' ') || '—'}</p>
             {s.notes && <p className="text-xs text-gray-600 mt-1">{s.notes}</p>}
             <div className="mt-3 flex gap-2">
-              <button className="text-xs text-red-600 hover:underline">View Participants</button>
+              <button onClick={() => setViewParticipants(s)} className="text-xs text-red-600 hover:underline">View Participants</button>
             </div>
           </div>
         ))}
       </div>
+      {viewParticipants && <ParticipantsModal session={viewParticipants} onClose={() => setViewParticipants(null)} />}
     </div>
   );
 }
@@ -83,6 +85,37 @@ function ScheduleModal({ onClose, onSave }) {
           <button onClick={onClose} className="btn-outline text-sm">Cancel</button>
           <button onClick={() => onSave(form)} disabled={!form.date} className="btn-primary text-sm">Create Session</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ParticipantsModal({ session, onClose }) {
+  const { data: participants = [], isLoading } = useQuery({
+    queryKey: ['grading-participants', session?.id],
+    queryFn: async () => { const r = await api.get(`/api/grading/sessions/${session.id}/participants`); return r.data?.participants || []; },
+    enabled: !!session,
+  });
+  if (!session) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">{session.name || `Grading #${session.id}`} — Participants</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        </div>
+        {participants.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-4">No participants registered yet</p>
+        ) : (
+          <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+            {participants.map(p => (
+              <div key={p.id} className="py-2 flex justify-between items-center">
+                <span className="text-sm text-gray-900">{p.member_name}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{p.belt_name} · {p.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

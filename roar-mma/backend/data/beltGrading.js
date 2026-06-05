@@ -12,6 +12,11 @@ function getBeltLevel(id) {
   return db.prepare('SELECT * FROM belt_levels WHERE id = ?').get(id);
 }
 
+function getBeltLevelByName(name) {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM belt_levels WHERE LOWER(name) = LOWER(?) ORDER BY rank_order ASC LIMIT 1').get(name);
+}
+
 // Grading requirements
 function getRequirementsForBelt(beltLevelId) {
   const db = getDatabase();
@@ -408,6 +413,7 @@ function getMemberGradingHistory(memberId) {
 module.exports = {
   getAllBeltLevels,
   getBeltLevel,
+  getBeltLevelByName,
   getRequirementsForBelt,
   getMemberBeltProgress,
   assignBelt,

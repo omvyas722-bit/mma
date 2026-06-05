@@ -71,6 +71,12 @@ export default function Classes() {
     onError: () => error('Failed to delete class'),
   });
 
+  const duplicateClass = useMutation({
+    mutationFn: (id) => api.post(`/api/classes/${id}/duplicate`),
+    onSuccess: () => { invalidate(); success('Class duplicated'); },
+    onError: () => error('Failed to duplicate class'),
+  });
+
   const cancelInstance = useMutation({
     mutationFn: ({ id, reason, notify }) => api.post(`/api/classes/instances/${id}/cancel`, { reason, notify_members: notify }),
     onSuccess: () => { invalidate(); setDetailInstance(null); success('Class cancelled'); },
@@ -158,7 +164,8 @@ export default function Classes() {
                       onClick={() => setDetailInstance(inst)}
                       onEdit={() => setEditingClass(inst)}
                       onDelete={() => setDeletingClass(inst)}
-                      onCheckIn={() => setCheckInClass(inst)} />
+                      onCheckIn={() => setCheckInClass(inst)}
+                      onDuplicate={() => duplicateClass.mutate(inst.id)} />
                   ))}
                 </div>
               </div>
@@ -183,7 +190,7 @@ function SkeletonDay() {
   );
 }
 
-function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn }) {
+function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate }) {
   const fillPct = instance.capacity ? Math.min(100, (instance.booked_count / instance.capacity) * 100) : 0;
   const fillColor = instance.status === 'cancelled' ? 'bg-gray-300' : fillPct >= 90 ? 'bg-red-500' : fillPct >= 80 ? 'bg-yellow-500' : fillPct >= 50 ? 'bg-blue-500' : 'bg-green-500';
   return (
@@ -193,7 +200,7 @@ function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn }) {
       { label: 'Edit Class', icon: '✏️', onClick: onEdit },
       { separator: true },
       { label: 'Cancel This Class', icon: '❌', onClick: onClick, disabled: instance.status === 'cancelled' },
-      { label: 'Duplicate Class', icon: '📋', onClick: () => console.log('Duplicate', instance.id) },
+      { label: 'Duplicate Class', icon: '📋', onClick: () => onDuplicate(instance.id) },
       { separator: true },
       { label: 'Delete Class', icon: '🗑️', destructive: true, onClick: onDelete },
     ]}>

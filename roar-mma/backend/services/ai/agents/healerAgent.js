@@ -87,7 +87,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     if ((tasksCreated > 0) && broadcast) broadcast({ type: 'healer_agent_update', summary, tasksCreated });
   } catch (err) {
     console.error('[HEALER-AGENT] Error:', err.message);
-    try { await aiState.logActivity({ agentName: 'healer', actionType: 'healer_error', details: { error: err.message }, summary: `Healer failed: ${err.message}` }); } catch {}
+    try { await aiState.logActivity({ agentName: 'healer', actionType: 'healer_error', details: { error: err.message }, summary: `Healer failed: ${err.message}` }); } catch (logErr) { console.error('[HEALER] Log error:', logErr.message); }
   }
 }
 

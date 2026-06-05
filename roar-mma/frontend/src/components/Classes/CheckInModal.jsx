@@ -269,7 +269,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
         title="Remove Attendee"
         message="Remove this member from the class?"
         confirmText="Remove"
-        type="danger"
+        variant="danger"
       />
     </>
   );

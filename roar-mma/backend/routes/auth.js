@@ -177,27 +177,7 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// === Change Password ===
-router.post('/change-password', authenticateToken, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current and new password required' });
-    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
 
-    const db = getDatabase();
-    const user = db.prepare('SELECT password_hash FROM staff WHERE id = ?').get(req.user.id);
-    if (!user || !(await bcrypt.compare(currentPassword, user.password_hash))) {
-      return res.status(400).json({ error: 'Current password is incorrect' });
-    }
-
-    const hash = await bcrypt.hash(newPassword, 10);
-    db.prepare("UPDATE staff SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(hash, req.user.id);
-    res.json({ message: 'Password changed successfully' });
-  } catch (err) {
-    console.error('[AUTH] Change password error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // === Two-Factor Auth ===
 router.post('/setup-2fa', authenticateToken, requirePermission('settings:write'), async (req, res) => {

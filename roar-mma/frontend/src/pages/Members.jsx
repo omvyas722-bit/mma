@@ -159,7 +159,7 @@ export default function Members() {
           <span className="text-sm text-blue-800 font-medium">{selected.size} selected</span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => exportCSV(members.filter(m => selected.has(m.id)))} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Export Selected</button>
-            <button type="button" onClick={() => { if (confirm(`Send message to ${selected.size} members?`)) { alert('Bulk messaging coming soon'); } }} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Message</button>
+            <button type="button" onClick={() => { if (confirm(`Send message to ${selected.size} members?`)) { success('Bulk messaging coming soon'); } }} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Message</button>
             <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setSelected(new Set())}>Clear</button>
           </div>
         </div>
@@ -287,9 +287,18 @@ function SkeletonTable({ rows, cols }) {
 function PauseModal({ member, onClose, onConfirm }) {
   const [start, setStart] = useState(new Date().toISOString().split('T')[0]);
   const [end, setEnd] = useState('');
+  const [holdRate, setHoldRate] = useState(0.71);
+  const [maxDays, setMaxDays] = useState(84);
+  useEffect(() => {
+    fetch('/api/settings', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(r => r.json()).then(s => {
+        if (s.system?.hold_fee_rate) setHoldRate(parseFloat(s.system.hold_fee_rate));
+        if (s.system?.hold_max_days) setMaxDays(parseInt(s.system.hold_max_days, 10));
+      }).catch(() => {});
+  }, []);
   const days = end && start ? Math.max(0, Math.ceil((new Date(end) - new Date(start)) / 86400000)) : 0;
-  const fee = (days * 0.71).toFixed(2);
-  const valid = start && end && days > 0 && days <= 84;
+  const fee = (days * holdRate).toFixed(2);
+  const valid = start && end && days > 0 && days <= maxDays;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="pause-title">
@@ -297,9 +306,9 @@ function PauseModal({ member, onClose, onConfirm }) {
         <p className="text-sm text-gray-500 mb-4">{member.first_name} {member.last_name}</p>
         <div className="space-y-3">
           <div><label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label><input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="input text-sm w-full" /></div>
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">End Date (max 84 days)</label><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="input text-sm w-full" /></div>
-          {days > 0 && <p className="text-sm text-gray-600">Hold fee: <span className="font-medium">${fee}</span> ({days} days × $0.71/day)</p>}
-          {days > 84 && <p className="text-sm text-red-500">Maximum hold period is 84 days</p>}
+          <div><label className="block text-xs font-medium text-gray-700 mb-1">End Date (max {maxDays} days)</label><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="input text-sm w-full" /></div>
+          {days > 0 && <p className="text-sm text-gray-600">Hold fee: <span className="font-medium">${fee}</span> ({days} days × ${holdRate.toFixed(2)}/day)</p>}
+          {days > maxDays && <p className="text-sm text-red-500">Maximum hold period is {maxDays} days</p>}
         </div>
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="btn-outline text-sm">Cancel</button>

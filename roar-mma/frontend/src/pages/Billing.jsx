@@ -49,6 +49,14 @@ export default function Billing() {
     staleTime: 30000,
   });
 
+  const { data: dashboardData } = useQuery({
+    queryKey: ['dashboard-chase'],
+    queryFn: async () => { const r = await api.get('/api/dashboard'); return r.data; },
+    retry: 1,
+    staleTime: 30000,
+  });
+  const midasChase = dashboardData?.midas_chase;
+
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['transactions'] });
     queryClient.invalidateQueries({ queryKey: ['transaction-stats'] });
@@ -109,6 +117,20 @@ export default function Billing() {
           <StatCard label="Today" value={stats.today != null ? formatCurrency(stats.today) : '—'} color="green" />
           <StatCard label="Failed This Month" value={stats.failed_this_month ? `${stats.failed_this_month.count || 0} ($${(stats.failed_this_month.total || 0).toFixed(2)})` : '—'} color="red" />
           <StatCard label="This Month" value={stats.this_month != null ? formatCurrency(stats.this_month) : '—'} color="blue" />
+        </div>
+      )}
+
+      {/* MIDAS Chase */}
+      {midasChase && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <span className="text-lg">🏃</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-orange-800">MIDAS Chase in Progress</p>
+              <p className="text-sm text-orange-700 mt-1">{midasChase.summary || `Member #${midasChase.member_id} — ${midasChase.amount ? `$${midasChase.amount}` : ''}`}</p>
+              {midasChase.created_at && <p className="text-xs text-orange-600 mt-1">Since {new Date(midasChase.created_at + 'Z').toLocaleDateString()}</p>}
+            </div>
+          </div>
         </div>
       )}
 

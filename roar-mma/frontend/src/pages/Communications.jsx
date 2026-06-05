@@ -210,6 +210,8 @@ function TemplatesPanel() {
 
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: '', subject: '', body: '', type: 'email' });
 
   const deleteTemplate = useMutation({
     mutationFn: (id) => api.delete(`/api/message-templates/${id}`),
@@ -217,11 +219,45 @@ function TemplatesPanel() {
     onError: () => error('Failed to delete'),
   });
 
+  const updateTemplate = useMutation({
+    mutationFn: ({ id, ...d }) => api.put(`/api/message-templates/${id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['message-templates'] }); setEditing(null); success('Template updated'); },
+    onError: () => error('Failed to update'),
+  });
+
+  function startEdit(t) {
+    setEditing(t.id);
+    setForm({ name: t.name, subject: t.subject || '', body: t.body || '', type: t.type || 'email' });
+  }
+
+  function saveEdit() {
+    updateTemplate.mutate({ id: editing, ...form });
+  }
+
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-4 border-b flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-900">Message Templates</h2>
       </div>
+      {editing && (
+        <div className="p-4 border-b bg-gray-50">
+          <h3 className="text-sm font-semibold mb-3">Edit Template</h3>
+          <div className="space-y-2">
+            <input type="text" value={form.name} onChange={(e) => setForm(p => ({...p, name: e.target.value}))} className="input text-sm w-full" placeholder="Template name" />
+            <div className="flex gap-2">
+              <select value={form.type} onChange={(e) => setForm(p => ({...p, type: e.target.value}))} className="input text-sm flex-1">
+                <option value="email">Email</option><option value="sms">SMS</option><option value="both">Both</option>
+              </select>
+              <input type="text" value={form.subject} onChange={(e) => setForm(p => ({...p, subject: e.target.value}))} className="input text-sm flex-1" placeholder="Subject" />
+            </div>
+            <textarea rows={4} value={form.body} onChange={(e) => setForm(p => ({...p, body: e.target.value}))} className="input text-sm w-full" placeholder="Template body" />
+            <div className="flex gap-2">
+              <button onClick={saveEdit} disabled={updateTemplate.isPending} className="btn-primary text-sm">{updateTemplate.isPending ? 'Saving...' : 'Save'}</button>
+              <button onClick={() => setEditing(null)} className="btn-outline text-sm">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       {isError ? <div className="text-center py-8"><p className="text-red-500 text-sm">Failed to load. <button onClick={refetch} className="underline">Retry</button></p></div> :
       isLoading ? <div className="p-4 space-y-3 animate-pulse">{[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded"></div>)}</div> :
       templates.length === 0 ? <div className="text-center py-12"><p className="text-gray-500">No templates</p></div> :
@@ -239,6 +275,7 @@ function TemplatesPanel() {
                 <p className="text-xs text-gray-400 line-clamp-2 mt-1">{t.body}</p>
               </div>
               <div className="flex gap-2 ml-2">
+                <button onClick={() => startEdit(t)} className="text-xs text-blue-600 hover:underline">Edit</button>
                 <button onClick={() => deleteTemplate.mutate(t.id)} className="text-xs text-red-500 hover:underline">Delete</button>
               </div>
             </div>
@@ -399,27 +436,98 @@ function PreviewModal({ form, recipientMode, selectedMembers, onClose }) {
 }
 
 function AutomatedMessagesPanel() {
+  const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
+  const [editing, setEditing] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ trigger_event: 'birthday', title: '', body: '', channel: 'email', enabled: 1 });
+
   const { data: msgs = [], isLoading } = useQuery({ queryKey: ['automated-messages'], queryFn: () => api.get('/api/automated-messages').then(r => r.data?.messages || []) });
-  return (
-    <div className="space-y-3">
-      {isLoading ? <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-50 rounded-lg animate-pulse" />)}</div> : msgs.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">No automated messages configured.</div>
-      ) : msgs.map(m => (
-        <div key={m.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm">{TRIGGER_LABELS[m.trigger_event] || m.trigger_event}</span>
-              <TypeBadge type={m.channel} />
-              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${m.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{m.enabled ? 'Active' : 'Disabled'}</span>
-            </div>
-            <p className="text-sm font-medium text-gray-900">{m.title}</p>
-            <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{m.body}</p>
-            {m.last_sent_at && (
-              <p className="text-xs text-gray-400 mt-1">Last sent: {new Date(m.last_sent_at).toLocaleDateString('en-AU')}</p>
-            )}
+
+  const createTrigger = useMutation({
+    mutationFn: (d) => api.post('/api/automated-messages', d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['automated-messages'] }); setShowCreate(false); setForm({ trigger_event: 'birthday', title: '', body: '', channel: 'email', enabled: 1 }); success('Trigger created'); },
+    onError: () => error('Failed to create'),
+  });
+
+  const updateTrigger = useMutation({
+    mutationFn: ({ id, ...d }) => api.put(`/api/automated-messages/${id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['automated-messages'] }); setEditing(null); success('Trigger updated'); },
+    onError: () => error('Failed to update'),
+  });
+
+  const deleteTrigger = useMutation({
+    mutationFn: (id) => api.delete(`/api/automated-messages/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['automated-messages'] }); success('Deleted'); },
+    onError: () => error('Failed to delete'),
+  });
+
+  function TriggerForm({ initial, onSave, onCancel }) {
+    const [f, setF] = useState(initial);
+    const u = (k, v) => setF(p => ({ ...p, [k]: v }));
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-3">
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <select value={f.trigger_event} onChange={e => u('trigger_event', e.target.value)} className="input text-sm">
+              {Object.entries(TRIGGER_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <select value={f.channel} onChange={e => u('channel', e.target.value)} className="input text-sm">
+              <option value="email">Email</option><option value="sms">SMS</option><option value="both">Both</option>
+            </select>
+          </div>
+          <input type="text" value={f.title} onChange={e => u('title', e.target.value)} className="input text-sm w-full" placeholder="Trigger title" />
+          <textarea rows={3} value={f.body} onChange={e => u('body', e.target.value)} className="input text-sm w-full" placeholder="Message body" />
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={f.enabled === 1} onChange={e => u('enabled', e.target.checked ? 1 : 0)} className="accent-red-600" />
+            Enabled
+          </label>
+          <div className="flex gap-2">
+            <button onClick={() => onSave(f)} className="btn-primary text-sm">Save</button>
+            <button onClick={onCancel} className="btn-outline text-sm">Cancel</button>
           </div>
         </div>
-      ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-gray-900">Automated Triggers</h3>
+        <button onClick={() => setShowCreate(true)} className="btn-outline text-xs">+ Add Trigger</button>
+      </div>
+      {showCreate && (
+        <TriggerForm initial={{ trigger_event: 'birthday', title: '', body: '', channel: 'email', enabled: 1 }}
+          onSave={(f) => createTrigger.mutate(f)} onCancel={() => setShowCreate(false)} />
+      )}
+      <div className="space-y-3">
+        {isLoading ? <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-50 rounded-lg animate-pulse" />)}</div> : msgs.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">No automated messages configured.</div>
+        ) : msgs.map(m => editing === m.id ? (
+          <TriggerForm key={m.id} initial={{ trigger_event: m.trigger_event, title: m.title, body: m.body, channel: m.channel, enabled: m.enabled }}
+            onSave={(f) => updateTrigger.mutate({ id: m.id, ...f })} onCancel={() => setEditing(null)} />
+        ) : (
+          <div key={m.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm">{TRIGGER_LABELS[m.trigger_event] || m.trigger_event}</span>
+                <TypeBadge type={m.channel} />
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${m.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{m.enabled ? 'Active' : 'Disabled'}</span>
+              </div>
+              <p className="text-sm font-medium text-gray-900">{m.title}</p>
+              <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{m.body}</p>
+              {m.last_sent_at && (
+                <p className="text-xs text-gray-400 mt-1">Last sent: {new Date(m.last_sent_at).toLocaleDateString('en-AU')}</p>
+              )}
+            </div>
+            <div className="flex gap-2 ml-2 shrink-0">
+              <button onClick={() => setEditing(m.id)} className="text-xs text-blue-600 hover:underline">Edit</button>
+              <button onClick={() => { if (confirm('Delete this trigger?')) deleteTrigger.mutate(m.id); }} className="text-xs text-red-600 hover:underline">Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

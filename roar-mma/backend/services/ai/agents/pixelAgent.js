@@ -30,7 +30,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     if (broadcast) broadcast({ type: 'pixel_agent_update', report });
   } catch (err) {
     console.error('[PIXEL-AGENT] Error:', err.message);
-    try { await aiState.logActivity({ agentName: 'pixel', actionType: 'pixel_error', details: { error: err.message }, summary: `Pixel failed: ${err.message}` }); } catch {}
+    try { await aiState.logActivity({ agentName: 'pixel', actionType: 'pixel_error', details: { error: err.message }, summary: `Pixel failed: ${err.message}` }); } catch (logErr) { console.error('[PIXEL] Log error:', logErr.message); }
   }
 }
 

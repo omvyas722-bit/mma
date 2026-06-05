@@ -41,7 +41,7 @@ function RecentCalls() {
   });
 
   if (pendingFollowups.length > 0) {
-    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+    return <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
       <p className="text-sm font-medium text-orange-700">{pendingFollowups.length} calls need follow-up</p>
     </div>;
   }

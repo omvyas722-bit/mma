@@ -287,7 +287,6 @@ const filters = [
 
 <AdvancedSearch
   onSearch={({ query, filters }) => {
-    console.log('Search:', query, filters);
     // Perform search with query and filters
   }}
   filters={filters}

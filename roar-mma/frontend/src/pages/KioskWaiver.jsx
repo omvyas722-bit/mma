@@ -106,10 +106,12 @@ function StepMember({ onFound }) {
   );
 }
 
-function StepWaiver({ member, template, onSigned }) {
+function StepWaiver({ member, template, templates, onSigned, onSelectTemplate }) {
   const [signed, setSigned] = useState(false);
   const [guardianName, setGuardianName] = useState('');
   const [guardianRelation, setGuardianRelation] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState('email');
+  const [deliveryContact, setDeliveryContact] = useState(member.email || '');
 
   const isMinor = member.date_of_birth && new Date(member.date_of_birth) > new Date(Date.now() - 18 * 365 * 86400000);
 
@@ -124,15 +126,26 @@ function StepWaiver({ member, template, onSigned }) {
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
     const signatureData = canvas.toDataURL('image/png');
-    signMutation.mutate({ member_id: member.id, template_id: template.id, signature_data: signatureData, guardian_name: isMinor ? guardianName : null, guardian_relation: isMinor ? guardianRelation : null });
+    signMutation.mutate({ member_id: member.id, template_id: template.id, signature_data: signatureData, guardian_name: isMinor ? guardianName : null, guardian_relation: isMinor ? guardianRelation : null, delivery_method: deliveryMethod, delivery_contact: deliveryContact });
   };
 
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Sign Waiver</h2>
-        <p className="text-gray-500">{member.first_name} {member.last_name}{template ? ` · ${template.name}` : ''}</p>
+        <p className="text-gray-500">{member.first_name} {member.last_name} · {template?.name || ''}</p>
       </div>
+
+      {templates?.length > 1 && (
+        <div className="flex gap-2 justify-center">
+          {templates.map(t => (
+            <button key={t.id} type="button" onClick={() => onSelectTemplate(t)}
+              className={`text-xs px-3 py-1.5 rounded-full border ${template?.id === t.id ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300 hover:border-red-300'}`}>
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 max-h-60 overflow-y-auto">
         <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">{template?.body_text || 'Loading...'}</pre>
@@ -158,11 +171,23 @@ function StepWaiver({ member, template, onSigned }) {
         <p className="text-xs text-gray-400 mt-1">By signing above, you agree to the terms of this waiver.</p>
       </div>
 
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Preference</label>
+        <div className="flex gap-3 mb-2">
+          {['email', 'sms'].map(m => (
+            <label key={m} className="flex items-center gap-1 text-sm cursor-pointer">
+              <input type="radio" checked={deliveryMethod === m} onChange={() => { setDeliveryMethod(m); setDeliveryContact(m === 'email' ? member.email : member.phone); }} className="accent-red-600" />
+              {m === 'email' ? 'Email' : 'SMS'}
+            </label>
+          ))}
+        </div>
+        <input type={deliveryMethod === 'email' ? 'email' : 'tel'} value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)}
+          className="input text-sm w-full" placeholder={deliveryMethod === 'email' ? 'Email address' : 'Phone number'} />
+      </div>
+
       <button type="button" onClick={handleSign} disabled={!signed || signMutation.isPending || (isMinor && (!guardianName.trim() || !guardianRelation))}
         className="w-full bg-red-600 text-white py-3 rounded-xl text-lg font-medium hover:bg-red-700 disabled:opacity-40 transition-colors"
       >{signMutation.isPending ? 'Submitting...' : 'Sign & Submit'}</button>
-
-      <p className="text-xs text-gray-400 text-center">A signed copy will be sent to your email or phone.</p>
     </div>
   );
 }
@@ -197,12 +222,14 @@ export default function KioskWaiver() {
 
   const handleSigned = () => setStep('complete');
 
+  const handleSelectTemplate = (t) => setTemplate(t);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 sm:p-8">
           {step === 'member' && <StepMember onFound={handleFound} />}
-          {step === 'waiver' && <StepWaiver member={member} template={template} onSigned={handleSigned} />}
+          {step === 'waiver' && <StepWaiver member={member} template={template} templates={templatesData} onSigned={handleSigned} onSelectTemplate={handleSelectTemplate} />}
           {step === 'complete' && <StepComplete member={member} />}
         </div>
       </div>

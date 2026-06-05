@@ -75,39 +75,29 @@ export function useResource(resourceName, options = {}) {
   const endpoint = options.endpoint || `/api/${resourceName}`;
 
   // Fetch all
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const useList = useCallback((queryOptions = {}) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useQuery({
-      queryKey: [resourceName],
-      queryFn: async () => {
-        const response = await api.get(endpoint);
-        return response.data;
-      },
-      ...queryOptions,
-    });
-  }, [resourceName, endpoint]);
+  const useList = (queryOptions = {}) => useQuery({
+    queryKey: [resourceName],
+    queryFn: async () => {
+      const response = await api.get(endpoint);
+      return response.data;
+    },
+    ...queryOptions,
+  });
 
   // Fetch one
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const useOne = useCallback((id, queryOptions = {}) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useQuery({
-      queryKey: [resourceName, id],
-      queryFn: async () => {
-        const response = await api.get(`${endpoint}/${id}`);
-        return response.data;
-      },
-      enabled: !!id,
-      ...queryOptions,
-    });
-  }, [resourceName, endpoint]);
+  const useOne = (id, queryOptions = {}) => useQuery({
+    queryKey: [resourceName, id],
+    queryFn: async () => {
+      const response = await api.get(`${endpoint}/${id}`);
+      return response.data;
+    },
+    enabled: !!id,
+    ...queryOptions,
+  });
 
   // Create
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const useCreate = useCallback((mutationOptions = {}) => {
+  const useCreate = (mutationOptions = {}) => {
     const { onSuccess: customOnSuccess, ...restOptions } = mutationOptions;
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useMutation({
       mutationFn: async (data) => {
         const response = await api.post(endpoint, data);
@@ -124,13 +114,11 @@ export function useResource(resourceName, options = {}) {
       },
       ...restOptions,
     });
-  }, [resourceName, endpoint, queryClient, options.invalidateRelated]);
+  };
 
   // Update
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const useUpdate = useCallback((mutationOptions = {}) => {
+  const useUpdate = (mutationOptions = {}) => {
     const { onSuccess: customOnSuccess, ...restOptions } = mutationOptions;
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useMutation({
       mutationFn: async ({ id, data }) => {
         const response = await api.put(`${endpoint}/${id}`, data);
@@ -149,13 +137,11 @@ export function useResource(resourceName, options = {}) {
       },
       ...restOptions,
     });
-  }, [resourceName, endpoint, queryClient, options.invalidateRelated]);
+  };
 
   // Delete
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const useDelete = useCallback((mutationOptions = {}) => {
+  const useDelete = (mutationOptions = {}) => {
     const { onSuccess: customOnSuccess, ...restOptions } = mutationOptions;
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useMutation({
       mutationFn: async (id) => {
         await api.delete(`${endpoint}/${id}`);
@@ -171,7 +157,7 @@ export function useResource(resourceName, options = {}) {
       },
       ...restOptions,
     });
-  }, [resourceName, endpoint, queryClient, options.invalidateRelated]);
+  };
 
   return {
     useList,

@@ -10,7 +10,7 @@ const initialForm = {
   gender: '', address: '', suburb: '', postcode: '',
   membership_type: '', membership_status: '', belt_rank: '',
   emergency_contact_name: '', emergency_contact_phone: '',
-  medical_conditions: '', goals: '',
+  medical_conditions: '', goals: '', parent_id: '',
 };
 
 export default function EditMemberModal({ isOpen, onClose, member }) {
@@ -38,6 +38,7 @@ export default function EditMemberModal({ isOpen, onClose, member }) {
         emergency_contact_phone: member.emergency_contact_phone || '',
         medical_conditions: member.medical_conditions || '',
         goals: member.goals || '',
+        parent_id: member.parent_id || '',
       });
     }
   }, [member]);
@@ -131,6 +132,11 @@ export default function EditMemberModal({ isOpen, onClose, member }) {
         <div>
           <h3 className="text-lg font-semibold mb-4">Membership Details</h3>
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Linked Parent (ID)</label>
+              <input type="number" name="parent_id" value={formData.parent_id || ''} onChange={handleChange} className="input" placeholder="Member ID to link as family" />
+              <p className="text-xs text-gray-400 mt-0.5">Enter parent member ID for family discount linking</p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Membership Type *</label>
               <select name="membership_type" value={formData.membership_type} onChange={handleChange}

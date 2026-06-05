@@ -22,7 +22,7 @@ function getPosts(filters = {}) {
   let query = 'SELECT * FROM social_posts WHERE 1=1';
   const params = [];
   if (filters.status) { query += ' AND status = ?'; params.push(filters.status); }
-  if (filters.platform) { query += ' AND platform_ids LIKE ?'; params.push(`%"${filters.platform}"%`); }
+  if (filters.platform) { query += ' AND EXISTS (SELECT 1 FROM json_each(platform_ids) WHERE value = ?)'; params.push(filters.platform); }
   query += ' ORDER BY scheduled_at DESC, created_at DESC';
   return db.prepare(query).all(...params);
 }

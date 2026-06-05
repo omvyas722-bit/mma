@@ -29,7 +29,7 @@ export default function Payments() {
         transactions: transactionsRes.status === 'fulfilled' ? transactionsRes.value.data?.transactions || [] : [],
         summary: {
           total_revenue: statsRes.status === 'fulfilled' ? statsRes.value.data?.mrr || 0 : 0,
-          pending_amount: 0,
+          pending_amount: statsRes.value.data?.pending_amount || 0,
           failed_count: statsRes.status === 'fulfilled' ? statsRes.value.data?.failed_this_month?.count || 0 : 0,
           month_revenue: statsRes.status === 'fulfilled' ? statsRes.value.data?.this_month || 0 : 0,
         }
@@ -138,7 +138,6 @@ export default function Payments() {
                   <PaymentRow
                     key={payment.id}
                     payment={payment}
-                    onRefund={() => {}}
                   />
                 ))}
               </tbody>
@@ -447,7 +446,7 @@ function ProcessPaymentModal({ isOpen, onClose, member }) {
 function SummaryCard({ label, value, color }) {
   const colors = {
     green: 'text-green-600',
-    blue: 'text-red-600',
+    blue: 'text-blue-600',
     yellow: 'text-yellow-600',
     red: 'text-red-600',
   };

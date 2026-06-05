@@ -1,7 +1,11 @@
 // Retention system data layer
 const { getDatabase } = require('../db/connection');
 
-const DEFAULT_PT_PACKAGE_ID = 1;
+function getDefaultPtPackageId() {
+  const db = getDatabase();
+  const pkg = db.prepare('SELECT id FROM membership_plans WHERE type=? LIMIT 1').get('pt_package');
+  return pkg?.id || 1;
+}
 
 // Create cancellation request
 function createCancellationRequest(data) {
@@ -274,7 +278,7 @@ function applyRetentionOffer(offer, memberId) {
     db.prepare(`
       INSERT INTO member_pt_packages (member_id, package_id, sessions_remaining, purchase_date, expiry_date, amount_paid)
       VALUES (?, ?, ?, date('now'), date('now', '+60 days'), 0)
-    `).run(memberId, DEFAULT_PT_PACKAGE_ID, offer.free_pt_sessions);
+    `).run(memberId, getDefaultPtPackageId(), offer.free_pt_sessions);
   }
 }
 

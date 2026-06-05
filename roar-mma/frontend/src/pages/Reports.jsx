@@ -5,14 +5,20 @@ import api from '../lib/api';
 
 export default function Reports() {
   const [reportType, setReportType] = useState('membership');
-  const [dateFrom, setDateFrom] = useState(() => {
-    const date = new Date();
-    date.setDate(1); // First day of current month
-    return date.toISOString().split('T')[0];
-  });
-  const [dateTo, setDateTo] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const today = () => { const d = new Date(); return d.toISOString().split('T')[0]; };
+  const firstOfMonth = () => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; };
+  const [dateFrom, setDateFrom] = useState(firstOfMonth);
+  const [dateTo, setDateTo] = useState(today);
+
+  const applyPreset = (preset) => {
+    const now = new Date();
+    let from, to = today();
+    if (preset === 'this_month') { from = firstOfMonth(); }
+    else if (preset === 'last_month') { const d = new Date(); d.setMonth(d.getMonth()-1, 1); from = d.toISOString().split('T')[0]; const e = new Date(); e.setDate(0); to = e.toISOString().split('T')[0]; }
+    else if (preset === 'last_30') { const d = new Date(); d.setDate(d.getDate()-30); from = d.toISOString().split('T')[0]; }
+    else if (preset === 'this_year') { from = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]; }
+    setDateFrom(from); setDateTo(to);
+  };
 
   const { data: report, isLoading, isError, refetch } = useQuery({
     queryKey: ['reports', reportType, dateFrom, dateTo],
@@ -31,6 +37,12 @@ export default function Reports() {
 
       {/* Report controls */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <button type="button" onClick={() => applyPreset('this_month')} className="text-xs px-3 py-1 border rounded hover:bg-gray-50">This Month</button>
+          <button type="button" onClick={() => applyPreset('last_month')} className="text-xs px-3 py-1 border rounded hover:bg-gray-50">Last Month</button>
+          <button type="button" onClick={() => applyPreset('last_30')} className="text-xs px-3 py-1 border rounded hover:bg-gray-50">Last 30 Days</button>
+          <button type="button" onClick={() => applyPreset('this_year')} className="text-xs px-3 py-1 border rounded hover:bg-gray-50">This Year</button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -72,10 +84,15 @@ export default function Reports() {
             />
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
             <button type="button" onClick={() => refetch()} className="btn btn-primary w-full">
               Generate Report
             </button>
+            {report && !isError && (
+              <button type="button" onClick={() => exportCSV(report, reportType)} className="btn btn-outline w-full">
+                Export CSV
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -107,6 +124,11 @@ export default function Reports() {
 function MembershipReport({ data }) {
   if (!data) return null;
 
+  const byLocation = data?.by_location || [];
+  const byPlan = data?.by_plan || [];
+  const maxLoc = Math.max(...byLocation.map(r => r.count || 0), 1);
+  const maxPlan = Math.max(...byPlan.map(r => r.count || 0), 1);
+
   return (
     <div className="space-y-6">
       {/* Summary cards */}
@@ -119,48 +141,46 @@ function MembershipReport({ data }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* By location */}
+        {/* By location bar chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Members by Location</h3>
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Location</th>
-                <th className="text-left py-2">Status</th>
-                <th className="text-right py-2">Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_location || []).map((row) => (
-                <tr key={row.location + row.status} className="border-b">
-                  <td className="py-2 capitalize">{row.location?.replace('_', ' ') || ''}</td>
-                  <td className="py-2 capitalize">{row.status}</td>
-                  <td className="py-2 text-right">{row.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="space-y-3">
+            {byLocation.map((row) => (
+              <div key={row.location + row.status}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="capitalize">{row.location?.replace('_', ' ') || ''} <span className="text-gray-500">({row.status})</span></span>
+                  <span className="font-medium">{row.count}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4">
+                  <div className="bg-blue-500 h-4 rounded-full text-xs text-white text-right pr-2 leading-4"
+                    style={{ width: `${(row.count / maxLoc) * 100}%` }}>
+                    {row.count}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* By plan */}
+        {/* By plan bar chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Active Members by Plan</h3>
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Plan</th>
-                <th className="text-right py-2">Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_plan || []).map((row) => (
-                <tr key={row.plan || 'no-plan'} className="border-b">
-                  <td className="py-2 capitalize">{row.plan?.replace('_', ' ') || 'No plan'}</td>
-                  <td className="py-2 text-right">{row.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="space-y-3">
+            {byPlan.map((row) => (
+              <div key={row.plan || 'no-plan'}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="capitalize">{row.plan?.replace('_', ' ') || 'No plan'}</span>
+                  <span className="font-medium">{row.count}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4">
+                  <div className="bg-green-500 h-4 rounded-full text-xs text-white text-right pr-2 leading-4"
+                    style={{ width: `${(row.count / maxPlan) * 100}%` }}>
+                    {row.count}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -177,6 +197,11 @@ function MembershipReport({ data }) {
 function RevenueReport({ data }) {
   if (!data) return null;
 
+  const byType = data?.by_type || [];
+  const maxTypeTotal = Math.max(...byType.map(r => r.total || 0), 1);
+  const topMembers = data?.top_members || [];
+  const maxMemberTotal = Math.max(...topMembers.map(r => r.total_spent || 0), 1);
+
   return (
     <div className="space-y-6">
       {/* Summary cards */}
@@ -187,51 +212,64 @@ function RevenueReport({ data }) {
         <StatCard label="Avg Transaction" value={`$${data?.summary?.avg_transaction?.toFixed?.(2) || '0.00'}`} />
       </div>
 
+      {/* Revenue trend chart */}
+      {data?.daily_revenue?.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Daily Revenue Trend</h3>
+          <div className="flex items-end gap-1 h-32">
+            {data.daily_revenue.slice(-30).map((d, i) => {
+              const max = Math.max(...data.daily_revenue.slice(-30).map(x => x.total || 0), 1);
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center group relative">
+                  <div className="w-full bg-green-500 rounded-t hover:bg-green-600 transition-colors min-h-[2px]"
+                    style={{ height: `${((d.total || 0) / max) * 100}%` }}
+                    title={`${d.date}: $${(d.total || 0).toFixed(0)}`} />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-400 mt-2 text-center">Last 30 days</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* By type */}
+        {/* By type - bar chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Revenue by Type</h3>
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Type</th>
-                <th className="text-right py-2">Count</th>
-                <th className="text-right py-2">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_type || []).map((row) => (
-                <tr key={row.type || 'unknown'} className="border-b">
-                  <td className="py-2 capitalize">{row.type?.replace('_', ' ') || ''}</td>
-                  <td className="py-2 text-right">{row.count ?? 0}</td>
-                  <td className="py-2 text-right font-medium">${(row.total ?? 0).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="space-y-3">
+            {byType.map((row) => (
+              <div key={row.type || 'unknown'}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="capitalize">{row.type?.replace(/_/g, ' ') || ''}</span>
+                  <span className="font-medium">${(row.total ?? 0).toFixed(0)}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4">
+                  <div className="bg-blue-500 h-4 rounded-full text-xs text-white text-right pr-2 leading-4"
+                    style={{ width: `${((row.total || 0) / maxTypeTotal) * 100}%` }}>
+                    {row.count ?? 0} tx
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Top members */}
+        {/* Top members bar chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Top 10 Members by Revenue</h3>
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Member</th>
-                <th className="text-right py-2">Transactions</th>
-                <th className="text-right py-2">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.top_members || []).map((row) => (
-                <tr key={row.name} className="border-b">
-                  <td className="py-2">{row.name}</td>
-                  <td className="py-2 text-right">{row.transaction_count ?? 0}</td>
-                  <td className="py-2 text-right font-medium">${(row.total_spent ?? 0).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="space-y-2">
+            {topMembers.map((row) => (
+              <div key={row.name}>
+                <div className="flex justify-between text-xs mb-0.5">
+                  <span className="text-gray-700 truncate">{row.name}</span>
+                  <span className="text-gray-500">${(row.total_spent ?? 0).toFixed(0)}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="bg-green-500 h-3 rounded-full" style={{ width: `${((row.total_spent || 0) / maxMemberTotal) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -388,7 +426,7 @@ function LeadsReport({ data }) {
 
 function StatCard({ label, value, color = 'blue' }) {
   const colors = {
-    blue: 'text-red-600',
+    blue: 'text-blue-600',
     green: 'text-green-600',
     yellow: 'text-yellow-600',
     red: 'text-red-600',
@@ -401,6 +439,36 @@ function StatCard({ label, value, color = 'blue' }) {
       <p className={`text-2xl font-bold ${colors[color]}`}>{value}</p>
     </div>
   );
+}
+
+function exportCSV(report, type) {
+  const rows = [];
+  if (type === 'membership') {
+    const s = report.summary || {};
+    rows.push(['Metric', 'Value'], ['Total Members', s.total_members], ['Active', s.active], ['Trial', s.trial], ['Paused', s.paused], ['Cancelled', s.cancelled], [], ['Trial Conversions', report.trial_conversions]);
+    if (report.by_location?.length) { rows.push([], ['Location', 'Status', 'Count']); report.by_location.forEach(r => rows.push([r.location, r.status, r.count])); }
+    if (report.by_plan?.length) { rows.push([], ['Plan', 'Count']); report.by_plan.forEach(r => rows.push([r.plan, r.count])); }
+  } else if (type === 'revenue') {
+    const s = report.summary || {};
+    rows.push(['Metric', 'Value'], ['Total Revenue', s.total_revenue], ['Transactions', s.total_transactions], ['Failed Payments', s.failed_payments?.count], ['Avg Transaction', s.avg_transaction]);
+    if (report.by_type?.length) { rows.push([], ['Type', 'Count', 'Total']); report.by_type.forEach(r => rows.push([r.type, r.count, r.total])); }
+    if (report.top_members?.length) { rows.push([], ['Member', 'Transactions', 'Total Spent']); report.top_members.forEach(r => rows.push([r.name, r.transaction_count, r.total_spent])); }
+  } else if (type === 'attendance') {
+    const s = report.summary || {};
+    rows.push(['Metric', 'Value'], ['Total Bookings', s.total_bookings], ['Attended', s.attended], ['No Shows', s.no_shows], ['Cancelled', s.cancelled], ['Rate', s.attendance_rate]);
+    if (report.by_class_type?.length) { rows.push([], ['Class Type', 'Bookings', 'Attended', 'Rate']); report.by_class_type.forEach(r => rows.push([r.class_type, r.bookings, r.attended, ((r.attended / (r.bookings || 1)) * 100).toFixed(1) + '%'])); }
+    if (report.top_attendees?.length) { rows.push([], ['Member', 'Bookings', 'Attended']); report.top_attendees.forEach(r => rows.push([r.name, r.total_bookings, r.attended])); }
+  } else if (type === 'leads') {
+    const s = report.summary || {};
+    rows.push(['Metric', 'Value'], ['Total Leads', s.total_leads], ['Converted', s.converted], ['Lost', s.lost], ['Conversion Rate', s.conversion_rate + '%']);
+    if (report.by_source?.length) { rows.push([], ['Source', 'Count']); report.by_source.forEach(r => rows.push([r.source, r.count])); }
+    if (report.by_stage?.length) { rows.push([], ['Stage', 'Count']); report.by_stage.forEach(r => rows.push([r.stage, r.count])); }
+  }
+  const csv = rows.map(r => r.map(c => typeof c === 'string' && (c.includes(',') || c.includes('"') || c.includes('\n')) ? `"${c.replace(/"/g, '""')}"` : c).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${type}-report.csv`; a.click();
+  URL.revokeObjectURL(url);
 }
 
 function FunnelBar({ label, value, max }) {

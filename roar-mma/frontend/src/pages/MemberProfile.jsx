@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { formatDate, formatCurrency, formatPhone, calculateAge } from '../lib/formatters';
 import EditMemberModal from '../components/Members/EditMemberModal';
@@ -148,6 +148,7 @@ export default function MemberProfile() {
               <button type="button" onClick={() => setShowPauseDialog(true)} className="px-3 py-1.5 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">Pause</button>
               <button type="button" onClick={() => setShowCancelDialog(true)} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">Cancel</button>
               <button type="button" onClick={() => setShowEditModal(true)} className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700">Edit</button>
+              <button type="button" onClick={() => setShowDeleteDialog(true)} className="px-3 py-1.5 text-sm bg-red-800 text-white rounded-lg hover:bg-red-900">Delete</button>
             </div>
           </div>
 
@@ -157,7 +158,7 @@ export default function MemberProfile() {
             <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 capitalize">{member.plan || 'No plan'}</span>
             {member.location && <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">{member.location.replace('_', ' ')}</span>}
             {isFighter && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-bold">FIGHTER ★</span>}
-            {member.parent_id && <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">Family</span>}
+            {member.parent_id && <a href={`/members/${member.parent_id}`} className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 hover:bg-green-200">Family (Parent: #{member.parent_id})</a>}
             <span className={`px-2 py-0.5 text-xs rounded-full ${member.waiver_signed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{member.waiver_signed ? '✓ Waiver Signed' : '⚠ No Waiver'}</span>
             {disciplines.map(d => (
               <span key={d.discipline} className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: (DISCIPLINE_COLORS[d.discipline] || '#666') + '20', color: DISCIPLINE_COLORS[d.discipline] || '#666', border: `1px solid ${DISCIPLINE_COLORS[d.discipline] || '#666'}40` }}>
@@ -544,13 +545,22 @@ function Modal({ isOpen, onClose, title, children }) {
 function PauseDialog({ isOpen, onClose, onConfirm }) {
   const [start, setStart] = useState(new Date().toISOString().split('T')[0]);
   const [end, setEnd] = useState('');
+  const [holdRate, setHoldRate] = useState(0.71);
+  const [maxDays, setMaxDays] = useState(84);
+  useEffect(() => {
+    fetch('/api/settings', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(r => r.json()).then(s => {
+        if (s.system?.hold_fee_rate) setHoldRate(parseFloat(s.system.hold_fee_rate));
+        if (s.system?.hold_max_days) setMaxDays(parseInt(s.system.hold_max_days, 10));
+      }).catch(() => {});
+  }, []);
   if (!isOpen) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Pause Membership">
       <div className="space-y-3">
         <div><label className="block text-sm font-medium text-gray-700">Start Date</label><input type="date" value={start} onChange={e => setStart(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
         <div><label className="block text-sm font-medium text-gray-700">End Date</label><input type="date" value={end} onChange={e => setEnd(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
-        <p className="text-xs text-gray-500">Hold fee: $0.71/day. Max 84 days.</p>
+        <p className="text-xs text-gray-500">Hold fee: ${holdRate.toFixed(2)}/day. Max {maxDays} days.</p>
         <button type="button" onClick={() => { if (start && end) onConfirm({ pause_start: start, pause_end: end }); }} className="w-full py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium">Confirm Pause</button>
       </div>
     </Modal>

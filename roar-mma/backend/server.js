@@ -255,7 +255,18 @@ const defaultSettings = {
   integrations: { stripe_publishable_key: '' },
   grading: { bjj: { enabled: true, min_classes_between: 10, min_months_between: 3, stripe_count: 4, stripe_attendance: 80, coach_approval: true }, muay_thai: { enabled: true, min_classes_between: 8, min_months_between: 3, stripe_count: 4, stripe_attendance: 75, coach_approval: true }, mma: { enabled: true, min_classes_between: 12, min_months_between: 4, stripe_count: 3, stripe_attendance: 80, coach_approval: true }, boxing: { enabled: true, min_classes_between: 8, min_months_between: 3, stripe_count: 3, stripe_attendance: 75, coach_approval: true }, kids: { enabled: true, min_classes_between: 6, min_months_between: 2, stripe_count: 2, stripe_attendance: 70, coach_approval: true } }
 };
-app.get('/api/settings', authenticateToken, requirePermission('settings:read'), (req, res) => res.json(defaultSettings));
+app.get('/api/settings', authenticateToken, requirePermission('settings:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const dbSettings = db.prepare('SELECT key, value FROM system_settings').all();
+    if (dbSettings && dbSettings.length) {
+      const overrides = {};
+      dbSettings.forEach(s => { overrides[s.key] = s.value; });
+      return res.json({ ...defaultSettings, system: overrides });
+    }
+    res.json(defaultSettings);
+  } catch { res.json(defaultSettings); }
+});
 app.put('/api/settings', authenticateToken, requirePermission('settings:write'), (req, res) => res.json({ success: true }));
 
 // Calendar events — query class_instances
@@ -276,6 +287,20 @@ app.get('/api/calendar/events', authenticateToken, requirePermission('classes:re
   } catch (error) {
     console.error('Error fetching calendar events:', error);
     res.status(500).json({ error: 'Failed to fetch calendar events' });
+  }
+});
+
+app.post('/api/calendar/events', authenticateToken, requirePermission('classes:create'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const { title, type, date, start_time, end_time, description } = req.body;
+    if (!title || !date || !start_time) return res.status(400).json({ error: 'title, date, and start_time required' });
+    const result = db.prepare(`INSERT INTO class_instances (class_id, date, start_time, end_time, capacity, status, class_notes) VALUES (?, ?, ?, ?, ?, 'scheduled', ?)`)
+      .run(0, date, start_time, end_time || null, 0, description || null);
+    res.status(201).json({ id: result.lastInsertRowid, title, date, start_time, end_time });
+  } catch (error) {
+    console.error('Error creating calendar event:', error);
+    res.status(500).json({ error: 'Failed to create event' });
   }
 });
 

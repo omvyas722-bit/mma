@@ -91,7 +91,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     if (broadcast) broadcast({ type: 'scout_agent_update', summary });
   } catch (err) {
     console.error('[SCOUT-AGENT] Error:', err.message);
-    try { await aiState.logActivity({ agentName: 'scout', actionType: 'scout_error', details: { error: err.message }, summary: `Scout failed: ${err.message}` }); } catch {}
+    try { await aiState.logActivity({ agentName: 'scout', actionType: 'scout_error', details: { error: err.message }, summary: `Scout failed: ${err.message}` }); } catch (logErr) { console.error('[SCOUT] Log error:', logErr.message); }
   }
 }
 
