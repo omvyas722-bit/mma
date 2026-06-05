@@ -41,7 +41,9 @@ const MIGRATIONS = [
   '025_billing_enhancements.sql',
   '026_ai_enhancements.sql',
   '027_member_portal.sql',
-  '028_workflow_builder.sql'
+  '028_workflow_builder.sql',
+  '029_system_settings.sql',
+  '030_missing_schema_columns.sql'
 ];
 
 function ensureMigrated(db) {

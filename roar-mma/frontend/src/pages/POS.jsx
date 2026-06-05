@@ -46,6 +46,11 @@ function POSScreen() {
   const [memberSearch, setMemberSearch] = useState('');
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
   const barcodeTimer = useRef(null);
+  const [showSplitPayment, setShowSplitPayment] = useState(false);
+  const [splits, setSplits] = useState([]);
+  const [splitMethod, setSplitMethod] = useState('cash');
+  const [splitAmount, setSplitAmount] = useState('');
+  const [savedCartExists, setSavedCartExists] = useState(() => { try { return !!localStorage.getItem('pos_saved_cart'); } catch { return false; } });
 
   useEffect(() => {
     const handler = (e) => {
@@ -82,14 +87,44 @@ function POSScreen() {
   const discountAmt = subtotal * (parseFloat(discount) || 0) / 100;
   const total = subtotal - discountAmt;
   const change = tendered ? Math.max(0, parseFloat(tendered) - total) : 0;
+  const splitsTotal = splits.reduce((s, sp) => s + sp.amount, 0);
+  const splitsValid = splits.length === 0 || Math.abs(splitsTotal - total) < 0.01;
+
+  const addSplit = () => {
+    const amt = parseFloat(splitAmount);
+    if (!amt || amt <= 0) return;
+    setSplits(s => [...s, { method: splitMethod, amount: amt }]);
+    setSplitAmount('');
+  };
+
+  const saveCart = () => {
+    try { localStorage.setItem('pos_saved_cart', JSON.stringify({ cart, discount, selectedMember })); setSavedCartExists(true); success('Cart saved'); } catch { error('Failed to save cart'); }
+  };
+
+  const loadSavedCart = () => {
+    try {
+      const saved = localStorage.getItem('pos_saved_cart');
+      if (saved) { const { cart: sc, discount: sd, selectedMember: sm } = JSON.parse(saved); setCart(sc || []); setDiscount(sd || 0); if (sm) setSelectedMember(sm); success('Saved cart loaded'); }
+    } catch { error('Failed to load cart'); }
+  };
 
   const recordSale = useMutation({
-    mutationFn: () => api.post('/api/stock/pos-sale', {
-      items: cart.map(i => ({ product_id: i.id, quantity: i.qty, unit_price: i.price })),
-      tendered: parseFloat(tendered) || total,
-      member_id: selectedMember?.id || null,
-    }),
-    onSuccess: (res) => { queryClient.invalidateQueries({ queryKey: ['stock-products'] }); setLastReceipt(res.data); setCart([]); setTendered(''); setDiscount(0); setSelectedMember(null); setMemberSearch(''); success(`Sale recorded. Change: $${(res.data?.change || 0).toFixed(2)}`); },
+    mutationFn: async () => {
+      const r = await api.post('/api/stock/pos-sale', {
+        items: cart.map(i => ({ product_id: i.id, quantity: i.qty, unit_price: i.price })),
+        tendered: parseFloat(tendered) || total,
+        member_id: selectedMember?.id || null,
+      });
+      if (splits.length > 0) {
+        for (const sp of splits) {
+          await api.post('/api/transactions', {
+            member_id: selectedMember?.id || null, amount: sp.amount, description: `POS sale split - ${sp.method}`, type: 'product', payment_method: sp.method, status: 'completed',
+          });
+        }
+      }
+      return r.data;
+    },
+    onSuccess: (data) => { queryClient.invalidateQueries({ queryKey: ['stock-products'] }); queryClient.invalidateQueries({ queryKey: ['transactions'] }); setLastReceipt(data); setCart([]); setTendered(''); setDiscount(0); setSelectedMember(null); setMemberSearch(''); setSplits([]); setShowSplitPayment(false); success(`Sale recorded. Change: $${(data?.change || 0).toFixed(2)}`); },
     onError: () => error('Sale failed'),
   });
 
@@ -119,6 +154,10 @@ function POSScreen() {
             </div>
           ))}
         </div>
+        <div className="flex gap-2 mt-2">
+          {cart.length > 0 && <button onClick={saveCart} className="flex-1 text-xs bg-gray-100 text-gray-700 py-1.5 rounded hover:bg-gray-200">Save Cart</button>}
+          {savedCartExists && <button onClick={loadSavedCart} className="flex-1 text-xs bg-blue-50 text-blue-700 py-1.5 rounded hover:bg-blue-100">Load Saved Cart</button>}
+        </div>
         <div className="mt-2">
           <label className="block text-xs text-gray-500 mb-1">Member (for discount)</label>
           <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Search member..." className="input text-xs w-full mb-1" />
@@ -138,7 +177,37 @@ function POSScreen() {
           <input type="number" step="0.01" placeholder="Tendered $" value={tendered} onChange={e => setTendered(e.target.value)} className="input text-sm w-full" />
           {tendered && <p className="text-xs text-green-600 mt-1">Change: ${change.toFixed(2)}</p>}
         </div>
-        <button onClick={recordSale.mutate} disabled={cart.length === 0 || !tendered || parseFloat(tendered) < total}
+        {total > 0 && !showSplitPayment && <button onClick={() => setShowSplitPayment(true)} className="w-full mt-2 text-xs text-blue-600 border border-blue-200 rounded py-1.5 hover:bg-blue-50">Split Payment</button>}
+        {showSplitPayment && (
+          <div className="mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gray-700">Payment Splits</span>
+              <button onClick={() => { setShowSplitPayment(false); setSplits([]); setSplitAmount(''); }} className="text-xs text-gray-500 hover:underline">Cancel</button>
+            </div>
+            <div className="flex gap-2 mb-2">
+              <select value={splitMethod} onChange={e => setSplitMethod(e.target.value)} className="input text-xs flex-1">
+                <option value="cash">Cash</option><option value="card">Card</option><option value="bank_transfer">Bank Transfer</option><option value="other">Other</option>
+              </select>
+              <input type="number" step="0.01" min="0" value={splitAmount} onChange={e => setSplitAmount(e.target.value)} className="input text-xs w-24" placeholder="Amount" />
+              <button onClick={addSplit} disabled={!splitAmount || parseFloat(splitAmount) <= 0} className="text-xs bg-blue-600 text-white px-3 rounded hover:bg-blue-700 disabled:opacity-40">+</button>
+            </div>
+            {splits.length > 0 && (
+              <div className="space-y-1 mb-2">
+                {splits.map((sp, i) => (
+                  <div key={i} className="flex justify-between items-center text-xs bg-white rounded px-2 py-1">
+                    <span className="capitalize text-gray-600">{sp.method} - ${sp.amount.toFixed(2)}</span>
+                    <button onClick={() => setSplits(s => s.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-700">&times;</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Split total: ${splitsTotal.toFixed(2)}</span>
+              <span className={splitsValid ? 'text-green-600' : 'text-red-500'}>{splitsValid ? '✓ Balanced' : `Remaining: $${(total - splitsTotal).toFixed(2)}`}</span>
+            </div>
+          </div>
+        )}
+        <button onClick={recordSale.mutate} disabled={cart.length === 0 || (splits.length > 0 ? !splitsValid : (!tendered || parseFloat(tendered) < total))}
           className="w-full mt-3 bg-red-600 text-white py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-40">Complete Sale</button>
 
         {lastReceipt && <ReceiptPreview receipt={lastReceipt} onClose={() => setLastReceipt(null)} />}
@@ -184,6 +253,14 @@ function ProductList() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', sku: '', sell_price: '', stock_qty: '', min_stock: '10', category: 'apparel' });
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const [adjustProduct, setAdjustProduct] = useState(null);
+  const [adjustForm, setAdjustForm] = useState({ reason: 'restock', quantity: '', notes: '' });
+
+  const adjustStock = useMutation({
+    mutationFn: ({ id, data }) => api.post(`/api/stock/products/${id}/adjust`, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['stock-products'] }); setAdjustProduct(null); setAdjustForm({ reason: 'restock', quantity: '', notes: '' }); success('Stock adjusted'); },
+    onError: () => error('Failed to adjust stock'),
+  });
 
   const { data: products = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['stock-products', 'all'],
@@ -280,18 +357,43 @@ function ProductList() {
                 <td className="px-4 py-3 text-sm text-gray-900">${(p.sell_price || 0).toFixed(2)}</td>
                 <td className="px-4 py-3 text-sm"><span className={`${p.stock_qty <= (p.min_stock || 5) ? 'text-red-600 font-medium' : 'text-gray-600'}`}>{p.stock_qty}</span></td>
                 <td className="px-4 py-3 text-sm text-gray-500 capitalize">{p.category || '—'}</td>
-                <td className="px-4 py-3 text-sm text-right">
-                  <button onClick={() => openEdit(p)} className="text-xs text-blue-600 hover:underline mr-2">Edit</button>
-                  <button onClick={() => { if (confirm('Delete this product?')) deleteProduct.mutate(p.id); }} className="text-xs text-red-600 hover:underline">Delete</button>
-                </td>
+                  <td className="px-4 py-3 text-sm text-right">
+                   <button onClick={() => openEdit(p)} className="text-xs text-blue-600 hover:underline mr-2">Edit</button>
+                   <button onClick={() => { setAdjustProduct(p); setAdjustForm({ reason: 'restock', quantity: '', notes: '' }); }} className="text-xs text-green-600 hover:underline mr-2">Adjust</button>
+                   <button onClick={() => { if (confirm('Delete this product?')) deleteProduct.mutate(p.id); }} className="text-xs text-red-600 hover:underline">Delete</button>
+                   </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-    </div>
-  );
-}
+       </div>
+       {adjustProduct && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAdjustProduct(null)}>
+           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+             <h3 className="text-lg font-semibold mb-4">Adjust Stock - {adjustProduct.name}</h3>
+             <div className="space-y-3">
+               <div><label className="block text-xs font-medium text-gray-700 mb-1">Reason</label>
+                 <select value={adjustForm.reason} onChange={e => setAdjustForm(f => ({ ...f, reason: e.target.value }))} className="input text-sm w-full">
+                   <option value="restock">Restock</option><option value="damage">Damage</option><option value="return">Return</option><option value="correction">Correction</option>
+                 </select>
+               </div>
+               <div><label className="block text-xs font-medium text-gray-700 mb-1">Quantity Change</label>
+                 <input type="number" value={adjustForm.quantity} onChange={e => setAdjustForm(f => ({ ...f, quantity: e.target.value }))} className="input text-sm w-full" placeholder="e.g. 5 or -2" />
+               </div>
+               <div><label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+                 <input type="text" value={adjustForm.notes} onChange={e => setAdjustForm(f => ({ ...f, notes: e.target.value }))} className="input text-sm w-full" placeholder="Optional notes" />
+               </div>
+             </div>
+             <div className="flex justify-end gap-2 mt-6">
+               <button onClick={() => setAdjustProduct(null)} className="btn-outline text-sm">Cancel</button>
+               <button onClick={() => { const qty = parseInt(adjustForm.quantity, 10); if (!qty) return; adjustStock.mutate({ id: adjustProduct.id, data: { quantity_change: qty, reason: adjustForm.reason, notes: adjustForm.notes } }); }} disabled={adjustStock.isPending} className="btn-primary text-sm">{adjustStock.isPending ? 'Adjusting...' : 'Adjust'}</button>
+             </div>
+           </div>
+         </div>
+       )}
+     </div>
+   );
+ }
 
 function StockAlerts() {
   const { data: alerts = [], isLoading, isError, refetch } = useQuery({

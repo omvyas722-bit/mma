@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -80,6 +80,19 @@ function ComposeModal({ onClose }) {
   const [memberSearch, setMemberSearch] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const ACCEPTED_VARS = ['first_name', 'last_name', 'member_id', 'plan_name', 'amount', 'date', 'time', 'location', 'instructor'];
+  const varWarnings = useMemo(() => {
+    const w = [];
+    const body = form.body;
+    if (body.includes('{') && !body.includes('}')) w.push('Warning: Unclosed template variable detected');
+    const used = body.match(/\{(\w+)\}/g) || [];
+    used.forEach(m => {
+      const name = m.slice(1, -1);
+      if (!ACCEPTED_VARS.includes(name)) w.push(`Warning: Unknown variable "${name}" — accepted: ${ACCEPTED_VARS.join(', ')}`);
+    });
+    return w;
+  }, [form.body]);
 
   const { data: searchResults } = useQuery({
     queryKey: ['member-search', memberSearch],
@@ -176,8 +189,9 @@ function ComposeModal({ onClose }) {
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Subject</label><input type="text" value={form.subject} onChange={e => u('subject', e.target.value)} className="input text-sm w-full" placeholder="Message subject" /></div>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Message <span className="text-gray-400">(use {'{'}first_name{'}'}, {'{'}class_name{'}'}, {'{'}date{'}'})</span></label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Message <span className="text-gray-400">(use {'{'}first_name{'}'}, {'{'}last_name{'}'}, {'{'}date{'}'}, {'{'}time{'}'}, {'{'}location{'}'}, {'{'}instructor{'}'})</span></label>
             <textarea rows={5} value={form.body} onChange={e => u('body', e.target.value)} className="input text-sm w-full" placeholder="Type your message..." />
+            {varWarnings.map((w, i) => <p key={i} className="text-xs text-yellow-600 mt-1">{w}</p>)}
             {form.type === 'sms' && <p className="text-xs text-gray-400 mt-1">{form.body.length}/160 characters</p>}
           </div>
           <div>
@@ -332,6 +346,8 @@ function ApprovalPanel() {
 
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
+  const [editItem, setEditItem] = useState(null);
+  const [editBody, setEditBody] = useState('');
 
   const approve = useMutation({
     mutationFn: (id) => api.post(`/api/ai/approve/${id}`),
@@ -343,6 +359,12 @@ function ApprovalPanel() {
     mutationFn: (id) => api.post(`/api/ai/reject/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ai-pending-approval'] }); success('Rejected'); },
     onError: () => error('Failed to reject'),
+  });
+
+  const resubmit = useMutation({
+    mutationFn: ({ id, body }) => api.post(`/api/ai/resubmit/${id}`, { body }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ai-pending-approval'] }); setEditItem(null); success('Resubmitted for approval'); },
+    onError: () => error('Failed to resubmit'),
   });
 
   if (isError) return <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert"><button onClick={refetch} className="text-sm text-red-600 underline">Retry</button></div>;
@@ -370,12 +392,28 @@ function ApprovalPanel() {
                   <p className="text-xs text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 whitespace-pre-wrap">{a.body}</p>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0">
+                  <button onClick={() => { setEditItem(a); setEditBody(a.body); }} className="text-xs bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700">Edit & Resubmit</button>
                   <button onClick={() => approve.mutate(a.id)} disabled={approve.isPending} className="text-xs bg-green-600 text-white px-4 py-1.5 rounded hover:bg-green-700 disabled:opacity-40">Approve</button>
                   <button onClick={() => reject.mutate(a.id)} disabled={reject.isPending} className="text-xs bg-red-600 text-white px-4 py-1.5 rounded hover:bg-red-700 disabled:opacity-40">Reject</button>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {editItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditItem(null)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <h3 className="text-lg font-semibold mb-4">Edit Message</h3>
+            <p className="text-xs text-gray-500 mb-2">To: {editItem.recipient_name} &middot; {editItem.channel?.toUpperCase()}</p>
+            {editItem.subject && <p className="text-xs text-gray-500 mb-2">Subject: {editItem.subject}</p>}
+            <textarea rows={6} value={editBody} onChange={e => setEditBody(e.target.value)} className="input text-sm w-full" placeholder="Edit message body..." />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setEditItem(null)} className="btn-outline text-sm">Cancel</button>
+              <button onClick={() => resubmit.mutate({ id: editItem.id, body: editBody })} disabled={!editBody.trim() || resubmit.isPending} className="btn-primary text-sm">{resubmit.isPending ? 'Resubmitting...' : 'Resubmit for Approval'}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

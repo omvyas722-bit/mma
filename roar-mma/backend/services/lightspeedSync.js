@@ -106,6 +106,44 @@ function determineType(sale) {
   return 'product';
 }
 
+async function getProducts() {
+  try {
+    const data = await apiGet('/items.json?limit=100');
+    return data?.Item || [];
+  } catch (err) {
+    console.error('Error fetching Lightspeed products:', err?.response?.data || err.message);
+    return [];
+  }
+}
+
+async function syncProduct(product) {
+  const token = await getAccessToken();
+  if (!token) {
+    console.warn('Lightspeed not configured — cannot sync product');
+    return null;
+  }
+  try {
+    const res = await axios.post(`${BASE_URL}/api/2.0/accounts/${LIGHTSPEED_ACCOUNT_ID}/items.json`, product, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+    return res.data;
+  } catch (err) {
+    console.error('Error syncing product to Lightspeed:', err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+async function getSales(daysBack = 7) {
+  try {
+    const since = new Date(Date.now() - daysBack * 86400000).toISOString();
+    const data = await apiGet(`/sales.json?created_at=>${since}&limit=100`);
+    return data?.Sale || [];
+  } catch (err) {
+    console.error('Error fetching Lightspeed sales:', err?.response?.data || err.message);
+    return [];
+  }
+}
+
 async function syncAll(daysBack = 30) {
   const results = {};
   try { results.sales = await syncSales(daysBack); } catch (e) { results.sales = { error: e.message }; }
@@ -113,4 +151,4 @@ async function syncAll(daysBack = 30) {
   return results;
 }
 
-module.exports = { syncSales, syncCustomers, syncAll, getAccessToken };
+module.exports = { syncSales, syncCustomers, syncAll, getAccessToken, getProducts, syncProduct, getSales };

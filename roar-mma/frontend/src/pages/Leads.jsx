@@ -282,6 +282,24 @@ function LeadsAnalytics() {
         </div>
       </div>
 
+      {/* Per-Source Quick Breakdown */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">Leads by Source</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {['referral', 'walk_in', 'website', 'facebook', 'instagram', 'phone', 'email', 'other'].map(src => {
+            const found = sourceData.find(s => s.source === src);
+            const count = found?.count ?? 0;
+            const colors = { referral: 'bg-green-500', walk_in: 'bg-yellow-500', website: 'bg-blue-500', facebook: 'bg-indigo-500', instagram: 'bg-purple-500', phone: 'bg-pink-500', email: 'bg-teal-500', other: 'bg-gray-500' };
+            return (
+              <div key={src} className={`${colors[src] || 'bg-gray-500'} rounded-lg p-3 text-center text-white`}>
+                <p className="text-lg font-bold">{count}</p>
+                <p className="text-[10px] opacity-80 capitalize">{src.replace(/_/g, ' ')}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Conversion Funnel */}
         <div className="bg-white rounded-lg shadow p-5">
@@ -303,7 +321,7 @@ function LeadsAnalytics() {
 
         {/* Source Breakdown */}
         <div className="bg-white rounded-lg shadow p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Leads by Source</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Leads by Source (Detailed)</h3>
           <div className="space-y-2">
             {sourceData.map(s => (
               <div key={s.source}>

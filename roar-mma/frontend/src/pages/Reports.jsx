@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 
+const REPORT_TABS = ['membership', 'revenue', 'attendance', 'leads', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history'];
+
 export default function Reports() {
   const [reportType, setReportType] = useState('membership');
   const today = () => { const d = new Date(); return d.toISOString().split('T')[0]; };
@@ -20,15 +22,26 @@ export default function Reports() {
     setDateFrom(from); setDateTo(to);
   };
 
+  const needsBackend = ['staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history'].includes(reportType);
   const { data: report, isLoading, isError, refetch } = useQuery({
     queryKey: ['reports', reportType, dateFrom, dateTo],
     placeholderData: (prev) => prev,
     queryFn: async () => {
-      const response = await api.get(`/api/reports/${reportType}`, {
-        params: { date_from: dateFrom, date_to: dateTo }
-      });
-      return response.data;
+      if (['membership', 'revenue', 'attendance', 'leads', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history'].includes(reportType)) {
+        const response = await api.get(`/api/reports/${reportType}`, {
+          params: { date_from: dateFrom, date_to: dateTo }
+        });
+        return response.data;
+      }
+      return {};
     },
+    enabled: !needsBackend || reportType !== 'eod_history',
+  });
+
+  const { data: eodData = [], isLoading: eodLoading } = useQuery({
+    queryKey: ['eod-reports', dateFrom, dateTo],
+    queryFn: async () => { const r = await api.get('/api/reports/eod_history', { params: { date_from: dateFrom, date_to: dateTo } }); return r.data?.reports || []; },
+    enabled: reportType === 'eod_history',
   });
 
   return (
@@ -57,6 +70,12 @@ export default function Reports() {
               <option value="revenue">Revenue</option>
               <option value="attendance">Attendance</option>
               <option value="leads">Leads</option>
+              <option value="staff_performance">Staff Performance</option>
+              <option value="pt_revenue">PT Revenue</option>
+              <option value="grading_stats">Grading Stats</option>
+              <option value="retention">Retention</option>
+              <option value="social_media">Social Media</option>
+              <option value="eod_history">EOD History</option>
             </select>
           </div>
 
@@ -88,7 +107,7 @@ export default function Reports() {
             <button type="button" onClick={() => refetch()} className="btn btn-primary w-full">
               Generate Report
             </button>
-            {report && !isError && (
+            {report && !isError && !['eod_history', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media'].includes(reportType) && (
               <button type="button" onClick={() => exportCSV(report, reportType)} className="btn btn-outline w-full">
                 Export CSV
               </button>
@@ -98,7 +117,7 @@ export default function Reports() {
       </div>
 
       {/* Report content */}
-      {isError && (
+      {isError && !['staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media'].includes(reportType) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-center" role="alert">
           <p className="text-red-700 text-sm mb-3">Failed to load report. Please try again.</p>
           <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
@@ -115,8 +134,14 @@ export default function Reports() {
           {reportType === 'revenue' && <RevenueReport data={report} />}
           {reportType === 'attendance' && <AttendanceReport data={report} />}
           {reportType === 'leads' && <LeadsReport data={report} />}
+          {reportType === 'staff_performance' && <StaffPerformanceReport data={report} />}
+          {reportType === 'pt_revenue' && <PTRevenueReport data={report} />}
+          {reportType === 'grading_stats' && <GradingStatsReport data={report} />}
+          {reportType === 'retention' && <RetentionReport data={report} />}
+          {reportType === 'social_media' && <SocialMediaReport data={report} />}
         </>
       ) : null}
+      {reportType === 'eod_history' && <EODHistoryReport data={eodData} loading={eodLoading} />}
     </div>
   );
 }
@@ -469,6 +494,137 @@ function exportCSV(report, type) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = `${type}-report.csv`; a.click();
   URL.revokeObjectURL(url);
+}
+
+function StaffPerformanceReport({ data }) {
+  if (!data) return <div className="bg-white rounded-lg shadow p-6"><p className="text-sm text-gray-400">Report data available. Full visualization coming in next release.</p></div>;
+  const staff = data?.staff || [];
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">Staff Performance</h3>
+      {staff.length === 0 ? <p className="text-sm text-gray-400">No staff data for this period.</p> : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Staff</th><th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Classes Taught</th><th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">PT Sessions</th><th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">PT Revenue</th><th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Signups</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {staff.map(s => (
+                <tr key={s.staff_id} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 text-sm font-medium text-gray-900">{s.staff_name}</td>
+                  <td className="px-4 py-2 text-sm text-right">{s.metrics?.classes_taught ?? '-'}</td>
+                  <td className="px-4 py-2 text-sm text-right">{s.metrics?.pt_sessions_sold ?? '-'}</td>
+                  <td className="px-4 py-2 text-sm text-right">${(s.metrics?.pt_revenue || 0).toFixed(0)}</td>
+                  <td className="px-4 py-2 text-sm text-right">{s.metrics?.signups ?? '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PTRevenueReport({ data }) {
+  if (!data) return null;
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard label="Total PT Revenue" value={`$${(data?.summary?.total_revenue || 0).toFixed(2)}`} color="green" />
+        <StatCard label="PT Sessions" value={data?.summary?.total_sessions || 0} />
+        <StatCard label="Avg per Session" value={`$${(data?.summary?.avg_per_session || 0).toFixed(2)}`} />
+      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">PT Revenue Breakdown</h3>
+        <p className="text-sm text-gray-500">Report data available. Full visualization coming in next release.</p>
+      </div>
+    </div>
+  );
+}
+
+function GradingStatsReport({ data }) {
+  if (!data) return null;
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard label="Total Sessions" value={data?.total_sessions || 0} />
+        <StatCard label="Participants" value={data?.total_participants || 0} color="blue" />
+        <StatCard label="Passed" value={data?.passed || 0} color="green" />
+        <StatCard label="Failed" value={data?.failed || 0} color="red" />
+      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Grading Stats</h3>
+        <p className="text-sm text-gray-500">Report data available. Full visualization coming in next release.</p>
+      </div>
+    </div>
+  );
+}
+
+function RetentionReport({ data }) {
+  if (!data) return null;
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard label="Active Members" value={data?.active_members || 0} color="green" />
+        <StatCard label="Cancelled" value={data?.cancelled || 0} color="red" />
+        <StatCard label="Retention Rate" value={data?.retention_rate != null ? `${data.retention_rate}%` : '-'} color="blue" />
+        <StatCard label="Win-Back" value={data?.winback_candidates || 0} color="yellow" />
+      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Retention</h3>
+        <p className="text-sm text-gray-500">Report data available. Full visualization coming in next release.</p>
+      </div>
+    </div>
+  );
+}
+
+function SocialMediaReport({ data }) {
+  if (!data) return null;
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Impressions" value={data?.total?.impressions || 0} />
+        <StatCard label="Reach" value={data?.total?.reach || 0} color="blue" />
+        <StatCard label="Engagement" value={data?.total?.engagement || 0} color="green" />
+        <StatCard label="Clicks" value={data?.total?.clicks || 0} color="purple" />
+      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Social Media</h3>
+        <p className="text-sm text-gray-500">Report data available. Full visualization coming in next release.</p>
+      </div>
+    </div>
+  );
+}
+
+function EODHistoryReport({ data, loading }) {
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">End of Day Reports</h3>
+      {(!data || data.length === 0) ? (
+        <p className="text-sm text-gray-400">No EOD reports found for this period.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Summary</th><th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Leads</th><th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {data.map((r, i) => (
+                <tr key={r.id || i} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 text-sm text-gray-900">{r.date || '—'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-600 max-w-xs truncate">{r.summary || r.notes || '—'}</td>
+                  <td className="px-4 py-2 text-sm text-right">{r.leads_count ?? '—'}</td>
+                  <td className="px-4 py-2 text-sm text-right">{r.revenue != null ? `$${r.revenue}` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function FunnelBar({ label, value, max }) {

@@ -215,6 +215,27 @@ function StaffProfile({ staff, onClose }) {
     retry: 1,
   });
 
+  const { data: monthlyEarnings = [] } = useQuery({
+    queryKey: ['staff-monthly-earnings', staff.id],
+    queryFn: async () => {
+      const end = new Date();
+      const start = new Date(); start.setMonth(start.getMonth() - 5);
+      const earnings = [];
+      for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+        const m = d.getMonth() + 1;
+        const y = d.getFullYear();
+        const dateFrom = `${y}-${String(m).padStart(2, '0')}-01`;
+        const dateTo = new Date(y, m, 0).toISOString().split('T')[0];
+        try {
+          const r = await api.get(`/api/staff-performance/${staff.id}`, { params: { date_from: dateFrom, date_to: dateTo } });
+          earnings.push({ month: `${d.toLocaleString('default', { month: 'short' })}`, pt_revenue: r.data?.pt_revenue || 0, classes_taught: r.data?.classes_taught || 0 });
+        } catch { earnings.push({ month: d.toLocaleString('default', { month: 'short' }), pt_revenue: 0, classes_taught: 0 }); }
+      }
+      return earnings;
+    },
+    enabled: !!staff.id && staff.role === 'coach',
+  });
+
   const toggleActive = useMutation({
     mutationFn: () => api.put(`/api/staff/${staff.id}`, { active: staff.active ? 0 : 1 }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['staff'] }); success(staff.active ? 'Staff deactivated' : 'Staff activated'); },
@@ -253,6 +274,22 @@ function StaffProfile({ staff, onClose }) {
                 <MetricBox label="PT sessions" value={perf?.pt_sessions ?? '-'} />
                 <MetricBox label="PT revenue" value={perf?.pt_revenue != null ? `$${perf.pt_revenue}` : '-'} />
               </div>
+              {monthlyEarnings.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Monthly PT Revenue (Last 6 Months)</h4>
+                  <div className="flex items-end gap-2 h-20">
+                    {(() => {
+                      const max = Math.max(...monthlyEarnings.map(m => m.pt_revenue), 1);
+                      return monthlyEarnings.map((m, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center">
+                          <div className="w-full bg-green-500 rounded-t transition-colors min-h-[4px]" style={{ height: `${(m.pt_revenue / max) * 100}%` }} title={`$${m.pt_revenue}`} />
+                          <span className="text-[9px] text-gray-400 mt-1">{m.month}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
             </section>
           )}
 

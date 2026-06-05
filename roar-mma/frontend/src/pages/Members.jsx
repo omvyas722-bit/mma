@@ -8,6 +8,8 @@ import AddMemberModal from '../components/Members/AddMemberModal';
 import EditMemberModal from '../components/Members/EditMemberModal';
 import ConfirmDialog from '../components/Shared/ConfirmDialog';
 
+
+
 const LIMIT = 50;
 
 function buildParams({ query, status, location, plan, member_type, offset }) {
@@ -59,6 +61,15 @@ export default function Members() {
   const [cancellingMember, setCancellingMember] = useState(null);
   const [changingPlanMember, setChangingPlanMember] = useState(null);
   const [selected, setSelected] = useState(new Set());
+  const [ctxMenu, setCtxMenu] = useState(null);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    document.addEventListener('click', close);
+    document.addEventListener('scroll', close, true);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('scroll', close, true); };
+  }, [ctxMenu]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['members', filters],
@@ -202,7 +213,8 @@ export default function Members() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {members.map((member) => (
-                      <tr key={member.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}>
+                      <tr key={member.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}
+                        onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, member }); }}>
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" checked={selected.has(member.id)} onChange={() => { const s = new Set(selected); s.has(member.id) ? s.delete(member.id) : s.add(member.id); setSelected(s); }}
                             className="rounded border-gray-300 text-red-600 focus:ring-red-500" aria-label={`Select ${member.first_name} ${member.last_name}`} />
@@ -241,6 +253,31 @@ export default function Members() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {ctxMenu && (
+        <div style={{ position: 'fixed', top: ctxMenu.y, left: ctxMenu.x, zIndex: 50 }}
+          className="bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]"
+          onClick={(e) => e.stopPropagation()}>
+          <button type="button" onClick={() => { navigate(`/members/${ctxMenu.member.id}`); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">View Profile</button>
+          <button type="button" onClick={() => { navigate(`/communications?member=${ctxMenu.member.id}`); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Send Message</button>
+          <div className="my-1 h-px bg-gray-200" />
+          {ctxMenu.member.status === 'active' && (
+            <button type="button" onClick={() => { setPausingMember(ctxMenu.member); setCtxMenu(null); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Pause Membership</button>
+          )}
+          {ctxMenu.member.status === 'paused' && (
+            <button type="button" onClick={() => { resumeMember.mutate(ctxMenu.member.id); setCtxMenu(null); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Resume Membership</button>
+          )}
+          <div className="my-1 h-px bg-gray-200" />
+          <button type="button" onClick={() => { setEditingMember(ctxMenu.member); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Edit</button>
+          <button type="button" onClick={() => { setDeletingMember(ctxMenu.member); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Delete</button>
         </div>
       )}
     </div>

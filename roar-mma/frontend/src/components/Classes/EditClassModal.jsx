@@ -23,6 +23,8 @@ export default function EditClassModal({ isOpen, onClose, classData }) {
         end_time: classData.end_time || '',
         max_capacity: classData.max_capacity?.toString() || '',
         class_type: classData.class_type || '',
+        min_belt: classData.min_belt || '',
+        fighter_only: classData.fighter_only || false,
       });
     }
   }, [classData]);

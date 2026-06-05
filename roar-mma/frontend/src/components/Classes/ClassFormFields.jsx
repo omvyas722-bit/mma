@@ -29,7 +29,7 @@ function validateClassForm(formData) {
   return errors;
 }
 
-function ClassFormFields({ formData, errors, handleChange }) {
+function ClassFormFields({ formData, errors, handleChange, hideDayOfWeek }) {
   return (
     <>
       {/* Basic Information */}
@@ -77,6 +77,7 @@ function ClassFormFields({ formData, errors, handleChange }) {
       <div>
         <h3 className="text-lg font-semibold mb-4">Schedule</h3>
         <div className="grid grid-cols-2 gap-4">
+          {!hideDayOfWeek && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Day of Week *</label>
             <select name="day_of_week" value={formData.day_of_week} onChange={handleChange}
@@ -92,6 +93,7 @@ function ClassFormFields({ formData, errors, handleChange }) {
             </select>
             {errors.day_of_week && <p className="text-red-500 text-sm mt-1">{errors.day_of_week}</p>}
           </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
             <select name="location" value={formData.location} onChange={handleChange}

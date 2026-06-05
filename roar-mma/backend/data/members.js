@@ -24,6 +24,11 @@ function getAllMembers(filters = {}) {
     params.push(searchTerm, searchTerm, searchTerm, searchTerm);
   }
 
+  if (filters.parent_id) {
+    query += ' AND parent_id = ?';
+    params.push(filters.parent_id);
+  }
+
   // Pagination
   const limit = parseInt(filters.limit, 10) || 50;
   const offset = parseInt(filters.offset, 10) || 0;
@@ -51,6 +56,11 @@ function getAllMembers(filters = {}) {
     countQuery += ' AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)';
     const searchTerm = `%${filters.query}%`;
     countParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
+  }
+
+  if (filters.parent_id) {
+    countQuery += ' AND parent_id = ?';
+    countParams.push(filters.parent_id);
   }
 
   const { total } = db.prepare(countQuery).get(...countParams);
@@ -114,7 +124,7 @@ function updateMember(id, updates) {
     'pause_start', 'pause_end', 'cancellation_date',
     'emergency_contact_name', 'emergency_contact_phone',
     'medical_conditions', 'injuries', 'goals', 'experience_level',
-    'lightspeed_customer_id', 'notes'
+    'lightspeed_customer_id', 'notes', 'parent_id'
   ];
 
   const fields = [];

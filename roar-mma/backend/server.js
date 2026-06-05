@@ -293,14 +293,72 @@ app.get('/api/calendar/events', authenticateToken, requirePermission('classes:re
 app.post('/api/calendar/events', authenticateToken, requirePermission('classes:create'), (req, res) => {
   try {
     const db = getDatabase();
-    const { title, type, date, start_time, end_time, description } = req.body;
-    if (!title || !date || !start_time) return res.status(400).json({ error: 'title, date, and start_time required' });
+    const { title, name, type, date, start_time, end_time, description, capacity } = req.body;
+    const eventTitle = title || name || '';
+    if (!eventTitle || !date || !start_time) return res.status(400).json({ error: 'title, date, and start_time required' });
     const result = db.prepare(`INSERT INTO class_instances (class_id, date, start_time, end_time, capacity, status, class_notes) VALUES (?, ?, ?, ?, ?, 'scheduled', ?)`)
-      .run(0, date, start_time, end_time || null, 0, description || null);
-    res.status(201).json({ id: result.lastInsertRowid, title, date, start_time, end_time });
+      .run(0, date, start_time, end_time || null, capacity || 0, description || null);
+    res.status(201).json({ id: result.lastInsertRowid, title: eventTitle, date, start_time, end_time });
   } catch (error) {
     console.error('Error creating calendar event:', error);
     res.status(500).json({ error: 'Failed to create event' });
+  }
+});
+
+// EOD reports — last 30 entries from ai_activity_log for oracle agent
+app.get('/api/eod-reports', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const reports = db.prepare(`
+      SELECT * FROM ai_activity_log
+      WHERE agent_name = 'oracle' AND action_type LIKE '%eod%'
+      ORDER BY created_at DESC LIMIT 30
+    `).all();
+    res.json(reports);
+  } catch (error) {
+    console.error('Error fetching EOD reports:', error);
+    res.status(500).json({ error: 'Failed to fetch EOD reports' });
+  }
+});
+
+// Approval resubmit — reset to pending with new payload
+app.post('/api/approval/:id/resubmit', authenticateToken, requirePermission('ai:manage'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const item = db.prepare('SELECT * FROM approval_queue WHERE id = ?').get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    const { payload, reason } = req.body;
+    db.prepare(`UPDATE approval_queue SET status = 'pending', payload = ?, reason = ?, reviewed_by = NULL, reviewed_at = NULL, updated_at = datetime('now') WHERE id = ?`)
+      .run(payload ? JSON.stringify(payload) : item.payload, reason || item.reason, req.params.id);
+    const updated = db.prepare('SELECT * FROM approval_queue WHERE id = ?').get(req.params.id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error resubmitting approval:', error);
+    res.status(500).json({ error: 'Failed to resubmit approval' });
+  }
+});
+
+// Staff performance — class instances grouped by coach for date range
+app.get('/api/reports/staff-performance', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const { start_date, end_date, location } = req.query;
+    let query = `
+      SELECT s.id as staff_id, s.name as staff_name, COUNT(ci.id) as class_count
+      FROM class_instances ci
+      JOIN staff s ON ci.coach_id = s.id
+      LEFT JOIN classes c ON ci.class_id = c.id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (start_date) { query += ' AND ci.date >= ?'; params.push(start_date); }
+    if (end_date) { query += ' AND ci.date <= ?'; params.push(end_date); }
+    if (location) { query += ' AND c.location = ?'; params.push(location); }
+    query += ' GROUP BY ci.coach_id ORDER BY class_count DESC';
+    res.json(db.prepare(query).all(...params));
+  } catch (error) {
+    console.error('Error fetching staff performance report:', error);
+    res.status(500).json({ error: 'Failed to fetch staff performance report' });
   }
 });
 

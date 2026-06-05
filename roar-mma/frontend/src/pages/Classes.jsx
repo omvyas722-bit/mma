@@ -238,8 +238,17 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
     enabled: !!instance.id,
   });
 
-  const bookings = roster?.bookings || [];
-  const waitlisted = roster?.waitlist || [];
+  const rosterData = Array.isArray(roster) ? roster : [];
+  const bookings = rosterData.filter(b => !b.waitlist);
+  const waitlisted = rosterData.filter(b => b.waitlist);
+
+  const [notesText, setNotesText] = useState(instance.class_notes || '');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const saveNotes = async () => {
+    setSavingNotes(true);
+    try { await api.put(`/api/classes/instances/${instance.id}`, { class_notes: notesText }); } catch (e) { console.error('Failed to save notes', e); }
+    setSavingNotes(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -260,12 +269,14 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
             {instance.fighter_only === 1 && <div><dt className="text-gray-500 inline">Type:</dt><dd className="inline ml-1 text-purple-700">Fighters Only</dd></div>}
           </dl>
 
-          {instance.class_notes && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-              <p className="font-medium text-xs text-yellow-700 mb-0.5">Coach Notes</p>
-              {instance.class_notes}
-            </div>
-          )}
+          <section>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Class Notes</h3>
+            <textarea value={notesText} onChange={e => setNotesText(e.target.value)}
+              className="input text-sm w-full" rows={3}
+              placeholder="Add notes about this class session (visible to coaches only)..." />
+            <button type="button" onClick={saveNotes} disabled={savingNotes}
+              className="btn-primary text-xs mt-1">{savingNotes ? 'Saving...' : 'Save Notes'}</button>
+          </section>
 
           <div className="flex gap-2 pt-2">
             {instance.status !== 'cancelled' && <button onClick={onCheckIn} className="btn-primary text-xs flex-1">Mark Attendance</button>}

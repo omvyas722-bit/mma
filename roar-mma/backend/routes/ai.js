@@ -226,4 +226,23 @@ router.post('/reject/:id', authenticateToken, requirePermission('staff:update'),
   }
 });
 
+router.post('/resubmit/:id', authenticateToken, requirePermission('staff:update'), async (req, res) => {
+  try {
+    const db = dbConn.getDatabase();
+    const { body } = req.body;
+    if (!body || !body.trim()) return res.status(400).json({ error: 'Body is required' });
+    const existing = db.prepare(`SELECT * FROM event_queue WHERE id = ? AND status = 'pending'`).get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Pending item not found' });
+    let payload = {};
+    try { payload = typeof existing.payload === 'string' ? JSON.parse(existing.payload) : (existing.payload || {}); } catch { payload = {}; }
+    payload.body = body;
+    if (payload.message) payload.message = body;
+    db.prepare(`UPDATE event_queue SET payload = ? WHERE id = ?`).run(JSON.stringify(payload), req.params.id);
+    res.json({ success: true, message: 'Resubmitted' });
+  } catch (error) {
+    console.error('Error resubmitting item:', error);
+    res.status(500).json({ error: 'Failed to resubmit' });
+  }
+});
+
 module.exports = router;

@@ -388,6 +388,16 @@ export default function AppShell() {
                 <button type="button" role="menuitem" onClick={() => { navigate('/settings'); close(); }}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >My Profile</button>
+                <button type="button" role="menuitem" onClick={() => { navigate('/classes'); close(); }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >My Schedule</button>
+                <button type="button" role="menuitem" onClick={() => { navigate('/settings'); close(); }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >Change Password</button>
+                <button type="button" role="menuitem" onClick={() => { navigate('/settings'); close(); }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >Notification Preferences</button>
+                <div className="my-1 h-px bg-gray-200" />
                 <button type="button" role="menuitem" onClick={() => { logout(); close(); }}
                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                 >Logout</button>

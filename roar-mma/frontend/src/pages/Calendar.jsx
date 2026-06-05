@@ -20,7 +20,7 @@ export default function Calendar() {
   const calendarStart = startOfWeek(monthStart);
   const calendarEnd = endOfWeek(monthEnd);
 
-  const [eventForm, setEventForm] = useState({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '' });
+  const [eventForm, setEventForm] = useState({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '', repeat: 'none', repeatEndAfter: 1 });
 
   const { data: events = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['calendar-events', format(monthStart, 'yyyy-MM-dd')],
@@ -36,8 +36,21 @@ export default function Calendar() {
   });
 
   const createEvent = useMutation({
-    mutationFn: () => api.post('/api/calendar/events', eventForm),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['calendar-events'] }); setShowAddEvent(false); success('Event created'); },
+    mutationFn: async () => {
+      const { repeat, repeatEndAfter, ...eventData } = eventForm;
+      if (repeat === 'none') return api.post('/api/calendar/events', eventData);
+      const count = parseInt(repeatEndAfter, 10) || 1;
+      const promises = [];
+      for (let i = 0; i < count; i++) {
+        const d = new Date(eventForm.date);
+        if (repeat === 'daily') d.setDate(d.getDate() + i);
+        else if (repeat === 'weekly') d.setDate(d.getDate() + i * 7);
+        else if (repeat === 'monthly') d.setMonth(d.getMonth() + i);
+        promises.push(api.post('/api/calendar/events', { ...eventData, date: format(d, 'yyyy-MM-dd') }));
+      }
+      return Promise.all(promises);
+    },
+    onSuccess: (res) => { queryClient.invalidateQueries({ queryKey: ['calendar-events'] }); setShowAddEvent(false); setEventForm({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '', repeat: 'none', repeatEndAfter: 1 }); success(Array.isArray(res) ? `${res.length} events created` : 'Event created'); },
     onError: (err) => error(err?.response?.data?.error || 'Failed to create event'),
   });
 
@@ -204,7 +217,7 @@ export default function Calendar() {
 
         {/* Add Event Modal */}
         {showAddEvent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowAddEvent(false)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowAddEvent(false); setEventForm({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '', repeat: 'none', repeatEndAfter: 1 }); }}>
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-event-title">
               <h2 id="add-event-title" className="text-lg font-semibold mb-4">Add Event</h2>
               <div className="space-y-3">
@@ -222,9 +235,30 @@ export default function Calendar() {
                   <div><label className="block text-xs font-medium text-gray-700 mb-1">End</label><input type="time" value={eventForm.end_time} onChange={e => setEventForm(p => ({...p, end_time: e.target.value}))} className="input text-sm w-full" /></div>
                 </div>
                 <div><label className="block text-xs font-medium text-gray-700 mb-1">Description</label><textarea rows={3} value={eventForm.description} onChange={e => setEventForm(p => ({...p, description: e.target.value}))} className="input text-sm w-full" /></div>
+                <div className="border-t pt-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Repeat</label>
+                  <div className="flex gap-3">
+                    {['none', 'daily', 'weekly', 'monthly'].map(r => (
+                      <label key={r} className="flex items-center gap-1 text-xs cursor-pointer">
+                        <input type="radio" name="repeat" value={r} checked={eventForm.repeat === r}
+                          onChange={e => setEventForm(p => ({...p, repeat: e.target.value}))}
+                          className="text-red-600 focus:ring-red-500" />
+                        {r === 'none' ? 'No Repeat' : r.charAt(0).toUpperCase() + r.slice(1)}
+                      </label>
+                    ))}
+                  </div>
+                  {eventForm.repeat !== 'none' && (
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">End After (occurrences)</label>
+                      <input type="number" value={eventForm.repeatEndAfter} min="1" max="365"
+                        onChange={e => setEventForm(p => ({...p, repeatEndAfter: e.target.value}))}
+                        className="input text-sm w-32" />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
-                <button onClick={() => setShowAddEvent(false)} className="btn-outline text-sm">Cancel</button>
+                <button onClick={() => { setShowAddEvent(false); setEventForm({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '', repeat: 'none', repeatEndAfter: 1 }); }} className="btn-outline text-sm">Cancel</button>
                 <button onClick={createEvent.mutate} disabled={!eventForm.title || createEvent.isPending} className="btn-primary text-sm">{createEvent.isPending ? 'Creating...' : 'Create Event'}</button>
               </div>
             </div>

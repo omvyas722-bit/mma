@@ -222,7 +222,7 @@ router.put('/:id', authenticateToken, requirePermission('members:update'), (req,
       }
     }
 
-    const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'location', 'status', 'plan', 'trial_end_date', 'pause_start', 'pause_end', 'cancellation_date', 'emergency_contact_name', 'emergency_contact_phone', 'medical_conditions', 'injuries', 'goals', 'experience_level', 'lightspeed_customer_id', 'notes'];
+    const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'location', 'status', 'plan', 'trial_end_date', 'pause_start', 'pause_end', 'cancellation_date', 'emergency_contact_name', 'emergency_contact_phone', 'medical_conditions', 'injuries', 'goals', 'experience_level', 'lightspeed_customer_id', 'notes', 'parent_id'];
     const updateData = {};
     allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
     const updatedMember = membersData.updateMember(req.params.id, updateData);
