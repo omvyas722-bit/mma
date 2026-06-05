@@ -41,7 +41,6 @@ class TeamAgent {
         const parsed = JSON.parse(cleaned);
         actions = Array.isArray(parsed) ? parsed : (parsed.actions || []);
       } catch (logErr) { console.error('[TEAM] Log activity error:', logErr.message); }
-      }
 
       let executedCount = 0;
       let failedCount = 0;
