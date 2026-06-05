@@ -4,6 +4,7 @@ import api from '../../lib/api';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 export default function DocumentsPanel({ memberId }) {
+  if (!memberId) return <div>No member selected</div>;
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
   const [showUpload, setShowUpload] = useState(false);
@@ -38,7 +39,8 @@ export default function DocumentsPanel({ memberId }) {
   function handleUpload(e) {
     e.preventDefault();
     if (!uploadForm.doc_type || !uploadForm.file_name) return;
-    uploadDoc.mutate({ member_id: parseInt(memberId, 10), ...uploadForm });
+    try { uploadDoc.mutate({ member_id: parseInt(memberId, 10), ...uploadForm }); }
+    catch (e) { error('Failed to upload document: ' + (e.message || 'Unknown error')); }
   }
 
   return (

@@ -41,12 +41,14 @@ function ProductList() {
     queryKey: ['inv-products'],
     queryFn: async () => { const r = await api.get('/api/stock/products'); return r.data?.products || []; },
     retry: 2,
+    staleTime: 10000,
   });
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['inv-suppliers-list'],
     queryFn: async () => { const r = await api.get('/api/stock/suppliers'); return r.data || []; },
     retry: 1,
+    staleTime: 300000,
   });
 
   const filtered = products.filter(p => !search || p.name?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase()));
@@ -172,6 +174,7 @@ function StockAlerts() {
     queryKey: ['inv-alerts'],
     queryFn: async () => { const r = await api.get('/api/stock/alerts'); return r.data || []; },
     retry: 2,
+    staleTime: 10000,
   });
   const queryClient = useQueryClient();
   const { success } = useNotifications();
@@ -211,6 +214,7 @@ function Suppliers() {
     queryKey: ['inv-suppliers'],
     queryFn: async () => { const r = await api.get('/api/stock/suppliers'); return r.data || []; },
     retry: 2,
+    staleTime: 300000,
   });
   const saveSupplier = useMutation({
     mutationFn: (data) => api.post('/api/stock/suppliers', data),
@@ -260,11 +264,13 @@ function StockMovements() {
     queryKey: ['inv-products-list'],
     queryFn: async () => { const r = await api.get('/api/stock/products'); return r.data?.products || []; },
     retry: 1,
+    staleTime: 10000,
   });
   const { data: movements = [], isLoading } = useQuery({
     queryKey: ['inv-movements', selectedProduct?.id],
     queryFn: async () => { if (!selectedProduct) return []; const r = await api.get(`/api/stock/movements/${selectedProduct.id}`); return r.data || []; },
     enabled: !!selectedProduct,
+    staleTime: 10000,
   });
   return (
     <div className="space-y-4">
@@ -314,6 +320,7 @@ function StockAnalytics() {
     queryKey: ['inv-analytics'],
     queryFn: async () => { const r = await api.get('/api/stock/analytics'); return r.data; },
     retry: 2,
+    staleTime: 300000,
   });
   if (isLoading) return <div className="bg-white rounded-lg p-6 animate-pulse"><div className="h-4 bg-gray-200 rounded w-40 mb-4"></div><div className="h-32 bg-gray-100 rounded"></div></div>;
   if (isError) return <div className="bg-white rounded-lg p-6 text-center"><p className="text-sm text-gray-500">Failed to load analytics</p></div>;

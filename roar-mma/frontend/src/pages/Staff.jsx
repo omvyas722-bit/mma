@@ -27,6 +27,7 @@ export default function Staff() {
     queryKey: ['staff-stats'],
     queryFn: async () => { const r = await api.get('/api/staff/stats'); return r.data; },
     retry: 1,
+    staleTime: 300000,
   });
 
   const canManageStaff = hasPermission('staff:create');
@@ -213,6 +214,7 @@ function StaffProfile({ staff, onClose }) {
     queryFn: async () => { const r = await api.get(`/api/staff-performance/${staff.id}`); return r.data; },
     enabled: !!staff.id,
     retry: 1,
+    staleTime: 10000,
   });
 
   const { data: monthlyEarnings = [] } = useQuery({
@@ -234,6 +236,7 @@ function StaffProfile({ staff, onClose }) {
       return earnings;
     },
     enabled: !!staff.id && staff.role === 'coach',
+    staleTime: 10000,
   });
 
   const toggleActive = useMutation({
@@ -339,13 +342,14 @@ function StaffScheduleView() {
     queryKey: ['staff-schedule'],
     queryFn: () => api.get('/api/staff-schedule').then(r => r.data?.schedule || { shifts: [], timeOff: [] }),
     refetchInterval: 30000,
+    staleTime: 10000,
   });
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ staff_id: '', day_of_week: 1, start_time: '09:00', end_time: '17:00', location: '' });
 
-  const { data: staffList } = useQuery({ queryKey: ['staff', {}], queryFn: () => api.get('/api/staff').then(r => r.data) });
+  const { data: staffList } = useQuery({ queryKey: ['staff', {}], queryFn: () => api.get('/api/staff').then(r => r.data), staleTime: 10000 });
 
   const addShift = useMutation({
     mutationFn: () => api.post('/api/staff-schedule/shifts', form),

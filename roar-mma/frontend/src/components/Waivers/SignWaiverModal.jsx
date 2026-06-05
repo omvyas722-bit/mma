@@ -75,7 +75,7 @@ export default function SignWaiverModal({ template, onClose, onSigned }) {
     const signatureData = canvas.toDataURL('image/png');
     signMutation.mutate({
       member_id: parseInt(memberId, 10),
-      template_id: template.id,
+      template_id: template?.id,
       signature_data: signatureData,
     });
   }
@@ -83,7 +83,7 @@ export default function SignWaiverModal({ template, onClose, onSigned }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="sign-title">
-        <h2 id="sign-title" className="text-lg font-semibold text-gray-900 mb-4">Sign Waiver: {template.name}</h2>
+        <h2 id="sign-title" className="text-lg font-semibold text-gray-900 mb-4">Sign Waiver: {template?.name || 'Waiver'}</h2>
 
         {/* Waiver text */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 max-h-48 overflow-y-auto">

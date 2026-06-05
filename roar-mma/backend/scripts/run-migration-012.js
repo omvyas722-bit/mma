@@ -1,3 +1,5 @@
+console.warn('⚠️  DEPRECATED: scripts/run-migration-012.js is a one-off migration script. All migrations now run automatically via db/connection.js.');
+
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');

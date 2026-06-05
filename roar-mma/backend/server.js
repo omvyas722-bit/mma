@@ -9,6 +9,7 @@ const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 const { getDatabase, closeDatabase } = require('./db/connection');
 const { authenticateToken, requirePermission } = require('./middleware/auth');
+const { errorHandler } = require('./middleware/errorHandler');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -154,19 +155,24 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
 
-// Request logging middleware
+// Request logging middleware — logs method, path, status, duration
 app.use((req, res, next) => {
+  const start = Date.now();
   const timestamp = new Date().toISOString();
-  const safePath = req.path;
-  if (process.env.NODE_ENV !== 'test') {
-    console.log(`[${timestamp}] ${req.method} ${safePath}`);
-  }
+
+  res.on('finish', () => {
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`[${timestamp}] ${req.method} ${req.path} ${res.statusCode} ${Date.now() - start}ms`);
+    }
+  });
+
   next();
 });
 
@@ -368,32 +374,7 @@ app.use((req, res) => {
 });
 
 // Error handler — never leak stack traces in responses
-app.use((err, req, res, next) => {
-  const isDev = process.env.NODE_ENV === 'development';
-  if (isDev) {
-    console.error('Error:', err);
-  } else {
-    console.error('Error:', err.message);
-  }
-
-  if (err.name === 'ValidationError' || err.status === 400) {
-    return res.status(400).json({ error: 'Bad request' });
-  }
-  if (err.status === 401 || err.name === 'UnauthorizedError') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  if (err.status === 403) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  if (err.status === 404) {
-    return res.status(404).json({ error: 'Not found' });
-  }
-  if (err.status === 422) {
-    return res.status(422).json({ error: 'Unprocessable entity' });
-  }
-
-  res.status(500).json({ error: 'Internal server error' });
-});
+app.use(errorHandler);
 
 // Global unhandled promise rejection handler (don't crash on recoverable errors)
 process.on('unhandledRejection', (reason, promise) => {

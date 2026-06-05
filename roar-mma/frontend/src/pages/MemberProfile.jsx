@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { formatDate, formatCurrency, formatPhone, calculateAge } from '../lib/formatters';
 import EditMemberModal from '../components/Members/EditMemberModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
 import { PageLoader } from '../components/Shared/Spinner';
 import { useNotifications } from '../contexts/NotificationContext';
 import StudentCoachingPanel from '../components/Coaching/StudentCoachingPanel';

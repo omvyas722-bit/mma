@@ -6,7 +6,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { formatDate } from '../lib/formatters';
 import AddMemberModal from '../components/Members/AddMemberModal';
 import EditMemberModal from '../components/Members/EditMemberModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
 
 
 
@@ -187,9 +187,12 @@ export default function Members() {
           {isLoading ? <SkeletonTable rows={8} cols={8} /> :
           members.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-gray-500 mb-2">No members found</p>
-              {(filters.query || filters.status || filters.plan || filters.location) && (
+              <p className="text-3xl mb-3">📭</p>
+              <p className="text-sm text-gray-500 mb-1">No members found</p>
+              {(filters.query || filters.status || filters.plan || filters.location) ? (
                 <button type="button" onClick={() => { setFilter('query', ''); setFilter('status', ''); setFilter('plan', ''); setFilter('location', ''); }} className="text-sm text-red-600 hover:underline">Clear filters</button>
+              ) : (
+                <p className="text-xs text-gray-400">Add your first member to get started</p>
               )}
             </div>
           ) : (

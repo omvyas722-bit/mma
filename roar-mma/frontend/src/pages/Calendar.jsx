@@ -33,6 +33,7 @@ export default function Calendar() {
       });
       return response.data;
     },
+    staleTime: 10000,
   });
 
   const createEvent = useMutation({

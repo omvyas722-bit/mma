@@ -24,7 +24,7 @@ class StorageManager {
       this.storage.setItem(fullKey, JSON.stringify(data));
       return true;
     } catch (error) {
-      console.error('Storage set error:', error);
+      if (import.meta.env.DEV) console.error('Storage set error:', error);
       return false;
     }
   }
@@ -47,7 +47,7 @@ class StorageManager {
 
       return data.value;
     } catch (error) {
-      console.error('Storage get error:', error);
+      if (import.meta.env.DEV) console.error('Storage get error:', error);
       return defaultValue;
     }
   }
@@ -59,7 +59,7 @@ class StorageManager {
       this.storage.removeItem(fullKey);
       return true;
     } catch (error) {
-      console.error('Storage remove error:', error);
+      if (import.meta.env.DEV) console.error('Storage remove error:', error);
       return false;
     }
   }
@@ -75,7 +75,7 @@ class StorageManager {
       }
       return true;
     } catch (error) {
-      console.error('Storage clear error:', error);
+      if (import.meta.env.DEV) console.error('Storage clear error:', error);
       return false;
     }
   }

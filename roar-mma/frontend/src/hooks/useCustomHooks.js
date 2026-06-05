@@ -78,7 +78,7 @@ export function useLocalStorage(key, initialValue) {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.error('Error reading from localStorage:', error);
+      if (import.meta.env.DEV) console.error('Error reading from localStorage:', error);
       return initialValue;
     }
   });
@@ -92,7 +92,7 @@ export function useLocalStorage(key, initialValue) {
           return valueToStore;
         });
       } catch (error) {
-        console.error('Error writing to localStorage:', error);
+        if (import.meta.env.DEV) console.error('Error writing to localStorage:', error);
       }
     },
     [key]
@@ -103,7 +103,7 @@ export function useLocalStorage(key, initialValue) {
       window.localStorage.removeItem(key);
       setStoredValue(initialValue);
     } catch (error) {
-      console.error('Error removing from localStorage:', error);
+      if (import.meta.env.DEV) console.error('Error removing from localStorage:', error);
     }
   }, [key, initialValue]);
 
@@ -117,7 +117,7 @@ export function useSessionStorage(key, initialValue) {
       const item = window.sessionStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.error('Error reading from sessionStorage:', error);
+      if (import.meta.env.DEV) console.error('Error reading from sessionStorage:', error);
       return initialValue;
     }
   });
@@ -131,7 +131,7 @@ export function useSessionStorage(key, initialValue) {
           return valueToStore;
         });
       } catch (error) {
-        console.error('Error writing to sessionStorage:', error);
+        if (import.meta.env.DEV) console.error('Error writing to sessionStorage:', error);
       }
     },
     [key]
@@ -306,7 +306,7 @@ export function useCopyToClipboard() {
 
   const copy = useCallback(async (text) => {
     if (!navigator?.clipboard) {
-      console.warn('Clipboard not supported');
+      if (import.meta.env.DEV) console.warn('Clipboard not supported');
       return false;
     }
 
@@ -315,7 +315,7 @@ export function useCopyToClipboard() {
       setCopiedText(text);
       return true;
     } catch (error) {
-      console.error('Failed to copy:', error);
+      if (import.meta.env.DEV) console.error('Failed to copy:', error);
       setCopiedText(null);
       return false;
     }
@@ -444,7 +444,7 @@ export function useForm(initialValues = {}, onSubmit) {
         await onSubmitRef.current(valuesRef.current);
         resetForm();
       } catch (error) {
-        console.error('Form submission error:', error);
+        if (import.meta.env.DEV) console.error('Form submission error:', error);
       } finally {
         setIsSubmitting(false);
       }

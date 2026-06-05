@@ -1,7 +1,7 @@
 // Export Utilities - CSV and Excel Generation
 export function exportToCSV(data, filename = 'export.csv', columns = null) {
   if (!data || data.length === 0) {
-    console.warn('No data to export');
+    if (import.meta.env.DEV) console.warn('No data to export');
     return;
   }
 
@@ -24,7 +24,7 @@ export function exportToCSV(data, filename = 'export.csv', columns = null) {
 
 export function exportToJSON(data, filename = 'export.json') {
   if (!data) {
-    console.warn('No data to export');
+    if (import.meta.env.DEV) console.warn('No data to export');
     return;
   }
 
@@ -169,32 +169,3 @@ export function batchExport(exports) {
   });
 }
 
-// Usage examples:
-/*
-// Simple CSV export
-import { exportToCSV, exportMembersToCSV } from './lib/exportUtils';
-
-// Export members
-exportMembersToCSV(members);
-
-// Export custom data
-exportToCSV(myData, 'custom-export.csv');
-
-// Export with custom template
-exportWithTemplate(
-  members,
-  {
-    'Full Name': (row) => `${row.first_name} ${row.last_name}`,
-    'Contact': (row) => `${row.email} / ${row.phone}`,
-    'Status': 'membership_status',
-  },
-  'members-formatted.csv'
-);
-
-// Batch export
-batchExport([
-  { data: members, filename: 'members.csv' },
-  { data: payments, filename: 'payments.csv' },
-  { data: attendance, filename: 'attendance.csv' },
-]);
-*/

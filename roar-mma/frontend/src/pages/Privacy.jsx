@@ -161,7 +161,7 @@ function DataExport() {
   const [memberResults, setMemberResults] = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
 
-  const { data: exports = [] } = useQuery({
+  const { data: exports = [], isLoading: exportsLoading } = useQuery({
     queryKey: ['data-exports'],
     queryFn: () => api.get('/api/privacy/exports').then(r => r.data?.exports || []),
   });
@@ -196,7 +196,9 @@ function DataExport() {
         <button onClick={() => requestExport.mutate(selectedMember.id)} disabled={!selectedMember || requestExport.isPending} className="btn-primary text-sm">{requestExport.isPending ? 'Requesting...' : 'Request Export'}</button>
       </div>
 
-      {exports.length > 0 && (
+      {exportsLoading ? (
+        <div className="bg-white rounded-lg shadow p-4"><div className="animate-pulse space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded"></div>)}</div></div>
+      ) : exports.length > 0 ? (
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Export History</h3>
           <div className="space-y-2">
@@ -210,6 +212,10 @@ function DataExport() {
               </div>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <p className="text-xs text-gray-400">No export history</p>
         </div>
       )}
     </div>

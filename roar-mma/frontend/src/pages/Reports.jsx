@@ -36,12 +36,14 @@ export default function Reports() {
       return {};
     },
     enabled: !needsBackend || reportType !== 'eod_history',
+    staleTime: 300000,
   });
 
   const { data: eodData = [], isLoading: eodLoading } = useQuery({
     queryKey: ['eod-reports', dateFrom, dateTo],
     queryFn: async () => { const r = await api.get('/api/reports/eod_history', { params: { date_from: dateFrom, date_to: dateTo } }); return r.data?.reports || []; },
     enabled: reportType === 'eod_history',
+    staleTime: 300000,
   });
 
   return (
@@ -140,6 +142,12 @@ export default function Reports() {
           {reportType === 'retention' && <RetentionReport data={report} />}
           {reportType === 'social_media' && <SocialMediaReport data={report} />}
         </>
+      ) : !isError && !isLoading ? (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <p className="text-3xl mb-3">📊</p>
+          <p className="text-sm text-gray-500 mb-1">No report data</p>
+          <p className="text-xs text-gray-400">Select a report type and date range to generate a report</p>
+        </div>
       ) : null}
       {reportType === 'eod_history' && <EODHistoryReport data={eodData} loading={eodLoading} />}
     </div>

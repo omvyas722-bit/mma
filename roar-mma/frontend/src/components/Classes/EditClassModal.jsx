@@ -1,7 +1,7 @@
 // Edit Class Modal Component
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import Modal from '../Shared/Modal';
+import Modal from '../Modal';
 import api from '../../lib/api';
 import { ClassFormFields, initialClassForm, validateClassForm } from './ClassFormFields';
 

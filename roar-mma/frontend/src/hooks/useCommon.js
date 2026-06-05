@@ -52,7 +52,7 @@ export function useManagedForm(initialValues, validator) {
         try {
           await onSubmit(values);
         } catch (error) {
-          console.error('Form submission error:', error);
+          if (import.meta.env.DEV) console.error('Form submission error:', error);
           setErrors(typeof error?.response?.data?.error === 'object' ? error.response.data.error : { form: error?.response?.data?.error || error.message || 'Form submission failed' });
         }
       }

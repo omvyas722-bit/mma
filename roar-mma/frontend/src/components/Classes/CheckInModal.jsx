@@ -1,11 +1,10 @@
 // Class Check-in Modal Component
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Modal from '../Shared/Modal';
+import Modal, { ConfirmDialog } from '../Modal';
 import api from '../../lib/api';
 import { useDebounce } from '../../hooks/useCommon';
 import { useNotifications } from '../../contexts/NotificationContext';
-import ConfirmDialog from '../Shared/ConfirmDialog';
 
 export default function CheckInModal({ isOpen, onClose, classInstance }) {
   const queryClient = useQueryClient();
@@ -54,7 +53,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
       setSearchQuery('');
     },
     onError: (err) => {
-      console.error('Error checking in members:', err);
+      if (import.meta.env.DEV) console.error('Error checking in members:', err);
       error('Failed to check in members. Please try again.');
     }
   });
@@ -70,7 +69,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
       refetchAttendees();
     },
     onError: (err) => {
-      console.error('Error removing attendee:', err);
+      if (import.meta.env.DEV) console.error('Error removing attendee:', err);
       error('Failed to remove attendee. Please try again.');
     }
   });
@@ -144,6 +143,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name, email, or phone..."
+            aria-label="Search members"
             className="input mb-2"
           />
 
@@ -162,6 +162,9 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
                       <div
                         key={member.id}
                         onClick={() => !alreadyCheckedIn && toggleMemberSelection(member)}
+                        role="button"
+                        tabIndex={alreadyCheckedIn ? -1 : 0}
+                        onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !alreadyCheckedIn) toggleMemberSelection(member); }}
                         className={`p-3 cursor-pointer hover:bg-gray-50 ${
                           isSelected ? 'bg-blue-50' : ''
                         } ${alreadyCheckedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -174,10 +177,10 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
                             <p className="text-xs text-gray-500">{member.email}</p>
                           </div>
                           {alreadyCheckedIn && (
-                            <span className="badge badge-green text-xs">Checked In</span>
+                            <span className="badge badge-green text-xs" aria-label="Checked in">Checked In</span>
                           )}
                           {isSelected && !alreadyCheckedIn && (
-                            <span className="badge badge-blue text-xs">Selected</span>
+                            <span className="badge badge-blue text-xs" aria-label="Selected for check-in">Selected</span>
                           )}
                         </div>
                       </div>
@@ -204,6 +207,7 @@ export default function CheckInModal({ isOpen, onClose, classInstance }) {
                     <button type="button"
                       onClick={() => toggleMemberSelection(member)}
                       className="ml-1 hover:text-red-600"
+                      aria-label={`Remove ${member.first_name} ${member.last_name}`}
                     >
                       ×
                     </button>

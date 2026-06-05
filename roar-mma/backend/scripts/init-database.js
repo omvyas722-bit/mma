@@ -122,6 +122,21 @@ function initDatabase(seedDefaults = false) {
     }
   }
 
+  // Patch: staff table must_change_password column
+  if (!applied.has('patch_staff_must_change_password')) {
+    try {
+      const staffCols = db.prepare("PRAGMA table_info('staff')").all().map(c => c.name);
+      if (!staffCols.includes('must_change_password')) {
+        db.exec("ALTER TABLE staff ADD COLUMN must_change_password INTEGER DEFAULT 0");
+        console.log('[DB] Patch staff.must_change_password added');
+      }
+      db.prepare('INSERT OR IGNORE INTO schema_version (version, name, checksum, duration_ms, success) VALUES (?, ?, ?, ?, 1)')
+        .run(-27, 'patch_staff_must_change_password', '', 0);
+    } catch (e) {
+      console.log('[DB] Patch staff.must_change_password error:', e.message);
+    }
+  }
+
   console.log('Running migrations...\n');
 
   migrations.forEach((filename, index) => {
@@ -213,8 +228,8 @@ function seedDefaultData(db) {
 
   try {
     db.prepare(`
-      INSERT INTO staff (name, email, password_hash, role, active)
-      VALUES (?, ?, ?, ?, 1)
+      INSERT INTO staff (name, email, password_hash, role, active, must_change_password)
+      VALUES (?, ?, ?, ?, 1, 1)
     `).run('Admin User', 'admin@roarmma.com.au', hashedPassword, 'owner');
     console.log('✅ Admin user created');
     console.log('   Email: admin@roarmma.com.au');

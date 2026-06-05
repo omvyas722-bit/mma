@@ -98,6 +98,7 @@ function ComposeModal({ onClose }) {
     queryKey: ['member-search', memberSearch],
     queryFn: async () => { const r = await api.get(`/api/members?query=${encodeURIComponent(memberSearch)}&limit=10`); return r.data?.members || []; },
     enabled: memberSearch.length >= 2,
+    staleTime: 10000,
   });
 
   function toggleMember(m) {
@@ -220,6 +221,7 @@ function TemplatesPanel() {
     queryKey: ['message-templates'],
     queryFn: async () => { const r = await api.get('/api/message-templates'); return r.data?.templates || []; },
     retry: 2,
+    staleTime: 300000,
   });
 
   const queryClient = useQueryClient();
@@ -307,6 +309,7 @@ function ScheduledPanel() {
     queryKey: ['scheduled-messages', 'pending'],
     queryFn: async () => { const r = await api.get('/api/scheduled-messages?status=pending'); return r.data?.scheduled_messages || []; },
     retry: 2,
+    staleTime: 10000,
   });
 
   const cancel = useMutation({
@@ -342,6 +345,7 @@ function ApprovalPanel() {
     queryFn: async () => { const r = await api.get('/api/ai/pending-approval'); return r.data?.pending || []; },
     retry: 2,
     refetchInterval: 15000,
+    staleTime: 5000,
   });
 
   const queryClient = useQueryClient();
@@ -480,7 +484,7 @@ function AutomatedMessagesPanel() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ trigger_event: 'birthday', title: '', body: '', channel: 'email', enabled: 1 });
 
-  const { data: msgs = [], isLoading } = useQuery({ queryKey: ['automated-messages'], queryFn: () => api.get('/api/automated-messages').then(r => r.data?.messages || []) });
+  const { data: msgs = [], isLoading } = useQuery({ queryKey: ['automated-messages'], queryFn: () => api.get('/api/automated-messages').then(r => r.data?.messages || []), staleTime: 300000 });
 
   const createTrigger = useMutation({
     mutationFn: (d) => api.post('/api/automated-messages', d),

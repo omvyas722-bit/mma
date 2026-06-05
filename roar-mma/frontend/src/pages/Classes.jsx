@@ -6,7 +6,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import AddClassModal from '../components/Classes/AddClassModal';
 import EditClassModal from '../components/Classes/EditClassModal';
 import CheckInModal from '../components/Classes/CheckInModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
 import { ContextMenu } from '../components/Dropdown';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -236,6 +236,7 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
     queryKey: ['class-roster', instance.id],
     queryFn: async () => { const r = await api.get(`/api/classes/instances/${instance.id}/roster`); return r.data; },
     enabled: !!instance.id,
+    staleTime: 10000,
   });
 
   const rosterData = Array.isArray(roster) ? roster : [];

@@ -13,11 +13,13 @@ export default function Gradings() {
   const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['grading-sessions', sessionFilter],
     queryFn: async () => { const p = sessionFilter ? `?status=${sessionFilter}` : ''; const r = await api.get(`/api/grading/sessions${p}`); return r.data?.sessions || []; },
+    staleTime: 10000,
   });
 
   const { data: belts } = useQuery({
     queryKey: ['belt-levels'],
     queryFn: async () => { const r = await api.get('/api/grading/belts'); return r.data?.belts || []; },
+    staleTime: 300000,
   });
 
   const createSession = useMutation({
@@ -95,6 +97,7 @@ function ParticipantsModal({ session, onClose }) {
     queryKey: ['grading-participants', session?.id],
     queryFn: async () => { const r = await api.get(`/api/grading/sessions/${session.id}/participants`); return r.data?.participants || []; },
     enabled: !!session,
+    staleTime: 10000,
   });
   if (!session) return null;
   return (

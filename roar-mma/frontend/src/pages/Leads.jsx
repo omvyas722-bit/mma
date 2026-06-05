@@ -6,7 +6,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import AddLeadModal from '../components/Leads/AddLeadModal';
 import TrialTrackingModal from '../components/Leads/TrialTrackingModal';
 import CSVImportModal from '../components/Leads/CSVImportModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
 
 const STAGES = ['new', 'contacted', 'trial_booked', 'trial_completed', 'converted'];
 const STAGE_LABELS = { new: 'New Leads', contacted: 'Contacted', trial_booked: 'Trial Booked', trial_completed: 'Trial Done', converted: 'Converted ✓' };
@@ -160,7 +160,9 @@ export default function Leads() {
                     <span className="text-xs font-medium text-gray-400 bg-gray-200 rounded-full px-2 py-0.5" aria-label={`${(grouped[stage] || []).length} leads`}>{grouped[stage]?.length || 0}</span>
                   </div>
                   <div className="space-y-2 min-h-[200px]">
-                    {(grouped[stage] || []).map(lead => (
+                    {(grouped[stage] || []).length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">No leads in this stage</p>
+                    ) : (grouped[stage] || []).map(lead => (
                       <LeadCard key={lead.id} lead={lead} overdue={isOverdue(lead)}
                         onClick={() => setDetailLead(lead)} onDelete={() => setDeletingLead(lead)}
                         onTrack={() => { setTrackingLead(lead); }} onConvert={() => convertLead.mutate(lead.id)} />
@@ -236,12 +238,14 @@ function LeadsAnalytics() {
     queryKey: ['lead-stats'],
     queryFn: async () => { const r = await api.get('/api/leads/stats'); return r.data; },
     retry: 2,
+    staleTime: 30000,
   });
 
   const { data: winback } = useQuery({
     queryKey: ['lead-winback'],
     queryFn: async () => { const r = await api.get('/api/leads/winback'); return r.data?.leads || []; },
     retry: 2,
+    staleTime: 30000,
   });
 
   const funnel = useMemo(() => {
@@ -422,6 +426,7 @@ function LeadDetail({ lead, onClose, onEdit, onTrack, onConvert, onMarkLost, onD
     queryKey: ['lead-interactions', lead.id],
     queryFn: async () => { const r = await api.get(`/api/leads/${lead.id}/interactions`); return r.data; },
     enabled: !!lead.id,
+    staleTime: 10000,
   });
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();

@@ -36,6 +36,7 @@ function POSScreen() {
   const { data: products = [] } = useQuery({
     queryKey: ['stock-products'],
     queryFn: async () => { const r = await api.get('/api/stock/products?active=true'); return r.data?.products || []; },
+    staleTime: 10000,
   });
 
   const [cart, setCart] = useState([]);
@@ -77,6 +78,7 @@ function POSScreen() {
     queryKey: ['pos-member-search', memberSearch],
     queryFn: async () => { const r = await api.get(`/api/members?query=${encodeURIComponent(memberSearch)}&limit=5`); return r.data?.members || []; },
     enabled: memberSearch.length >= 2,
+    staleTime: 10000,
   });
 
   const addToCart = (p) => {
@@ -266,6 +268,7 @@ function ProductList() {
     queryKey: ['stock-products', 'all'],
     queryFn: async () => { const r = await api.get('/api/stock/products'); return r.data?.products || []; },
     retry: 2,
+    staleTime: 10000,
   });
 
   const saveProduct = useMutation({
@@ -400,6 +403,7 @@ function StockAlerts() {
     queryKey: ['stock-alerts'],
     queryFn: async () => { const r = await api.get('/api/stock/alerts'); return r.data?.alerts || []; },
     retry: 2,
+    staleTime: 10000,
   });
   const queryClient = useQueryClient();
   const { success } = useNotifications();

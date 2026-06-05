@@ -19,6 +19,7 @@ export default function Waivers() {
   const { data: templatesData, isLoading: tplsLoading } = useQuery({
     queryKey: ['waiver-templates'],
     queryFn: async () => { const r = await api.get('/api/waivers/templates'); return r.data; },
+    staleTime: 300000,
   });
   const templates = templatesData?.templates || [];
 
@@ -26,6 +27,7 @@ export default function Waivers() {
     queryKey: ['member-waivers', memberId],
     queryFn: async () => { const r = await api.get(`/api/waivers/member/${memberId}`); return r.data; },
     enabled: !!memberId,
+    staleTime: 10000,
   });
   const memberWaiversList = memberWaiversData?.waivers || [];
 

@@ -48,8 +48,8 @@ function ComposeTab({ onSwitch, success, error }) {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: platformsData } = useQuery({ queryKey: ['social-platforms'], queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []) });
-  const { data: templatesData } = useQuery({ queryKey: ['social-templates'], queryFn: () => api.get('/api/social-media/templates').then(r => r.data?.templates || []) });
+  const { data: platformsData } = useQuery({ queryKey: ['social-platforms'], queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []), staleTime: 300000 });
+  const { data: templatesData } = useQuery({ queryKey: ['social-templates'], queryFn: () => api.get('/api/social-media/templates').then(r => r.data?.templates || []), staleTime: 300000 });
 
   const createPost = useMutation({
     mutationFn: (data) => api.post('/api/social-media/posts', data),
@@ -146,6 +146,7 @@ function CalendarTab({ onSwitch, success, error }) {
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['social-posts'],
     queryFn: () => api.get('/api/social-media/posts').then(r => r.data?.posts || []),
+    staleTime: 10000,
   });
 
   const handleDelete = useMutation({
@@ -218,16 +219,19 @@ function AnalyticsTab({ onSwitch }) {
   const { data, isLoading } = useQuery({
     queryKey: ['social-analytics'],
     queryFn: () => api.get('/api/social-media/analytics').then(r => r.data),
+    staleTime: 300000,
   });
 
   const { data: platformData } = useQuery({
     queryKey: ['social-platforms'],
     queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []),
+    staleTime: 300000,
   });
 
   const { data: leadCorr } = useQuery({
     queryKey: ['lead-correlation'],
     queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data),
+    staleTime: 300000,
   });
 
   const metrics = [
@@ -316,8 +320,8 @@ function CampaignsTab({ success, error }) {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
 
-  const { data: campaigns = [] } = useQuery({ queryKey: ['social-campaigns'], queryFn: () => api.get('/api/social-media/campaigns').then(r => r.data?.campaigns || []) });
-  const { data: leadCorr } = useQuery({ queryKey: ['lead-correlation'], queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data) });
+  const { data: campaigns = [] } = useQuery({ queryKey: ['social-campaigns'], queryFn: () => api.get('/api/social-media/campaigns').then(r => r.data?.campaigns || []), staleTime: 10000 });
+  const { data: leadCorr } = useQuery({ queryKey: ['lead-correlation'], queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data), staleTime: 300000 });
 
   const delCampaign = useMutation({
     mutationFn: (id) => api.delete(`/api/social-media/campaigns/${id}`),
@@ -391,7 +395,7 @@ function CampaignForm({ onClose, queryClient, success, error }) {
 }
 
 function CampaignDetail({ campaign, onBack, onDelete }) {
-  const { data: detail } = useQuery({ queryKey: ['campaign-detail', campaign.id], queryFn: () => api.get(`/api/social-media/campaigns/${campaign.id}`).then(r => r.data), enabled: !!campaign.id });
+  const { data: detail } = useQuery({ queryKey: ['campaign-detail', campaign.id], queryFn: () => api.get(`/api/social-media/campaigns/${campaign.id}`).then(r => r.data), enabled: !!campaign.id, staleTime: 10000 });
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -428,6 +432,7 @@ function PlatformsTab({ onSwitch, success, error }) {
   const { data: platforms = [], isLoading } = useQuery({
     queryKey: ['social-platforms'],
     queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []),
+    staleTime: 300000,
   });
 
   const handleConnect = useMutation({

@@ -48,6 +48,13 @@ apiClient.interceptors.request.use(
 // Response interceptor - handle errors and logging
 apiClient.interceptors.response.use(
   (response) => {
+    if (typeof response.data === 'string' && response.data.length > 0) {
+      const ct = response.headers?.['content-type'] || '';
+      if (!ct.includes('application/json') && !ct.includes('text/javascript')) {
+        throw new Error(`Non-JSON response from ${response.config?.url || 'API'}. Expected JSON but got ${ct || 'unknown content type'}.`);
+      }
+    }
+
     if (response.config) {
       logger.apiSuccess(
         response.config.method.toUpperCase(),

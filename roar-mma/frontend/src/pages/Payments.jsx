@@ -5,7 +5,7 @@ import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { PageLoader } from '../components/Shared/Spinner';
-import Modal from '../components/Shared/Modal';
+import Modal from '../components/Modal';
 
 export default function Payments() {
   const [statusFilter, setStatusFilter] = useState('');

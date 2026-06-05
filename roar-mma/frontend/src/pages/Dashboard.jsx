@@ -30,6 +30,7 @@ function useAiStatus() {
     queryFn: async () => { const r = await api.get('/api/ai/status'); return r.data; },
     refetchInterval: 30000,
     retry: 1,
+    staleTime: 5000,
   });
 }
 
