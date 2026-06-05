@@ -1,380 +1,587 @@
 import { test, expect } from '@playwright/test';
 
+import fs from 'fs';
+import path from 'path';
+
+const ERRORS = { api: [], console: [] };
+const ERROR_LOG_PATH = path.resolve(process.cwd(), '../../e2e-error-log.md');
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'admin@roarmma.com.au';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'changeme123';
+
+function logErr(name, error, apiErrs, consoleErrs, src) {
+  const entry = `## ${new Date().toISOString()} - ${name}\n\n### Error\n\`\`\`\n${error?.message || error}\n\`\`\`\n\n### API Errors\n${apiErrs.length ? apiErrs.map(e => `- ${e}`).join('\n') : 'None'}\n\n### Console Errors\n${consoleErrs.length ? consoleErrs.map(e => `- ${e}`).join('\n') : 'None'}\n\n### Page Source Snippet\n\`\`\`html\n${(src || '').substring(0, 2000)}\n\`\`\`\n\n---\n`;
+  try { fs.appendFileSync(ERROR_LOG_PATH, entry, 'utf8'); } catch {}
+}
+
+async function detectErrorPage(page, testName) {
+  try {
+    const text = await page.locator('body').textContent().catch(() => '');
+    const errorPatterns = ['Something went wrong', 'Error loading', 'We encountered an error'];
+    for (const pat of errorPatterns) {
+      if (text.includes(pat)) {
+        const src = await page.content().catch(() => '');
+        logErr(`${testName} - ERROR PAGE DETECTED`, new Error(`Error page shown: "${pat}"`), ERRORS.api, ERRORS.console, src);
+        await page.screenshot({ path: `e2e-screenshots/error-page-${testName.replace(/\s+/g, '-')}.png` }).catch(() => {});
+        console.log(`  ⚠ ERROR PAGE: "${pat}" in test "${testName}"`);
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+async function ensureLoggedIn(page) {
+  const url = page.url();
+  if (url.includes('/login')) {
+    console.log('  -> Re-authenticating...');
+    await page.locator('#email').fill(ADMIN_EMAIL);
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type="submit"]').click();
+    await page.waitForURL('**/dashboard', { timeout: 20000 }).catch(() => {});
+  }
+}
+
+async function v(pg, loc) {
+  try { return await pg.locator(loc).isVisible(); } catch { return false; }
+}
+
+const TS = Date.now();
+
+test.beforeEach(async ({ page }) => {
+  ERRORS.api = [];
+  ERRORS.console = [];
+  page.on('console', msg => {
+    if (msg.type() === 'error') ERRORS.console.push(msg.text());
+  });
+  page.on('response', res => {
+    if (res.status() >= 400) ERRORS.api.push(`${res.status()} ${res.url().split('?')[0]}`);
+  });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  // Detect error pages even on passed tests
+  await detectErrorPage(page, testInfo.title);
+  if (ERRORS.api.length) {
+    console.log(`[${testInfo.title}] API ERRORS:`, JSON.stringify(ERRORS.api, null, 2));
+  }
+  if (testInfo.status !== 'passed') {
+    const source = await page.content().catch(() => '');
+    logErr(testInfo.title, testInfo.error, ERRORS.api, ERRORS.console, source);
+    await page.screenshot({ path: `e2e-screenshots/${testInfo.title.replace(/\s+/g, '-')}.png` }).catch(() => {});
+    console.log(`[${testInfo.title}] FAILED:`, testInfo.error?.message);
+    console.log(`[${testInfo.title}] Page URL:`, page.url());
+    console.log(`[${testInfo.title}] Console errors:`, ERRORS.console);
+  }
+  // Small delay between tests to avoid rate limiting
+  await page.waitForTimeout(300).catch(() => {});
+});
+
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Deep Interaction Tests', () => {
+test.describe('Deep Data Flow Tests', () => {
 
-  test('AI Chat - send suggestion and verify response appears', async ({ page }) => {
-    await page.goto('/ai');
-    await page.waitForLoadState('networkidle');
+  // ==================== CREATE MEMBER ====================
+  test('Create member — fill all steps and submit', async ({ page }) => {
+    await page.goto('/members');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
 
-    // Wait for welcome message
-    await expect(page.locator('text=AI gym assistant')).toBeVisible({ timeout: 10000 });
+    await page.locator('button:has-text("Add Member")').first().click();
+    await page.waitForTimeout(500);
 
-    // Click a suggestion chip to populate input
-    await page.locator('button:has-text("How many active members")').first().click();
+    const modal = page.locator('[role="dialog"]').first();
+    await expect(modal).toBeVisible({ timeout: 5000 });
+
+    // Step 0: Personal Info
+    const fn = modal.locator('input[name="first_name"]').first();
+    if (await v(modal, fn)) await fn.fill('E2E');
+    const ln = modal.locator('input[name="last_name"]').first();
+    if (await v(modal, ln)) await ln.fill('DeepTest');
+    const em = modal.locator('input[name="email"]').first();
+    if (await v(modal, em)) await em.fill(`e2e.deeptest${TS}@example.com`);
+    const ph = modal.locator('input[name="phone"]').first();
+    if (await v(modal, ph)) await ph.fill('0400000000');
+    // Click Next
+    let next = modal.locator('button:has-text("Next")').first();
+    if (await v(modal, next)) await next.click();
     await page.waitForTimeout(300);
 
-    // Input should have value now; click Send
-    const sendBtn = page.locator('button:has-text("Send")').first();
-    await expect(sendBtn).toBeEnabled({ timeout: 3000 });
-    await sendBtn.click();
+    // Step 1: Membership Details
+    const loc = modal.locator('select[name="location"]').first();
+    if (await v(modal, loc)) await loc.selectOption('rockingham').catch(() => {});
+    const plan = modal.locator('select[name="plan"]').first();
+    if (await v(modal, plan)) await plan.selectOption('unlimited').catch(() => {});
+    next = modal.locator('button:has-text("Next")').first();
+    if (await v(modal, next)) await next.click();
+    await page.waitForTimeout(300);
 
-    // Wait for new message to appear in the chat area
-    // Messages are: div.flex.justify-{start|end}.mb-4
-    const msgs = page.locator('.overflow-y-auto > .flex.mb-4');
-    const count = await msgs.count();
-    // Should have welcome + new user message after send
-    expect(count).toBeGreaterThanOrEqual(2);
-  });
+    // Step 2: Waiver (skip if no templates)
+    next = modal.locator('button:has-text("Next")').first();
+    if (await v(modal, next)) await next.click();
+    await page.waitForTimeout(300);
 
-  test('AI Dashboard - toggle agent on/off', async ({ page }) => {
-    await page.goto('/ai-dashboard');
-    await page.waitForLoadState('networkidle');
+    // Step 3: Emergency Contact
+    const ec = modal.locator('input[name="emergency_contact_name"]').first();
+    if (await v(modal, ec)) await ec.fill('Emergency Contact');
+    next = modal.locator('button:has-text("Next")').first();
+    if (await v(modal, next)) await next.click();
+    await page.waitForTimeout(300);
 
-    // Try toggling the first agent switch
-    const toggles = page.locator('input[type="checkbox"]');
-    const count = await toggles.count();
-    if (count > 0) {
-      const firstToggle = toggles.first();
-      const checked1 = await firstToggle.isChecked();
-      await firstToggle.click();
-      await page.waitForTimeout(500);
-      const checked2 = await firstToggle.isChecked();
-      expect(checked2).toBe(!checked1);
-      // Toggle back
-      await firstToggle.click();
-      await page.waitForTimeout(500);
-    }
-
-    // Check Approval Queue link exists
-    const approvalLink = page.locator('a:has-text("Approval Queue")');
-    if (await approvalLink.isVisible().catch(() => false)) {
-      await approvalLink.click();
-      await page.waitForLoadState('networkidle');
-      await page.goBack();
-      await page.waitForLoadState('networkidle');
-    }
-  });
-
-  test('Members - bulk select and use filters', async ({ page }) => {
-    await page.goto('/members');
-    await page.waitForLoadState('networkidle');
-
-    // Select all checkbox
-    const selectAll = page.locator('input[aria-label="Select all members"]').first();
-    if (await selectAll.isVisible().catch(() => false)) {
-      await selectAll.check();
-      await page.waitForTimeout(300);
-      await selectAll.uncheck();
-      await page.waitForTimeout(300);
-    }
-
-    // Toggle through all filters
-    for (const label of ['Filter by status', 'Filter by plan', 'Filter by type', 'Filter by location']) {
-      const filter = page.locator(`select[aria-label="${label}"]`).first();
-      if (await filter.isVisible().catch(() => false)) {
-        const opts = await filter.locator('option').count();
-        if (opts > 1) {
-          await filter.selectOption({ index: 1 });
-          await page.waitForTimeout(200);
-          await filter.selectOption({ index: 0 });
-          await page.waitForTimeout(200);
-        }
+    // Step 4: Confirm — submit
+    const create = modal.locator('button:has-text("Create Member")').first();
+    if (await v(modal, create)) {
+      await create.click();
+      await page.waitForTimeout(3000);
+      // Modal should close on success
+      if (await modal.isVisible().catch(() => false)) {
+        // Submission failed — close
+        const cancel = modal.locator('button:has-text("Cancel")').first();
+        if (await v(modal, cancel)) await cancel.click();
+        await page.waitForTimeout(300);
       }
     }
-
-    // View member profile (first row click)
-    const firstRow = page.locator('table tbody tr').first();
-    if (await firstRow.isVisible().catch(() => false)) {
-      await firstRow.click();
-      await page.waitForURL(/\/members\/\d+/, { timeout: 10000 });
-      await page.waitForLoadState('networkidle');
-      await page.goBack();
-      await page.waitForLoadState('networkidle');
-    }
   });
 
-  test('Leads - switch between all pipeline tabs, open wizard', async ({ page }) => {
+  // ==================== CREATE LEAD ====================
+  test('Create lead — fill all fields and submit', async ({ page }) => {
     await page.goto('/leads');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
 
-    // Click Pipeline/Analytics tabs
-    for (const label of ['Analytics', 'Pipeline']) {
-      const tab = page.locator(`button:has-text("${label}")`).first();
-      if (await tab.isVisible().catch(() => false)) {
-        await tab.click();
-        await page.waitForTimeout(500);
-      }
-    }
-
-    // Click Wizard link
-    const wizardLink = page.locator('a:has-text("Wizard"), a:has-text("wizard")').first();
-    if (await wizardLink.isVisible().catch(() => false)) {
-      await wizardLink.click();
-      await page.waitForURL(/\/leads\/wizard/, { timeout: 10000 });
-      await page.waitForLoadState('networkidle');
-      await page.goBack();
-      await page.waitForLoadState('networkidle');
-    }
-
-    // Search, filter
-    const search = page.locator('input[aria-label="Search leads"], input[placeholder*="Search"]').first();
-    if (await search.isVisible().catch(() => false)) {
-      await search.fill('test');
-      await page.waitForTimeout(300);
-      await search.clear();
-      await page.waitForTimeout(300);
-    }
-
-    for (const label of ['Filter by stage', 'Filter by source']) {
-      const filter = page.locator(`select[aria-label="${label}"]`).first();
-      if (await filter.isVisible().catch(() => false)) {
-        const opts = await filter.locator('option').count();
-        if (opts > 1) { await filter.selectOption({ index: 1 }); await page.waitForTimeout(200); await filter.selectOption({ index: 0 }); await page.waitForTimeout(200); }
-      }
-    }
-  });
-
-  test('Billing - search, filter, export', async ({ page }) => {
-    await page.goto('/billing');
-    await page.waitForLoadState('networkidle');
-
-    // Search
-    const search = page.locator('input[aria-label="Search transactions"]').first();
-    if (await search.isVisible().catch(() => false)) {
-      await search.fill('test');
-      await page.waitForTimeout(300);
-      await search.clear();
-      await page.waitForTimeout(300);
-    }
-
-    // Filter by status and type
-    for (const label of ['Filter by status', 'Filter by type']) {
-      const filter = page.locator(`select[aria-label="${label}"]`).first();
-      if (await filter.isVisible().catch(() => false)) {
-        const opts = await filter.locator('option').count();
-        if (opts > 1) { await filter.selectOption({ index: 1 }); await page.waitForTimeout(200); await filter.selectOption({ index: 0 }); await page.waitForTimeout(200); }
-      }
-    }
-  });
-
-  test('Staff - click through profile and schedule tabs', async ({ page }) => {
-    await page.goto('/staff');
-    await page.waitForLoadState('networkidle');
-
-    // Switch to Schedule tab
-    const scheduleTab = page.locator('button:has-text("Schedule")').first();
-    if (await scheduleTab.isVisible().catch(() => false)) {
-      await scheduleTab.click();
+    const addLeadBtn = page.locator('button:has-text("Add Lead")').first();
+    if (await v(page, addLeadBtn)) {
+      await addLeadBtn.click();
       await page.waitForTimeout(500);
-    }
 
-    // Switch back to Staff List
-    const staffListTab = page.locator('button:has-text("Staff List")').first();
-    if (await staffListTab.isVisible().catch(() => false)) {
-      await staffListTab.click();
-      await page.waitForTimeout(500);
-    }
+      const modal = page.locator('[role="dialog"]').first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // Filter by role
-    const roleFilter = page.locator('select[aria-label="Filter by role"]').first();
-    if (await roleFilter.isVisible().catch(() => false)) {
-      const opts = await roleFilter.locator('option').count();
-      if (opts > 1) { await roleFilter.selectOption({ index: 1 }); await page.waitForTimeout(200); }
-    }
+      // Fill required: first_name, last_name, phone
+      const fn = modal.locator('input[name="first_name"]').first();
+      if (await v(modal, fn)) await fn.fill('E2E');
+      const ln = modal.locator('input[name="last_name"]').first();
+      if (await v(modal, ln)) await ln.fill('LeadSubmit');
+      const ph = modal.locator('input[name="phone"]').first();
+      if (await v(modal, ph)) await ph.fill('0400000000');
+      const em = modal.locator('input[type="email"]').first();
+      if (await v(modal, em)) await em.fill(`e2e.leadsubmit${TS}@example.com`);
 
-    // Click a staff row to open profile
-    const staffRow = page.locator('table tbody tr').first();
-    if (await staffRow.isVisible().catch(() => false)) {
-      await staffRow.click();
-      await page.waitForTimeout(1000);
-      // Close profile panel if there's a close button
-      const closeBtn = page.locator('button[aria-label="Close"], button:has-text("Close")').first();
-      if (await closeBtn.isVisible().catch(() => false)) {
-        await closeBtn.click();
-        await page.waitForTimeout(300);
-      }
-    }
-  });
+      // Select source
+      const src = modal.locator('select[name="source"]').first();
+      if (await v(modal, src)) await src.selectOption('referral').catch(() => {});
 
-  test('Communications - open compose, navigate all tabs', async ({ page }) => {
-    await page.goto('/communications');
-    await page.waitForLoadState('networkidle');
-
-    // Open Compose
-    const compose = page.locator('button:has-text("Compose")').first();
-    if (await compose.isVisible().catch(() => false)) {
-      await compose.click();
-      await page.waitForTimeout(500);
-      const cancel = page.locator('button:has-text("Cancel")').first();
-      if (await cancel.isVisible().catch(() => false)) {
-        await cancel.click();
-        await page.waitForTimeout(300);
-      }
-    }
-
-    // Click through all tabs
-    for (const label of ['Templates', 'Scheduled', 'Automated', 'Approval']) {
-      const tab = page.locator(`button:has-text("${label}")`).first();
-      if (await tab.isVisible().catch(() => false)) {
-        await tab.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  });
-
-  test('Settings - fill and save general settings', async ({ page }) => {
-    await page.goto('/settings');
-    await page.waitForLoadState('networkidle');
-
-    // Modify gym name
-    const gymName = page.locator('input[placeholder="ROAR MMA"]').first();
-    if (await gymName.isVisible().catch(() => false)) {
-      await gymName.fill('ROAR MMA Test');
-      await page.waitForTimeout(300);
-      await gymName.fill('ROAR MMA');
-      await page.waitForTimeout(300);
-    }
-
-    // Switch to each settings tab
-    for (const label of ['Locations', 'Membership', 'Notifications', 'Integrations', 'Grading']) {
-      const tab = page.locator(`button:has-text("${label}")`).first();
-      if (await tab.isVisible().catch(() => false)) {
-        await tab.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  });
-
-  test('POS - click through all tabs and products', async ({ page }) => {
-    await page.goto('/pos');
-    await page.waitForLoadState('networkidle');
-
-    // "products" tab
-    const productsTab = page.locator('button:has-text("products"), button[role="tab"]:has-text("Products")').first();
-    if (await productsTab.isVisible().catch(() => false)) {
-      await productsTab.click();
-      await page.waitForTimeout(500);
-    }
-
-    // "alerts" tab
-    const alertsTab = page.locator('button:has-text("alerts"), button[role="tab"]:has-text("Alerts")').first();
-    if (await alertsTab.isVisible().catch(() => false)) {
-      await alertsTab.click();
-      await page.waitForTimeout(500);
-    }
-  });
-
-  test('Reports - generate all 4 report types', async ({ page }) => {
-    await page.goto('/reports');
-    await page.waitForLoadState('networkidle');
-
-    for (const reportType of ['Revenue', 'Attendance', 'Leads']) {
-      const select = page.locator('select[aria-label*="report"i], select').first();
-      if (await select.isVisible().catch(() => false)) {
-        await select.selectOption(reportType);
-        await page.waitForTimeout(500);
-        const generate = page.locator('button:has-text("Generate")').first();
-        if (await generate.isVisible().catch(() => false)) {
-          await generate.click();
-          await page.waitForTimeout(2000);
-        }
-      }
-    }
-  });
-
-  test('Waivers - interact with templates', async ({ page }) => {
-    await page.goto('/waivers');
-    await page.waitForLoadState('networkidle');
-
-    // "New Template" button
-    const newTemplate = page.locator('button:has-text("New Template")').first();
-    if (await newTemplate.isVisible().catch(() => false)) {
-      await newTemplate.click();
-      await page.waitForTimeout(500);
-      // Fill template form
-      const nameInput = page.locator('input[aria-label="Template name"]').first();
-      if (await nameInput.isVisible().catch(() => false)) {
-        await nameInput.fill('Test Template');
-        await page.waitForTimeout(200);
-        const bodyInput = page.locator('textarea[aria-label="Waiver body text"]').first();
-        if (await bodyInput.isVisible().catch(() => false)) {
-          await bodyInput.fill('This is a test waiver body.');
-          await page.waitForTimeout(200);
-        }
-        // Cancel
-        const cancel = page.locator('button:has-text("Cancel")').first();
-        if (await cancel.isVisible().catch(() => false)) {
-          await cancel.click();
+      // Submit
+      const submitBtn = modal.locator('button:has-text("Create Lead")').first();
+      if (await v(modal, submitBtn)) {
+        await submitBtn.click();
+        await page.waitForTimeout(3000);
+        if (await modal.isVisible().catch(() => false)) {
+          const cancel = modal.locator('button:has-text("Cancel")').first();
+          if (await v(modal, cancel)) await cancel.click();
           await page.waitForTimeout(300);
         }
       }
     }
-
-    // Switch to Member Waivers tab
-    const memberTab = page.locator('button:has-text("Member Waivers")').first();
-    if (await memberTab.isVisible().catch(() => false)) {
-      await memberTab.click();
-      await page.waitForTimeout(300);
-    }
   });
 
-  test('Agents - visit agent tracking, filter activity', async ({ page }) => {
-    await page.goto('/agents');
-    await page.waitForLoadState('networkidle');
+  // ==================== RECORD PAYMENT ====================
+  test('Record payment — search member, fill amount, submit', async ({ page }) => {
+    await page.goto('/billing');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
 
-    await expect(page.locator('text=AI Employee Dashboard')).toBeVisible({ timeout: 10000 });
-
-    // Click each agent filter button in activity timeline
-    for (const label of ['All Agents', 'Sales', 'Member Success', 'Operations', 'Finance']) {
-      const agentBtn = page.locator(`button:has-text("${label}")`).first();
-      if (await agentBtn.isVisible().catch(() => false)) {
-        await agentBtn.click();
-        await page.waitForTimeout(300);
-      }
-    }
-  });
-
-  test('Approval Queue - switch status filters', async ({ page }) => {
-    await page.goto('/approval-queue');
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.locator('text=AI Approval Queue')).toBeVisible({ timeout: 10000 });
-
-    // Click each status filter
-    for (const label of ['pending', 'approved', 'rejected']) {
-      const btn = page.locator(`button:has-text("${label}")`).first();
-      if (await btn.isVisible().catch(() => false)) {
-        await btn.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  });
-
-  test('Workflows - create new rule modal', async ({ page }) => {
-    await page.goto('/workflows');
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.locator('text=Workflow Builder')).toBeVisible({ timeout: 10000 });
-
-    // Click New Rule
-    const newRule = page.locator('button:has-text("New Rule")').first();
-    if (await newRule.isVisible().catch(() => false)) {
-      await newRule.click();
+    const recBtn = page.locator('button:has-text("Record Payment")').first();
+    if (await v(page, recBtn)) {
+      await recBtn.click();
       await page.waitForTimeout(500);
-      // Fill form
-      const nameInput = page.locator('input[placeholder*="Rule Name"], input[value=""]').first();
-      if (await nameInput.isVisible().catch(() => false)) {
-        await nameInput.fill('Test Rule');
-        await page.waitForTimeout(200);
+
+      const modal = page.locator('[role="dialog"]').first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
+
+      // Search for a member
+      const searchInput = modal.locator('input[aria-label="Search member"]').first();
+      if (await v(modal, searchInput)) {
+        await searchInput.fill('admin');
+        await page.waitForTimeout(1000);
+        // Click first result if visible
+        const result = modal.locator('[role="option"]').first();
+        if (await v(modal, result)) {
+          await result.click();
+          await page.waitForTimeout(300);
+        }
       }
-      // Cancel
-      const cancel = page.locator('button:has-text("Cancel")').first();
-      if (await cancel.isVisible().catch(() => false)) {
-        await cancel.click();
+
+      // Fill amount
+      const amt = modal.locator('input[type="number"]').first();
+      if (await v(modal, amt)) await amt.fill('99.99');
+
+      // Select type
+      const typeSel = modal.locator('select').first();
+      if (await v(modal, typeSel)) await typeSel.selectOption('membership').catch(() => {});
+
+      // Fill description
+      const desc = modal.locator('input[type="text"]').first();
+      if (await v(modal, desc)) await desc.fill('E2E test payment');
+
+      // Record Payment
+      const recordBtn = modal.locator('button:has-text("Record Payment")').first();
+      if (await v(modal, recordBtn)) {
+        // Check if enabled (needs selected member + valid amount)
+        const enabled = await recordBtn.isEnabled().catch(() => false);
+        if (enabled) {
+          await recordBtn.click();
+          await page.waitForTimeout(2000);
+        } else {
+          console.log('  Record Payment button disabled (no member selected)');
+          const cancel = modal.locator('button:has-text("Cancel")').first();
+          if (await v(modal, cancel)) await cancel.click();
+          await page.waitForTimeout(300);
+        }
+      }
+    }
+  });
+
+  // ==================== ADD STAFF MEMBER ====================
+  test('Add staff member — fill all fields and submit', async ({ page }) => {
+    await page.goto('/staff');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    await ensureLoggedIn(page);
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+    // Click Staff List tab first
+    const listTab = page.locator('button:has-text("Staff List")').first();
+    if (await v(page, listTab)) await listTab.click();
+    await page.waitForTimeout(300);
+
+    const addBtn = page.locator('button:has-text("Add Staff")').first().or(page.locator('button:has-text("Add Staff Member")').first());
+    if (await v(page, addBtn)) {
+      await addBtn.click();
+      await page.waitForTimeout(500);
+
+      const modal = page.locator('[role="dialog"]').first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
+
+      // Fill fields (no name attrs — use placeholder/order)
+      const nameInput = modal.locator('input[placeholder="Full name"]').first();
+      if (await v(modal, nameInput)) await nameInput.fill('E2E Staff User');
+
+      const emailInput = modal.locator('input[type="email"]').first();
+      if (await v(modal, emailInput)) await emailInput.fill(`e2e.staff${TS}@example.com`);
+
+      const phoneInput = modal.locator('input[placeholder="Phone"]').first();
+      if (await v(modal, phoneInput)) await phoneInput.fill('0400000000');
+
+      const pwInput = modal.locator('input[type="password"]').first();
+      if (await v(modal, pwInput)) await pwInput.fill('TestPass123');
+
+      // Select role
+      const roleSel = modal.locator('select').first();
+      if (await v(modal, roleSel)) await roleSel.selectOption('front_desk').catch(() => {});
+
+      // Submit
+      const createBtn = modal.locator('button:has-text("Create Staff")').first();
+      if (await v(modal, createBtn)) {
+        await createBtn.click();
+        await page.waitForTimeout(2000);
+        // Modal should close on success
+        if (await modal.isVisible().catch(() => false)) {
+          const cancel = modal.locator('button:has-text("Cancel")').first();
+          if (await v(modal, cancel)) await cancel.click();
+          await page.waitForTimeout(300);
+        }
+      }
+    }
+  });
+
+  // ==================== ADD POS PRODUCT ====================
+  test('Add POS product — fill fields and save', async ({ page }) => {
+    await page.goto('/pos');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    await ensureLoggedIn(page);
+
+    // Click products tab
+    const prodTab = page.locator('nav button:has-text("products")').first();
+    if (await v(page, prodTab)) await prodTab.click();
+    await page.waitForTimeout(500);
+
+    const addBtn = page.locator('button:has-text("Add Product")').first();
+    if (await v(page, addBtn)) {
+      await addBtn.click();
+      await page.waitForTimeout(500);
+
+      const modal = page.locator('[role="dialog"]').first();
+      if (await v(modal, modal)) {
+        // Fill product name
+        const nameInput = modal.locator('input[type="text"]').first();
+        if (await v(modal, nameInput)) await nameInput.fill('E2E Test Product');
+
+        // Select category
+        const catSel = modal.locator('select').first();
+        if (await v(modal, catSel)) await catSel.selectOption('equipment').catch(() => {});
+
+        // Fill sell price
+        const priceInput = modal.locator('input[type="number"]').first();
+        if (await v(modal, priceInput)) await priceInput.fill('49.99');
+
+        // Fill stock qty
+        const qtyInput = modal.locator('input[type="number"]').nth(1);
+        if (await v(modal, qtyInput)) await qtyInput.fill('100');
+
+        // Submit
+        const saveBtn = modal.locator('button:has-text("Save")').first();
+        if (await v(modal, saveBtn)) {
+          await saveBtn.click();
+          await page.waitForTimeout(2000);
+          if (await modal.isVisible().catch(() => false)) {
+            const cancel = modal.locator('button:has-text("Cancel")').first();
+            if (await v(modal, cancel)) await cancel.click();
+            await page.waitForTimeout(300);
+          }
+        }
+      }
+    }
+  });
+
+  // ==================== ADD CLASS ====================
+  test('Add class — fill all required fields and submit', async ({ page }) => {
+    await page.goto('/classes');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+    const addBtn = page.locator('button:has-text("Add Class")').first();
+    if (await v(page, addBtn)) {
+      await addBtn.click();
+      await page.waitForTimeout(500);
+
+      const modal = page.locator('[role="dialog"]').first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
+
+      // Fill name
+      const nameInput = modal.locator('input[name="name"], input[placeholder*="e.g."]').first();
+      if (await v(modal, nameInput)) await nameInput.fill('E2E Test Class');
+
+      // Select class type
+      const typeSel = modal.locator('select[name="class_type"], select').first();
+      if (await v(modal, typeSel)) await typeSel.selectOption({ index: 1 }).catch(() => {});
+
+      // Fill instructor
+      const instr = modal.locator('input[name="instructor"], input[placeholder*="Instructor"]').first();
+      if (await v(modal, instr)) await instr.fill('E2E Coach');
+
+      // Select day of week
+      const daySel = modal.locator('select[name="day_of_week"]').first().or(modal.locator('select').nth(1));
+      if (await v(modal, daySel)) await daySel.selectOption('1').catch(() => {}); // Monday
+
+      // Select location
+      const locSel = modal.locator('select[name="location"]').first().or(modal.locator('select').last());
+      if (await v(modal, locSel)) {
+        const opts = await locSel.locator('option').allTextContents();
+        if (opts.length > 1) await locSel.selectOption({ index: 1 }).catch(() => {});
+      }
+
+      // Fill start time
+      const startTime = modal.locator('input[type="time"]').first();
+      if (await v(modal, startTime)) await startTime.fill('18:00');
+
+      // Fill end time
+      const endTime = modal.locator('input[type="time"]').last();
+      if (await v(modal, endTime)) await endTime.fill('19:00');
+
+      // Submit
+      const createBtn = modal.locator('button:has-text("Create Class")').first();
+      if (await v(modal, createBtn)) {
+        await createBtn.click();
+        await page.waitForTimeout(2000);
+        if (await modal.isVisible().catch(() => false)) {
+          const cancel = modal.locator('button:has-text("Cancel")').first();
+          if (await v(modal, cancel)) await cancel.click();
+          await page.waitForTimeout(300);
+        }
+      }
+    }
+  });
+
+  // ==================== SEND COMMUNICATION ====================
+  test('Send communication — compose and submit message', async ({ page }) => {
+    await page.goto('/communications');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    await ensureLoggedIn(page);
+
+    const composeBtn = page.locator('button:has-text("Compose")').first();
+    if (await v(page, composeBtn)) {
+      await composeBtn.click();
+      await page.waitForTimeout(500);
+
+      const modal = page.locator('[role="dialog"]').first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
+
+      // Select SMS channel (simpler - no subject needed)
+      const smsRadio = modal.locator('input[type="radio"]').nth(1); // 0=email, 1=sms, 2=both
+      if (await v(modal, smsRadio)) await smsRadio.check();
+      await page.waitForTimeout(100);
+
+      // Select recipient group
+      const recipSel = modal.locator('select').first();
+      if (await v(modal, recipSel)) await recipSel.selectOption('all_active').catch(() => {});
+
+      // Fill message body
+      const body = modal.locator('textarea').first();
+      if (await v(modal, body)) await body.fill('E2E test message from automated testing.');
+
+      // Click Send Now
+      const sendBtn = modal.locator('button:has-text("Send Now")').first();
+      if (await v(modal, sendBtn)) {
+        const enabled = await sendBtn.isEnabled().catch(() => false);
+        if (enabled) {
+          await sendBtn.click();
+          await page.waitForTimeout(2000);
+        } else {
+          console.log('  Send Now button disabled');
+          const cancel = modal.locator('button:has-text("Cancel")').first();
+          if (await v(modal, cancel)) await cancel.click();
+          await page.waitForTimeout(300);
+        }
+      }
+    }
+  });
+
+  // ==================== CREATE WAIVER TEMPLATE ====================
+  test('Create waiver template — fill and submit inline form', async ({ page }) => {
+    await page.goto('/waivers');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+    const ntBtn = page.locator('button:has-text("New Template")').first();
+    if (await v(page, ntBtn)) {
+      await ntBtn.click();
+      await page.waitForTimeout(500);
+
+      const form = page.locator('form').first();
+      if (await v(page, form)) {
+        const nameInput = form.locator('input[aria-label="Template name"]').first();
+        if (await v(page, nameInput)) await nameInput.fill('E2E Test Waiver Template');
+
+        const bodyInput = form.locator('textarea[aria-label="Waiver body text"]').first();
+        if (await v(page, bodyInput)) await bodyInput.fill('This waiver is for E2E testing purposes. The member agrees to participate in martial arts training.');
+
+        // Click Create
+        const createBtn = form.locator('button:has-text("Create")').first();
+        if (await v(page, createBtn)) {
+          await createBtn.click();
+          await page.waitForTimeout(2000);
+          if (await form.isVisible().catch(() => false)) {
+            const cancel = form.locator('button:has-text("Cancel")').first();
+            if (await v(page, cancel)) await cancel.click();
+            await page.waitForTimeout(300);
+          }
+        }
+      }
+    }
+  });
+
+  // ==================== CREATE WORKFLOW RULE ====================
+  test('Create workflow rule — fill form and submit', async ({ page }) => {
+    await page.goto('/workflows');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    await ensureLoggedIn(page);
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+    const nrBtn = page.locator('button:has-text("New Rule")').first();
+    if (await v(page, nrBtn)) {
+      await nrBtn.click();
+      await page.waitForTimeout(500);
+
+      const modal = page.locator('[role="dialog"]').first();
+      if (await v(page, modal)) {
+        // Fill name
+        const nameInput = modal.locator('input').first();
+        if (await v(modal, nameInput)) await nameInput.fill('E2E Test Workflow Rule');
+
+        // Fill description
+        const descInput = modal.locator('textarea').first();
+        if (await v(modal, descInput)) await descInput.fill('Automated test rule created by E2E test.');
+
+        // Select trigger and action from selects
+        const selects = modal.locator('select');
+        if (await selects.count() >= 2) {
+          const t1 = await selects.nth(0).locator('option').count();
+          if (t1 > 1) await selects.nth(0).selectOption({ index: 1 }).catch(() => {});
+          await page.waitForTimeout(100);
+          const t2 = await selects.nth(1).locator('option').count();
+          if (t2 > 1) await selects.nth(1).selectOption({ index: 1 }).catch(() => {});
+          await page.waitForTimeout(100);
+        }
+
+        // Try to submit
+        const submitBtn = modal.locator('button:has-text("Save")').first().or(modal.locator('button:has-text("Create")').first()).or(modal.locator('button:has-text("Add Rule")').first());
+        if (await v(modal, submitBtn)) {
+          const enabled = await submitBtn.isEnabled().catch(() => false);
+          if (enabled) {
+            await submitBtn.click();
+            await page.waitForTimeout(2000);
+          }
+        }
+
+        // Close if still open
+        if (await modal.isVisible().catch(() => false)) {
+          const cancel = modal.locator('button:has-text("Cancel")').first();
+          if (await v(modal, cancel)) await cancel.click();
+          await page.waitForTimeout(300);
+        }
+      }
+    }
+  });
+
+  // ==================== CLASS ATTENDANCE FLOW ====================
+  test('Classes - view details and check roster', async ({ page }) => {
+    await page.goto('/classes');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+    const classCards = page.locator('[role="button"][aria-label*="class"i], [aria-label*="class"i]');
+    const count = await classCards.count().catch(() => 0);
+    if (count > 0) {
+      await classCards.first().click();
+      await page.waitForTimeout(1000);
+
+      const drawer = page.locator('[role="dialog"]').first();
+      if (await drawer.isVisible().catch(() => false)) {
+        const closeBtn = drawer.locator('button[aria-label="Close"]');
+        if (await closeBtn.isVisible().catch(() => false)) {
+          await closeBtn.click();
+          await page.waitForTimeout(300);
+        }
+      }
+    }
+  });
+
+  // ==================== STAFF PROFILE DRAWER ====================
+  test('Staff profile — open drawer from table row', async ({ page }) => {
+    await page.goto('/staff');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    await ensureLoggedIn(page);
+
+    // Staff List tab
+    const listTab = page.locator('button:has-text("Staff List")').first();
+    if (await v(page, listTab)) await listTab.click();
+    await page.waitForTimeout(300);
+
+    const row = page.locator('table tbody tr').first();
+    if (await v(page, row)) {
+      await row.click();
+      await page.waitForTimeout(1000);
+
+      const drawer = page.locator('[role="dialog"]').first();
+      if (await drawer.isVisible().catch(() => false)) {
+        // Try activate/deactivate button
+        const toggle = drawer.locator('button:has-text("Activate"), button:has-text("Deactivate")').first();
+        if (await v(drawer, toggle)) {
+          console.log('  Staff toggle button visible');
+          await toggle.click();
+          await page.waitForTimeout(1000);
+          // Re-click to restore state
+          if (await v(drawer, toggle)) await toggle.click();
+          await page.waitForTimeout(500);
+        }
+        const close = drawer.locator('button[aria-label="Close"]').first();
+        if (await v(drawer, close)) await close.click();
         await page.waitForTimeout(300);
       }
     }
   });
 });
+

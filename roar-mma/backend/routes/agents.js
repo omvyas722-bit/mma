@@ -31,7 +31,7 @@ router.post('/run', authenticateToken, requirePermission('ai:manage'), async (re
     if (agentName) {
       const handler = teamAgents.get(agentName);
       if (!handler) return res.status(404).json({ error: `Agent "${agentName}" not found` });
-      const logEntry = await aiState.logActivity({ agentName, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(agentName)}`, status: 'in_progress' });
+      const logEntry = await aiState.logActivity({ agentName, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(agentName)}`, status: 'running' });
       try {
         const result = await handler({ db, aiState, openRouter, broadcast, config: {} });
         if (logEntry && logEntry.id) await aiState.updateActivityStatus(logEntry.id, 'completed');
@@ -43,7 +43,7 @@ router.post('/run', authenticateToken, requirePermission('ai:manage'), async (re
     } else {
       const results = [];
       for (const [name, handler] of teamAgents) {
-        const logEntry = await aiState.logActivity({ agentName: name, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(name)}`, status: 'in_progress' });
+        const logEntry = await aiState.logActivity({ agentName: name, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(name)}`, status: 'running' });
         try {
           const result = await handler({ db, aiState, openRouter, broadcast, config: {} });
           if (logEntry && logEntry.id) await aiState.updateActivityStatus(logEntry.id, 'completed');

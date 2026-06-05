@@ -170,11 +170,11 @@ router.get('/pending-approval', authenticateToken, requirePermission('reports:re
   try {
     const db = dbConn.getDatabase();
     const pending = db.prepare(`
-      SELECT eq.id, eq.agent, eq.payload, eq.created_at,
+      SELECT eq.id, eq.assigned_agent as agent, eq.payload, eq.created_at,
              COALESCE(l.first_name || ' ' || l.last_name, 'Unknown') as recipient_name
       FROM event_queue eq
       LEFT JOIN leads l ON l.id = json_extract(eq.payload, '$.lead_id')
-      WHERE eq.status = 'pending' AND eq.agent IS NOT NULL
+      WHERE eq.status = 'pending' AND eq.assigned_agent IS NOT NULL
       ORDER BY eq.created_at DESC
       LIMIT 50
     `).all();
