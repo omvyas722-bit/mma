@@ -43,24 +43,91 @@ function TrapFocus({ containerRef, active }) {
   }, [active, containerRef]);
 }
 
-const NAV_ITEMS = [
-  { name: 'Dashboard', path: '/dashboard', icon: '📊' },
-  { name: 'Members', path: '/members', icon: '👥' },
-  { name: 'Classes', path: '/classes', icon: '🥋' },
-  { name: 'Calendar', path: '/calendar', icon: '📅' },
-  { name: 'Leads', path: '/leads', icon: '🎯' },
-  { name: 'Communications', path: '/communications', icon: '✉️' },
-  { name: 'Billing', path: '/billing', icon: '💰' },
-  { name: 'Gradings', path: '/gradings', icon: '🥇' },
-  { name: 'POS', path: '/pos', icon: '🛒' },
-  { name: 'Coaching', path: '/coaching', icon: '🎓' },
-  { name: 'Trial Conversion', path: '/trial-conversion', icon: '🔄' },
-  { name: 'Staff', path: '/staff', icon: '👔' },
-  { name: 'Waivers', path: '/waivers', icon: '📝' },
-  { name: 'Reports', path: '/reports', icon: '📈' },
-  { name: 'Social Media', path: '/social-media', icon: '📱' },
-  { name: 'AI', path: '/ai-dashboard', icon: '🤖' },
-  { name: 'Settings', path: '/settings', icon: '⚙️' },
+const NAV_SECTIONS = [
+  {
+    label: 'Dashboard',
+    items: [
+      { name: 'Dashboard', path: '/dashboard', icon: '📊' },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { name: 'Members', path: '/members', icon: '👥' },
+      { name: 'Leads', path: '/leads', icon: '🎯' },
+      { name: 'Staff', path: '/staff', icon: '👔' },
+    ],
+  },
+  {
+    label: 'Schedule',
+    items: [
+      { name: 'Classes', path: '/classes', icon: '🥋' },
+      { name: 'Calendar', path: '/calendar', icon: '📅' },
+      { name: 'Staff Schedule', path: '/staff-schedule', icon: '🕐' },
+    ],
+  },
+  {
+    label: 'Sales & Billing',
+    items: [
+      { name: 'Billing', path: '/billing', icon: '💰' },
+      { name: 'Subscriptions', path: '/subscriptions', icon: '📋' },
+      { name: 'POS / Stock', path: '/pos', icon: '🛒' },
+      { name: 'Family Discounts', path: '/family-discounts', icon: '👪' },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { name: 'Communications', path: '/communications', icon: '✉️' },
+      { name: 'Social Media', path: '/social-media', icon: '📱' },
+      { name: 'Campaigns', path: '/social-media', icon: '📣' },
+    ],
+  },
+  {
+    label: 'Growth',
+    items: [
+      { name: 'Trial Conversion', path: '/trial-conversion', icon: '🔄' },
+      { name: 'Lead Scoring', path: '/lead-scoring', icon: '🏆' },
+      { name: 'Retention', path: '/retention', icon: '🛡️' },
+      { name: 'Makeup Classes', path: '/makeup-classes', icon: '🔁' },
+    ],
+  },
+  {
+    label: 'Training',
+    items: [
+      { name: 'Gradings', path: '/gradings', icon: '🥇' },
+      { name: 'Coaching', path: '/coaching', icon: '🎓' },
+      { name: 'PT Sessions', path: '/pt-sessions', icon: '💪' },
+      { name: 'Certifications', path: '/staff', icon: '📜' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { name: 'Waivers', path: '/waivers', icon: '📝' },
+      { name: 'Reports', path: '/reports', icon: '📈' },
+      { name: 'Workflows', path: '/workflows', icon: '⚡' },
+      { name: 'Automated Msgs', path: '/communications', icon: '🤖' },
+      { name: 'Approval Queue', path: '/approval-queue', icon: '✅' },
+    ],
+  },
+  {
+    label: 'AI',
+    items: [
+      { name: 'AI Dashboard', path: '/ai-dashboard', icon: '🤖' },
+      { name: 'AI Assistant', path: '/ai', icon: '💬' },
+      { name: 'Agent Tracking', path: '/agents', icon: '📡' },
+      { name: 'Phone System', path: '/phone-system', icon: '📞' },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { name: 'Settings', path: '/settings', icon: '⚙️' },
+      { name: 'PerfectGym', path: '/perfectgym', icon: '🔄' },
+      { name: 'Privacy', path: '/privacy', icon: '🔒' },
+    ],
+  },
 ];
 
 function Dropdown({ trigger, children, align = 'right', className = '' }) {
@@ -134,26 +201,57 @@ export default function AppShell() {
   const aiPillText = !aiStatus?.running ? 'Error' : 'Active';
   const pendingApproval = notifs.filter(n => n.type === 'ai_approval').length;
 
-  const isActive = (p) => location.pathname === p;
+  const [collapsedSections, setCollapsedSections] = useState(() => {
+    const saved = {};
+    NAV_SECTIONS.forEach((sec) => { saved[sec.label] = false; });
+    return saved;
+  });
+  const toggleSection = (label) => {
+    setCollapsedSections(prev => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const isExactPath = (path) => location.pathname === path;
+  const sectionHasActive = (section) => section.items.some(item => isExactPath(item.path));
 
   const sidebarContent = (
-    <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto" role="navigation" aria-label="Main navigation">
-      {NAV_ITEMS.map((item) => (
-        <Link
-          key={item.path}
-          to={item.path}
-          onClick={closeSidebar}
-          className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-            isActive(item.path)
-              ? 'bg-red-900/80 text-white'
-              : 'text-gray-400 hover:bg-red-900/40 hover:text-white'
-          }`}
-          aria-current={isActive(item.path) ? 'page' : undefined}
-        >
-          <span className="mr-3 text-base" aria-hidden="true">{item.icon}</span>
-          {item.name}
-        </Link>
-      ))}
+    <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto" role="navigation" aria-label="Main navigation">
+      {NAV_SECTIONS.map((section) => {
+        const hasActive = sectionHasActive(section);
+        const isCollapsed = collapsedSections[section.label] && !hasActive;
+        return (
+          <div key={section.label}>
+            <button
+              type="button"
+              onClick={() => toggleSection(section.label)}
+              className={`flex items-center w-full px-2 py-1.5 text-[11px] font-semibold uppercase tracking-widest rounded transition-colors ${hasActive ? 'text-red-400' : 'text-gray-600 hover:text-gray-400'}`}
+              aria-expanded={!isCollapsed}
+            >
+              <span className={`mr-1.5 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} aria-hidden="true">▶</span>
+              {section.label}
+            </button>
+            {!isCollapsed && (
+              <div className="space-y-0.5 ml-1">
+                {section.items.map((item) => (
+                  <Link
+                    key={item.path + item.name}
+                    to={item.path}
+                    onClick={closeSidebar}
+                    className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      isExactPath(item.path)
+                        ? 'bg-red-900/80 text-white'
+                        : 'text-gray-400 hover:bg-red-900/40 hover:text-white'
+                    }`}
+                    aria-current={isExactPath(item.path) ? 'page' : undefined}
+                  >
+                    <span className="mr-2.5 text-sm" aria-hidden="true">{item.icon}</span>
+                    <span className="truncate">{item.name}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 

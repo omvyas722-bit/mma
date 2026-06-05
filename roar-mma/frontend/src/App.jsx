@@ -34,6 +34,16 @@ const ApprovalQueue = lazy(() => import('./pages/ApprovalQueue'));
 const LeadsWizard = lazy(() => import('./pages/LeadsWizard'));
 const MemberPortal = lazy(() => import('./pages/MemberPortal'));
 const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'));
+const PerfectGymHub = lazy(() => import('./pages/PerfectGymHub'));
+const StaffSchedule = lazy(() => import('./pages/StaffSchedule'));
+const Subscriptions = lazy(() => import('./pages/Subscriptions'));
+const FamilyDiscounts = lazy(() => import('./pages/FamilyDiscounts'));
+const LeadScoring = lazy(() => import('./pages/LeadScoring'));
+const Retention = lazy(() => import('./pages/Retention'));
+const MakeupClasses = lazy(() => import('./pages/MakeupClasses'));
+const PTSessions = lazy(() => import('./pages/PTSessions'));
+const PhoneSystem = lazy(() => import('./pages/PhoneSystem'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -85,6 +95,16 @@ function App() {
                     <Route path="social-media" element={<SocialMedia />} />
                     <Route path="approval-queue" element={<ApprovalQueue />} />
                     <Route path="workflows" element={<WorkflowBuilder />} />
+                    <Route path="perfectgym" element={<PerfectGymHub />} />
+                    <Route path="staff-schedule" element={<StaffSchedule />} />
+                    <Route path="subscriptions" element={<Subscriptions />} />
+                    <Route path="family-discounts" element={<FamilyDiscounts />} />
+                    <Route path="lead-scoring" element={<LeadScoring />} />
+                    <Route path="retention" element={<Retention />} />
+                    <Route path="makeup-classes" element={<MakeupClasses />} />
+                    <Route path="pt-sessions" element={<PTSessions />} />
+                    <Route path="phone-system" element={<PhoneSystem />} />
+                    <Route path="privacy" element={<Privacy />} />
                   </Route>
 
                   <Route path="*" element={<Navigate to="/" replace />} />
