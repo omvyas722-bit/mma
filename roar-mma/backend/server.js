@@ -52,6 +52,7 @@ const documentsRoutes = require('./routes/documents');
 const pixelRoutes = require('./routes/pixel');
 const memberPortalRoutes = require('./routes/memberPortal');
 const workflowsRoutes = require('./routes/workflows');
+const settingsRoutes = require('./routes/settings');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
@@ -251,6 +252,7 @@ app.use('/api/documents', documentsRoutes);
 app.use('/api/pixel', pixelRoutes);
 app.use('/api/portal', memberPortalRoutes);
 app.use('/api/workflows', workflowsRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Settings routes (inline — no dedicated module yet)
 const defaultSettings = {

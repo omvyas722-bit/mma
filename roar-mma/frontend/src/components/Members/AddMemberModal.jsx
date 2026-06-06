@@ -4,6 +4,7 @@ import api from '../../lib/api';
 import Modal from '../Modal';
 import SignWaiverModal from '../Waivers/SignWaiverModal';
 import { PersonalInfoFields, EmergencyContactFields, MedicalGoalsFields } from './MemberFormFields';
+import { useOptions, optionLabel } from '../../lib/useOptions';
 
 const STEPS = ['Personal', 'Membership', 'Waiver', 'Emergency', 'Confirm'];
 const initialForm = {
@@ -15,6 +16,7 @@ const initialForm = {
 
 export default function AddMemberModal({ isOpen, onClose }) {
   const queryClient = useQueryClient();
+  const { data: options } = useOptions();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState(initialForm);
   const [errors, setErrors] = useState({});
@@ -127,9 +129,9 @@ export default function AddMemberModal({ isOpen, onClose }) {
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
             <select name="experience_level" value={formData.experience_level} onChange={handleChange} className="input">
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
+              {(options?.experience_levels || []).map(v => (
+                <option key={v} value={v}>{optionLabel(v)}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -143,8 +145,9 @@ export default function AddMemberModal({ isOpen, onClose }) {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
               <select name="location" value={formData.location} onChange={handleChange} className="input">
-                <option value="rockingham">Rockingham</option>
-                <option value="bibra_lake">Bibra Lake</option>
+                {(options?.locations || []).map(v => (
+                  <option key={v} value={v}>{optionLabel(v)}</option>
+                ))}
               </select>
               {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
             </div>
@@ -159,11 +162,9 @@ export default function AddMemberModal({ isOpen, onClose }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
               <select name="plan" value={formData.plan} onChange={handleChange} className="input">
                 <option value="">Select Plan</option>
-                <option value="unlimited">Unlimited</option>
-                <option value="2x_week">2x per Week</option>
-                <option value="3x_week">3x per Week</option>
-                <option value="fighter">Fighter</option>
-                <option value="pt_only">PT Only</option>
+                {(options?.plans || []).map(v => (
+                  <option key={v} value={v}>{optionLabel(v)}</option>
+                ))}
               </select>
             </div>
           </div>

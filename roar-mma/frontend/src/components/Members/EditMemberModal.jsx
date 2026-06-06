@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal from '../Modal';
 import api from '../../lib/api';
 import { PersonalInfoFields, EmergencyContactFields, MedicalGoalsFields } from './MemberFormFields';
+import { useOptions, optionLabel } from '../../lib/useOptions';
 
 const initialForm = {
   first_name: '', last_name: '', email: '', phone: '', date_of_birth: '',
@@ -15,6 +16,7 @@ const initialForm = {
 
 export default function EditMemberModal({ isOpen, onClose, member }) {
   const queryClient = useQueryClient();
+  const { data: options } = useOptions();
   const [formData, setFormData] = useState(initialForm);
   const [errors, setErrors] = useState({});
 
@@ -142,10 +144,9 @@ export default function EditMemberModal({ isOpen, onClose, member }) {
               <select name="membership_type" value={formData.membership_type} onChange={handleChange}
                 className={`input ${errors.membership_type ? 'border-red-500' : ''}`}>
                 <option value="">Select Type</option>
-                <option value="unlimited">Unlimited</option>
-                <option value="2x_week">2x Per Week</option>
-                <option value="3x_week">3x Per Week</option>
-                <option value="casual">Casual</option>
+                {(options?.plans || []).map(v => (
+                  <option key={v} value={v}>{optionLabel(v)}</option>
+                ))}
               </select>
               {errors.membership_type && <p className="text-red-500 text-sm mt-1">{errors.membership_type}</p>}
             </div>
@@ -165,11 +166,9 @@ export default function EditMemberModal({ isOpen, onClose, member }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Belt Rank</label>
               <select name="belt_rank" value={formData.belt_rank} onChange={handleChange} className="input">
                 <option value="">Select Rank</option>
-                <option value="white">White</option>
-                <option value="blue">Blue</option>
-                <option value="purple">Purple</option>
-                <option value="brown">Brown</option>
-                <option value="black">Black</option>
+                {(options?.belt_levels || []).map(v => (
+                  <option key={v} value={v}>{optionLabel(v)}</option>
+                ))}
               </select>
             </div>
           </div>
