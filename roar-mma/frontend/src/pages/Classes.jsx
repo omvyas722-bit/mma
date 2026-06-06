@@ -6,8 +6,10 @@ import { useNotifications } from '../contexts/NotificationContext';
 import AddClassModal from '../components/Classes/AddClassModal';
 import EditClassModal from '../components/Classes/EditClassModal';
 import CheckInModal from '../components/Classes/CheckInModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
 import { ContextMenu } from '../components/Dropdown';
+import { useLocation } from '../contexts/LocationContext';
+import NlpScheduler from '../components/Classes/NlpScheduler';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const TYPE_COLORS = { bjj: 'bg-blue-100 text-blue-800', muay_thai: 'bg-red-100 text-red-800', mma: 'bg-purple-100 text-purple-800', boxing: 'bg-orange-100 text-orange-800', fitness: 'bg-green-100 text-green-800', kids: 'bg-yellow-100 text-yellow-800' };
@@ -44,15 +46,19 @@ export default function Classes() {
   const [detailInstance, setDetailInstance] = useState(null);
   const [locationFilter, setLocationFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [splitView, setSplitView] = useState(false);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   const weekEnd = addDays(weekStart, 6);
+  const { locations: allLocations } = useLocation();
+  const splitLocations = useMemo(() => allLocations.filter(l => l.id !== 'all'), [allLocations]);
+  const effectiveLocationFilter = splitView ? '' : locationFilter;
 
   const { data: instances, isLoading, isError, refetch } = useQuery({
-    queryKey: ['class-instances', format(weekStart, 'yyyy-MM-dd'), locationFilter, typeFilter],
+    queryKey: ['class-instances', format(weekStart, 'yyyy-MM-dd'), effectiveLocationFilter, typeFilter],
     queryFn: async () => {
       const params = { week_start: format(weekStart, 'yyyy-MM-dd'), week_end: format(weekEnd, 'yyyy-MM-dd') };
-      if (locationFilter) params.location = locationFilter;
+      if (effectiveLocationFilter) params.location = effectiveLocationFilter;
       if (typeFilter) params.class_type = typeFilter;
       const r = await api.get('/api/classes/instances', { params });
       return r.data;
@@ -69,6 +75,12 @@ export default function Classes() {
     mutationFn: (id) => api.delete(`/api/classes/${id}`),
     onSuccess: () => { invalidate(); setDeletingClass(null); success('Class deleted'); },
     onError: () => error('Failed to delete class'),
+  });
+
+  const duplicateClass = useMutation({
+    mutationFn: (id) => api.post(`/api/classes/${id}/duplicate`),
+    onSuccess: () => { invalidate(); success('Class duplicated'); },
+    onError: () => error('Failed to duplicate class'),
   });
 
   const cancelInstance = useMutation({
@@ -88,6 +100,23 @@ export default function Classes() {
 
   const totalBookings = useMemo(() => instanceList.reduce((s, i) => s + (i.booked_count || 0), 0), [instanceList]);
   const avgFill = useMemo(() => instanceList.length > 0 ? Math.round(instanceList.reduce((s, i) => s + ((i.booked_count || 0) / (i.capacity || 20) * 100), 0) / instanceList.length) : 0, [instanceList]);
+
+  const instancesByLocation = useMemo(() => {
+    if (!splitView) return {};
+    const grouped = {};
+    splitLocations.forEach(loc => {
+      grouped[loc.id] = {};
+      DAYS.forEach((day, i) => {
+        const d = format(addDays(weekStart, i), 'yyyy-MM-dd');
+        grouped[loc.id][day] = {
+          date: d,
+          displayDate: format(addDays(weekStart, i), 'MMM d'),
+          instances: instanceList.filter(inst => inst.location === loc.id && inst.date === d),
+        };
+      });
+    });
+    return grouped;
+  }, [instanceList, weekStart, splitLocations, splitView]);
 
   return (
     <div>
@@ -112,6 +141,11 @@ export default function Classes() {
         <StatBox label="Avg Fill" value={`${avgFill}%`} />
       </div>
 
+      {/* NLP Scheduler */}
+      <div className="bg-white rounded-lg shadow p-4 mb-4">
+        <NlpScheduler />
+      </div>
+
       {/* Week nav + filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-4">
         <div className="flex flex-col sm:flex-row gap-3">
@@ -121,9 +155,19 @@ export default function Classes() {
             <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-2 py-1 border rounded text-sm hover:bg-gray-50" aria-label="Next week">▶</button>
             <button onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))} className="text-xs text-red-600 hover:underline whitespace-nowrap">This Week</button>
           </div>
-          <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className="input text-sm" aria-label="Filter by location">
-            <option value="">All Locations</option><option value="rockingham">Rockingham</option><option value="bibra_lake">Bibra Lake</option>
-          </select>
+          {!splitView && (
+            <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className="input text-sm" aria-label="Filter by location">
+              <option value="">All Locations</option><option value="rockingham">Rockingham</option><option value="bibra_lake">Bibra Lake</option>
+            </select>
+          )}
+          <button
+            onClick={() => setSplitView(v => !v)}
+            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors whitespace-nowrap ${
+              splitView ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {splitView ? 'Single View' : 'All Locations'}
+          </button>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input text-sm" aria-label="Filter by type">
             <option value="">All Types</option><option value="bjj">BJJ</option><option value="muay_thai">Muay Thai</option><option value="mma">MMA</option><option value="boxing">Boxing</option><option value="fitness">Fitness</option><option value="kids">Kids</option>
           </select>
@@ -137,8 +181,46 @@ export default function Classes() {
           <button onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
         </div>
       ) : isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {DAYS.map(day => <SkeletonDay key={day} />)}
+        <div className={`grid gap-4 ${splitView ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'}`}>
+          {splitView
+            ? splitLocations.map(loc => <div key={loc.id} className="bg-white rounded-lg shadow animate-pulse p-4"><div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>{[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-gray-100 rounded-lg mb-2"></div>)}</div>)
+            : DAYS.map(day => <SkeletonDay key={day} />)}
+        </div>
+      ) : splitView ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {splitLocations.map(loc => (
+            <div key={loc.id} className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 sticky top-0 z-10">
+                <h3 className="font-semibold text-gray-900 text-sm">{loc.name}</h3>
+              </div>
+              <div className="overflow-y-auto max-h-[calc(100vh-380px)]">
+                {DAYS.map(day => {
+                  const dd = instancesByLocation[loc.id]?.[day];
+                  if (!dd) return null;
+                  return (
+                    <div key={day} className="border-b border-gray-100 last:border-b-0">
+                      <div className="px-4 py-2 bg-gray-50/50 flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-700">{day}</span>
+                        <span className="text-xs text-gray-500">{dd.displayDate}</span>
+                      </div>
+                      <div className="p-2 space-y-2">
+                        {dd.instances.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-2">No classes</p>
+                        ) : dd.instances.map(inst => (
+                          <ClassCard key={inst.id} instance={inst}
+                            onClick={() => setDetailInstance(inst)}
+                            onEdit={() => setEditingClass(inst)}
+                            onDelete={() => setDeletingClass(inst)}
+                            onCheckIn={() => setCheckInClass(inst)}
+                            onDuplicate={() => duplicateClass.mutate(inst.id)} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -158,7 +240,8 @@ export default function Classes() {
                       onClick={() => setDetailInstance(inst)}
                       onEdit={() => setEditingClass(inst)}
                       onDelete={() => setDeletingClass(inst)}
-                      onCheckIn={() => setCheckInClass(inst)} />
+                      onCheckIn={() => setCheckInClass(inst)}
+                      onDuplicate={() => duplicateClass.mutate(inst.id)} />
                   ))}
                 </div>
               </div>
@@ -183,7 +266,7 @@ function SkeletonDay() {
   );
 }
 
-function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn }) {
+function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate }) {
   const fillPct = instance.capacity ? Math.min(100, (instance.booked_count / instance.capacity) * 100) : 0;
   const fillColor = instance.status === 'cancelled' ? 'bg-gray-300' : fillPct >= 90 ? 'bg-red-500' : fillPct >= 80 ? 'bg-yellow-500' : fillPct >= 50 ? 'bg-blue-500' : 'bg-green-500';
   return (
@@ -193,7 +276,7 @@ function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn }) {
       { label: 'Edit Class', icon: '✏️', onClick: onEdit },
       { separator: true },
       { label: 'Cancel This Class', icon: '❌', onClick: onClick, disabled: instance.status === 'cancelled' },
-      { label: 'Duplicate Class', icon: '📋', onClick: () => console.log('Duplicate', instance.id) },
+      { label: 'Duplicate Class', icon: '📋', onClick: () => onDuplicate(instance.id) },
       { separator: true },
       { label: 'Delete Class', icon: '🗑️', destructive: true, onClick: onDelete },
     ]}>
@@ -229,10 +312,20 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
     queryKey: ['class-roster', instance.id],
     queryFn: async () => { const r = await api.get(`/api/classes/instances/${instance.id}/roster`); return r.data; },
     enabled: !!instance.id,
+    staleTime: 10000,
   });
 
-  const bookings = roster?.bookings || [];
-  const waitlisted = roster?.waitlist || [];
+  const rosterData = Array.isArray(roster) ? roster : [];
+  const bookings = rosterData.filter(b => !b.waitlist);
+  const waitlisted = rosterData.filter(b => b.waitlist);
+
+  const [notesText, setNotesText] = useState(instance.class_notes || '');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const saveNotes = async () => {
+    setSavingNotes(true);
+    try { await api.put(`/api/classes/instances/${instance.id}`, { class_notes: notesText }); } catch (e) { console.error('Failed to save notes', e); }
+    setSavingNotes(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -253,12 +346,14 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
             {instance.fighter_only === 1 && <div><dt className="text-gray-500 inline">Type:</dt><dd className="inline ml-1 text-purple-700">Fighters Only</dd></div>}
           </dl>
 
-          {instance.class_notes && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-              <p className="font-medium text-xs text-yellow-700 mb-0.5">Coach Notes</p>
-              {instance.class_notes}
-            </div>
-          )}
+          <section>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Class Notes</h3>
+            <textarea value={notesText} onChange={e => setNotesText(e.target.value)}
+              className="input text-sm w-full" rows={3}
+              placeholder="Add notes about this class session (visible to coaches only)..." />
+            <button type="button" onClick={saveNotes} disabled={savingNotes}
+              className="btn-primary text-xs mt-1">{savingNotes ? 'Saving...' : 'Save Notes'}</button>
+          </section>
 
           <div className="flex gap-2 pt-2">
             {instance.status !== 'cancelled' && <button onClick={onCheckIn} className="btn-primary text-xs flex-1">Mark Attendance</button>}

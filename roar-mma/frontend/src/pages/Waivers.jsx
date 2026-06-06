@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
 import SignWaiverModal from '../components/Waivers/SignWaiverModal';
+import { generateWaiverPdf } from '../lib/waiverPdf';
 
 export default function Waivers() {
   const queryClient = useQueryClient();
@@ -19,6 +20,7 @@ export default function Waivers() {
   const { data: templatesData, isLoading: tplsLoading } = useQuery({
     queryKey: ['waiver-templates'],
     queryFn: async () => { const r = await api.get('/api/waivers/templates'); return r.data; },
+    staleTime: 300000,
   });
   const templates = templatesData?.templates || [];
 
@@ -26,6 +28,7 @@ export default function Waivers() {
     queryKey: ['member-waivers', memberId],
     queryFn: async () => { const r = await api.get(`/api/waivers/member/${memberId}`); return r.data; },
     enabled: !!memberId,
+    staleTime: 10000,
   });
   const memberWaiversList = memberWaiversData?.waivers || [];
 
@@ -66,6 +69,26 @@ export default function Waivers() {
   function handleSign(tpl) {
     setSigningTemplate(tpl);
     setShowSignModal(true);
+  }
+
+  async function handleDownloadPdf(waiver, e) {
+    e.stopPropagation();
+    try {
+      const data = await api.get(`/api/waivers/${waiver.id}/pdf`);
+      const pdfBlob = generateWaiverPdf(data, data);
+      if (!pdfBlob) { error('Failed to generate PDF'); return; }
+      const url = window.URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = (data.signed_at || '').split('T')[0] || 'unknown';
+      a.download = `waiver-${data.first_name}-${data.last_name}-${dateStr}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      error('Failed to download PDF');
+    }
   }
 
   return (
@@ -142,9 +165,9 @@ export default function Waivers() {
       {tab === 'member-waivers' && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Member ID</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Find Member</label>
             <div className="flex gap-2">
-              <input type="number" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} className="input w-48" placeholder="Enter member ID" aria-label="Member ID" />
+              <input type="text" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} className="input w-48" placeholder="Search by name or enter ID" aria-label="Search member" />
               <button type="button" onClick={() => setMemberId(parseInt(memberSearch, 10))} className="btn-primary text-sm" disabled={!memberSearch}>Search</button>
             </div>
           </div>
@@ -159,13 +182,18 @@ export default function Waivers() {
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Template</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Signed At</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {memberWaiversList.map(w => (
-                    <tr key={w.id} className="hover:bg-gray-50">
+                    <tr key={w.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => alert(w.body_text || 'Waiver content not available')}>
                       <td className="px-4 py-2 text-sm text-gray-900">{w.template_name}</td>
                       <td className="px-4 py-2 text-sm text-gray-500">{new Date(w.signed_at).toLocaleString()}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); alert(w.body_text || 'Waiver content not available'); }} className="text-red-600 hover:underline mr-2">View</button>
+                        <button type="button" onClick={(e) => handleDownloadPdf(w, e)} className="btn-outline text-xs">Download PDF</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

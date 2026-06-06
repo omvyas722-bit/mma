@@ -15,6 +15,7 @@ export default function Billing() {
   const [searchQuery, setSearchQuery] = useState('');
   const [offset, setOffset] = useState(0);
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [pendingWriteOffTx, setPendingWriteOffTx] = useState(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -49,6 +50,14 @@ export default function Billing() {
     staleTime: 30000,
   });
 
+  const { data: dashboardData } = useQuery({
+    queryKey: ['dashboard-chase'],
+    queryFn: async () => { const r = await api.get('/api/dashboard'); return r.data; },
+    retry: 1,
+    staleTime: 30000,
+  });
+  const midasChase = dashboardData?.midas_chase;
+
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['transactions'] });
     queryClient.invalidateQueries({ queryKey: ['transaction-stats'] });
@@ -61,7 +70,10 @@ export default function Billing() {
   });
 
   const emailBill = useMutation({
-    mutationFn: (tx) => api.post('/api/messaging/send', { to: tx.member_email, subject: `Your ROAR MMA Receipt`, body: `Hi ${tx.member_name},\n\nYour ${tx.type} payment of ${formatCurrency(tx.amount)} has been processed.\n\nThank you for choosing ROAR MMA!` }),
+    mutationFn: (tx) => {
+      const htmlBody = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333}.header{background:#d32f2f;color:#fff;padding:20px;text-align:center;border-radius:8px 8px 0 0}h1{margin:0;font-size:24px}.receipt{background:#f9f9f9;padding:20px;border:1px solid #ddd;border-top:0;border-radius:0 0 8px 8px}.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee}.label{color:#666;font-size:13px}.value{font-weight:600;font-size:13px}.total{font-size:18px;font-weight:700;color:#d32f2f;text-align:right;padding-top:12px}.footer{text-align:center;color:#999;font-size:11px;margin-top:20px}</style></head><body><div class="header"><h1>ROAR MMA</h1><p style="margin:4px 0 0;opacity:0.9">Payment Receipt</p></div><div class="receipt"><div class="row"><span class="label">Member</span><span class="value">${tx.member_name || ''}</span></div><div class="row"><span class="label">Transaction</span><span class="value">#${tx.id || ''}</span></div><div class="row"><span class="label">Type</span><span class="value">${(tx.type || '').replace(/_/g, ' ')}</span></div><div class="row"><span class="label">Date</span><span class="value">${tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-AU') : ''}</span></div><div class="row" style="border-bottom:none"><span class="label">Amount Paid</span><span class="value">${formatCurrency(tx.amount)}</span></div><div class="total">Total: ${formatCurrency(tx.amount)}</div></div><div class="footer"><p>Thank you for choosing ROAR MMA</p><p>${tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-AU') : ''}</p></div></body></html>`;
+      return api.post('/api/messaging/send', { to: tx.member_email, subject: `Your ROAR MMA Receipt - ${formatCurrency(tx.amount)}`, body: `Hi ${tx.member_name},\n\nYour ${tx.type} payment of ${formatCurrency(tx.amount)} has been processed.\n\nThank you for choosing ROAR MMA!`, html: htmlBody });
+    },
     onSuccess: () => success('Bill emailed'),
     onError: () => error('Failed to email bill'),
   });
@@ -109,6 +121,20 @@ export default function Billing() {
           <StatCard label="Today" value={stats.today != null ? formatCurrency(stats.today) : '—'} color="green" />
           <StatCard label="Failed This Month" value={stats.failed_this_month ? `${stats.failed_this_month.count || 0} ($${(stats.failed_this_month.total || 0).toFixed(2)})` : '—'} color="red" />
           <StatCard label="This Month" value={stats.this_month != null ? formatCurrency(stats.this_month) : '—'} color="blue" />
+        </div>
+      )}
+
+      {/* MIDAS Chase */}
+      {midasChase && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <span className="text-lg">🏃</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-orange-800">MIDAS Chase in Progress</p>
+              <p className="text-sm text-orange-700 mt-1">{midasChase.summary || `Member #${midasChase.member_id} — ${midasChase.amount ? `$${midasChase.amount}` : ''}`}</p>
+              {midasChase.created_at && <p className="text-xs text-orange-600 mt-1">Since {new Date(midasChase.created_at + 'Z').toLocaleDateString()}</p>}
+            </div>
+          </div>
         </div>
       )}
 
@@ -217,7 +243,7 @@ export default function Billing() {
                         <td className="px-4 py-3 whitespace-nowrap text-right">
                           {tx.status === 'failed' && (
                             <>
-                              <button onClick={() => { const r = prompt('Write-off reason:'); if (r) writeOffTx.mutate({ id: tx.id, reason: r }); }}
+                              <button onClick={() => setPendingWriteOffTx(tx)}
                                 className="text-xs text-gray-500 hover:underline mr-2">Write Off</button>
                             </>
                           )}
@@ -250,6 +276,31 @@ export default function Billing() {
           )}
         </div>
       )}
+      {pendingWriteOffTx && (
+        <WriteOffModal tx={pendingWriteOffTx} onClose={() => setPendingWriteOffTx(null)} onConfirm={(reason) => { writeOffTx.mutate({ id: pendingWriteOffTx.id, reason }); setPendingWriteOffTx(null); }} />
+      )}
+    </div>
+  );
+}
+
+function WriteOffModal({ tx, onClose, onConfirm }) {
+  const [reason, setReason] = useState('');
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <h2 className="text-lg font-semibold mb-4">Write Off Transaction</h2>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">Transaction: {tx.member_name} - ${tx.amount?.toFixed(2)}</p>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Reason *</label>
+            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="input text-sm w-full" placeholder="Enter write-off reason..." autoFocus />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="btn-outline text-sm">Cancel</button>
+          <button onClick={() => { if (reason.trim()) onConfirm(reason.trim()); }} disabled={!reason.trim()} className="btn-primary text-sm">Confirm Write Off</button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -77,7 +77,7 @@ class Logger {
           prefix: this.prefix,
         });
       } catch (error) {
-        console.error('Logger handler error:', error);
+        if (import.meta.env.DEV) console.error('Logger handler error:', error);
       }
     });
   }
@@ -352,7 +352,7 @@ export class RemoteLogHandler {
         body: JSON.stringify({ logs }),
       });
     } catch (error) {
-      console.error('Failed to send logs to server:', error);
+      if (import.meta.env.DEV) console.error('Failed to send logs to server:', error);
       // Re-add logs to queue
       this.queue.unshift(...logs);
     }
@@ -367,80 +367,3 @@ export class RemoteLogHandler {
 export { LOG_LEVELS };
 export default logger;
 
-// Usage examples:
-/*
-// Basic logging
-import logger from './lib/logger';
-
-logger.debug('Debug message', { data: 'value' });
-logger.info('Info message');
-logger.warn('Warning message');
-logger.error('Error message', error);
-
-// API logging
-logger.api('GET', '/api/members');
-logger.apiSuccess('GET', '/api/members', response);
-logger.apiError('POST', '/api/members', error);
-
-// Component logging
-logger.component('MemberList', 'mounted', { props });
-logger.component('MemberList', 'data loaded', { count: members.length });
-
-// Performance logging
-import { performanceLogger } from './lib/logger';
-
-performanceLogger.start('fetchMembers');
-await fetchMembers();
-performanceLogger.end('fetchMembers');
-
-// Or use measure
-const result = await performanceLogger.measureAsync('fetchMembers', async () => {
-  return await fetchMembers();
-});
-
-// Error logging
-import { errorLogger } from './lib/logger';
-
-try {
-  await saveData();
-} catch (error) {
-  errorLogger.log(error, { context: 'saving member data' });
-}
-
-// Namespaced logger
-import { createLogger } from './lib/logger';
-
-const apiLogger = createLogger('API');
-apiLogger.info('Request sent');
-
-// Log storage
-import logger, { LogStorageHandler } from './lib/logger';
-
-const storage = new LogStorageHandler();
-logger.addHandler(storage.handle.bind(storage));
-
-// Later, download logs
-storage.download();
-
-// Remote logging
-import logger, { RemoteLogHandler } from './lib/logger';
-
-const remoteHandler = new RemoteLogHandler('/api/logs');
-logger.addHandler(remoteHandler.handle.bind(remoteHandler));
-
-// React component example
-import logger from './lib/logger';
-
-function MyComponent() {
-  useEffect(() => {
-    logger.component('MyComponent', 'mounted');
-    return () => logger.component('MyComponent', 'unmounted');
-  }, []);
-
-  const handleClick = () => {
-    logger.user('button clicked', { button: 'save' });
-  };
-
-  return <button onClick={handleClick}>Save</button>;
-}
-*/

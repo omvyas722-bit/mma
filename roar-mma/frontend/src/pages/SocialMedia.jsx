@@ -48,8 +48,8 @@ function ComposeTab({ onSwitch, success, error }) {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: platformsData } = useQuery({ queryKey: ['social-platforms'], queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []) });
-  const { data: templatesData } = useQuery({ queryKey: ['social-templates'], queryFn: () => api.get('/api/social-media/templates').then(r => r.data?.templates || []) });
+  const { data: platformsData } = useQuery({ queryKey: ['social-platforms'], queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []), staleTime: 300000 });
+  const { data: templatesData } = useQuery({ queryKey: ['social-templates'], queryFn: () => api.get('/api/social-media/templates').then(r => r.data?.templates || []), staleTime: 300000 });
 
   const createPost = useMutation({
     mutationFn: (data) => api.post('/api/social-media/posts', data),
@@ -70,9 +70,10 @@ function ComposeTab({ onSwitch, success, error }) {
   const handleSubmit = () => {
     if (!content.trim()) { error('Content is required'); return; }
     if (platforms.length === 0) { error('Select at least one platform'); return; }
+    const statusMap = { now: 'draft', schedule: 'scheduled', publish: 'published' };
     createPost.mutate({
       platform_ids: JSON.stringify(platforms), title: title.trim() || null, content: content.trim(),
-      scheduled_at: scheduleMode === 'schedule' ? scheduledAt : null, status: scheduleMode === 'now' ? 'draft' : 'scheduled', created_by: 1,
+      scheduled_at: scheduleMode === 'schedule' ? scheduledAt : null, status: statusMap[scheduleMode] || 'draft', created_by: 1,
     });
   };
 
@@ -118,6 +119,7 @@ function ComposeTab({ onSwitch, success, error }) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Schedule</label>
           <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-600"><input type="radio" name="schedule" checked={scheduleMode === 'publish'} onChange={() => setScheduleMode('publish')} className="text-red-600 focus:ring-red-500" /> Publish Now</label>
             <label className="flex items-center gap-2 text-sm text-gray-600"><input type="radio" name="schedule" checked={scheduleMode === 'now'} onChange={() => setScheduleMode('now')} className="text-red-600 focus:ring-red-500" /> Save as Draft</label>
             <label className="flex items-center gap-2 text-sm text-gray-600"><input type="radio" name="schedule" checked={scheduleMode === 'schedule'} onChange={() => setScheduleMode('schedule')} className="text-red-600 focus:ring-red-500" /> Schedule</label>
           </div>
@@ -129,7 +131,7 @@ function ComposeTab({ onSwitch, success, error }) {
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={handleSubmit} disabled={createPost.isPending}
             className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-40"
-          >{createPost.isPending ? 'Saving...' : scheduleMode === 'now' ? 'Save Draft' : 'Schedule Post'}</button>
+          >{createPost.isPending ? 'Saving...' : scheduleMode === 'publish' ? 'Publish Now' : scheduleMode === 'now' ? 'Save Draft' : 'Schedule Post'}</button>
           <button type="button" onClick={reset} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Reset</button>
         </div>
       </div>
@@ -137,13 +139,14 @@ function ComposeTab({ onSwitch, success, error }) {
   );
 }
 
-function CalendarTab({ success, error }) {
+function CalendarTab({ onSwitch, success, error }) {
   const [showComposer, setShowComposer] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['social-posts'],
     queryFn: () => api.get('/api/social-media/posts').then(r => r.data?.posts || []),
+    staleTime: 10000,
   });
 
   const handleDelete = useMutation({
@@ -176,7 +179,7 @@ function CalendarTab({ success, error }) {
         >{showComposer ? 'Cancel' : '+ New Post'}</button>
       </div>
       {showComposer && <div className="bg-gray-50 border border-gray-200 rounded-xl p-6"><ComposeTab onSwitch={() => {}} success={success} error={error} /></div>}
-      <TabBar activeTab="calendar" onTabChange={() => {}} />
+      <TabBar activeTab="calendar" onTabChange={onSwitch} />
       {isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />)}</div>
       ) : Object.keys(grouped).length === 0 ? (
@@ -212,20 +215,23 @@ function CalendarTab({ success, error }) {
   );
 }
 
-function AnalyticsTab() {
+function AnalyticsTab({ onSwitch }) {
   const { data, isLoading } = useQuery({
     queryKey: ['social-analytics'],
     queryFn: () => api.get('/api/social-media/analytics').then(r => r.data),
+    staleTime: 300000,
   });
 
   const { data: platformData } = useQuery({
     queryKey: ['social-platforms'],
     queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []),
+    staleTime: 300000,
   });
 
   const { data: leadCorr } = useQuery({
     queryKey: ['lead-correlation'],
     queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data),
+    staleTime: 300000,
   });
 
   const metrics = [
@@ -241,7 +247,7 @@ function AnalyticsTab() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-      <TabBar activeTab="analytics" onTabChange={() => {}} />
+      <TabBar activeTab="analytics" onTabChange={onSwitch} />
       {isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />)}</div>
       ) : !data ? (
@@ -314,8 +320,8 @@ function CampaignsTab({ success, error }) {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
 
-  const { data: campaigns = [] } = useQuery({ queryKey: ['social-campaigns'], queryFn: () => api.get('/api/social-media/campaigns').then(r => r.data?.campaigns || []) });
-  const { data: leadCorr } = useQuery({ queryKey: ['lead-correlation'], queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data) });
+  const { data: campaigns = [] } = useQuery({ queryKey: ['social-campaigns'], queryFn: () => api.get('/api/social-media/campaigns').then(r => r.data?.campaigns || []), staleTime: 10000 });
+  const { data: leadCorr } = useQuery({ queryKey: ['lead-correlation'], queryFn: () => api.get('/api/social-media/lead-correlation').then(r => r.data), staleTime: 300000 });
 
   const delCampaign = useMutation({
     mutationFn: (id) => api.delete(`/api/social-media/campaigns/${id}`),
@@ -389,7 +395,7 @@ function CampaignForm({ onClose, queryClient, success, error }) {
 }
 
 function CampaignDetail({ campaign, onBack, onDelete }) {
-  const { data: detail } = useQuery({ queryKey: ['campaign-detail', campaign.id], queryFn: () => api.get(`/api/social-media/campaigns/${campaign.id}`).then(r => r.data), enabled: !!campaign.id });
+  const { data: detail } = useQuery({ queryKey: ['campaign-detail', campaign.id], queryFn: () => api.get(`/api/social-media/campaigns/${campaign.id}`).then(r => r.data), enabled: !!campaign.id, staleTime: 10000 });
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -420,12 +426,13 @@ function StatusBadge({ status }) {
   return <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
 }
 
-function PlatformsTab({ success, error }) {
+function PlatformsTab({ onSwitch, success, error }) {
   const queryClient = useQueryClient();
 
   const { data: platforms = [], isLoading } = useQuery({
     queryKey: ['social-platforms'],
     queryFn: () => api.get('/api/social-media/platforms').then(r => r.data?.platforms || []),
+    staleTime: 300000,
   });
 
   const handleConnect = useMutation({
@@ -439,7 +446,7 @@ function PlatformsTab({ success, error }) {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Platform Connections</h1>
-      <TabBar activeTab="platforms" onTabChange={() => {}} />
+      <TabBar activeTab="platforms" onTabChange={onSwitch} />
       {isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />)}</div>
       ) : (
@@ -457,10 +464,14 @@ function PlatformsTab({ success, error }) {
                   className="px-4 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">Disconnect</button>
               ) : (
                 <button onClick={() => {
-                  const appId = p.platform_type === 'instagram' || p.platform_type === 'facebook' ? 'META_APP_ID' : null;
-                  if (appId) {
-                    const redirect = encodeURIComponent(`${window.location.origin}/social?platform=${p.platform_type}`);
-                    window.open(`https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env[appId] || ''}&redirect_uri=${redirect}&scope=pages_manage_posts,pages_read_engagement&response_type=code`, '_blank', 'width=600,height=400');
+                  if (p.platform_type === 'instagram' || p.platform_type === 'facebook') {
+                    const metaAppId = import.meta.env.VITE_META_APP_ID;
+                    if (metaAppId) {
+                      const redirect = encodeURIComponent(`${window.location.origin}/social?platform=${p.platform_type}`);
+                      window.open(`https://www.facebook.com/v19.0/dialog/oauth?client_id=${metaAppId}&redirect_uri=${redirect}&scope=pages_manage_posts,pages_read_engagement&response_type=code`, '_blank', 'width=600,height=400');
+                    } else {
+                      error('META_APP_ID not configured in environment');
+                    }
                   } else {
                     handleConnect.mutate({ id: p.id, connected: false });
                   }

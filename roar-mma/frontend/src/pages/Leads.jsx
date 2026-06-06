@@ -6,7 +6,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import AddLeadModal from '../components/Leads/AddLeadModal';
 import TrialTrackingModal from '../components/Leads/TrialTrackingModal';
 import CSVImportModal from '../components/Leads/CSVImportModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
 
 const STAGES = ['new', 'contacted', 'trial_booked', 'trial_completed', 'converted'];
 const STAGE_LABELS = { new: 'New Leads', contacted: 'Contacted', trial_booked: 'Trial Booked', trial_completed: 'Trial Done', converted: 'Converted ✓' };
@@ -160,7 +160,9 @@ export default function Leads() {
                     <span className="text-xs font-medium text-gray-400 bg-gray-200 rounded-full px-2 py-0.5" aria-label={`${(grouped[stage] || []).length} leads`}>{grouped[stage]?.length || 0}</span>
                   </div>
                   <div className="space-y-2 min-h-[200px]">
-                    {(grouped[stage] || []).map(lead => (
+                    {(grouped[stage] || []).length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">No leads in this stage</p>
+                    ) : (grouped[stage] || []).map(lead => (
                       <LeadCard key={lead.id} lead={lead} overdue={isOverdue(lead)}
                         onClick={() => setDetailLead(lead)} onDelete={() => setDeletingLead(lead)}
                         onTrack={() => { setTrackingLead(lead); }} onConvert={() => convertLead.mutate(lead.id)} />
@@ -236,12 +238,14 @@ function LeadsAnalytics() {
     queryKey: ['lead-stats'],
     queryFn: async () => { const r = await api.get('/api/leads/stats'); return r.data; },
     retry: 2,
+    staleTime: 30000,
   });
 
   const { data: winback } = useQuery({
     queryKey: ['lead-winback'],
     queryFn: async () => { const r = await api.get('/api/leads/winback'); return r.data?.leads || []; },
     retry: 2,
+    staleTime: 30000,
   });
 
   const funnel = useMemo(() => {
@@ -282,6 +286,24 @@ function LeadsAnalytics() {
         </div>
       </div>
 
+      {/* Per-Source Quick Breakdown */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">Leads by Source</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {['referral', 'walk_in', 'website', 'facebook', 'instagram', 'phone', 'email', 'other'].map(src => {
+            const found = sourceData.find(s => s.source === src);
+            const count = found?.count ?? 0;
+            const colors = { referral: 'bg-green-500', walk_in: 'bg-yellow-500', website: 'bg-blue-500', facebook: 'bg-indigo-500', instagram: 'bg-purple-500', phone: 'bg-pink-500', email: 'bg-teal-500', other: 'bg-gray-500' };
+            return (
+              <div key={src} className={`${colors[src] || 'bg-gray-500'} rounded-lg p-3 text-center text-white`}>
+                <p className="text-lg font-bold">{count}</p>
+                <p className="text-[10px] opacity-80 capitalize">{src.replace(/_/g, ' ')}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Conversion Funnel */}
         <div className="bg-white rounded-lg shadow p-5">
@@ -303,7 +325,7 @@ function LeadsAnalytics() {
 
         {/* Source Breakdown */}
         <div className="bg-white rounded-lg shadow p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Leads by Source</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Leads by Source (Detailed)</h3>
           <div className="space-y-2">
             {sourceData.map(s => (
               <div key={s.source}>
@@ -404,11 +426,21 @@ function LeadDetail({ lead, onClose, onEdit, onTrack, onConvert, onMarkLost, onD
     queryKey: ['lead-interactions', lead.id],
     queryFn: async () => { const r = await api.get(`/api/leads/${lead.id}/interactions`); return r.data; },
     enabled: !!lead.id,
+    staleTime: 10000,
   });
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
   const [note, setNote] = useState('');
   const [type, setType] = useState('note');
+  const [enriching, setEnriching] = useState(false);
+  const [enrichResult, setEnrichResult] = useState(null);
+
+  const enrichLead = async () => {
+    setEnriching(true); setEnrichResult(null);
+    try { const r = await api.post(`/api/leads/${lead.id}/enrich`); setEnrichResult(r.data?.enrichment || { notes: 'Enrichment complete' }); success('Lead enriched'); }
+    catch { error('Enrichment failed'); }
+    finally { setEnriching(false); }
+  };
 
   const addInteraction = useMutation({
     mutationFn: () => api.post(`/api/leads/${lead.id}/interactions`, { interaction_type: type, notes: note }),
@@ -445,9 +477,16 @@ function LeadDetail({ lead, onClose, onEdit, onTrack, onConvert, onMarkLost, onD
             {lead.stage === 'new' && onStageChange && <button onClick={() => onStageChange('contacted')} className="btn-outline text-xs">Mark Contacted</button>}
             {lead.stage === 'trial_booked' && <button onClick={onTrack} className="btn-outline text-xs bg-yellow-50">Track Trial</button>}
             {lead.stage === 'trial_completed' && <button onClick={onConvert} className="btn-primary text-xs">Convert to Member</button>}
+            <button onClick={enrichLead} disabled={enriching} className="text-xs px-3 py-1.5 border border-purple-200 text-purple-600 rounded-lg hover:bg-purple-50">{enriching ? 'Enriching...' : '🔍 SCOUT Enrich'}</button>
             <button onClick={() => { const r = prompt('Lost reason:'); if (r) onMarkLost(r); }} className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">Mark Lost</button>
             <button onClick={onDelete} className="text-xs px-3 py-1.5 text-red-600 hover:underline">Delete</button>
           </div>
+          {enrichResult && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-800">
+              <p className="font-medium text-xs text-purple-700 mb-1">🔍 SCOUT Research Results</p>
+              <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(enrichResult, null, 2)}</pre>
+            </div>
+          )}
 
           {/* Interaction Log */}
           <div className="pt-3 border-t">

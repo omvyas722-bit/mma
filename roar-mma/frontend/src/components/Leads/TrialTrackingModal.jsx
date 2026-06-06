@@ -1,7 +1,7 @@
 // Trial Tracking Modal - Log trial session details
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import Modal from '../Shared/Modal';
+import { Modal } from '../Modal';
 import api from '../../lib/api';
 import { useNotifications } from '../../contexts/NotificationContext';
 
@@ -50,7 +50,7 @@ export default function TrialTrackingModal({ isOpen, onClose, lead }) {
           });
         } catch {
           // Follow-up scheduling failure is non-critical
-          console.warn('Failed to schedule follow-ups, but trial data was saved');
+          if (import.meta.env.DEV) console.warn('Failed to schedule follow-ups, but trial data was saved');
         }
       }
     },
@@ -61,7 +61,7 @@ export default function TrialTrackingModal({ isOpen, onClose, lead }) {
       success('Trial tracked! Automated follow-ups scheduled.');
     },
     onError: (err) => {
-      console.error('Error tracking trial:', err);
+      if (import.meta.env.DEV) console.error('Error tracking trial:', err);
       setErrors({ submit: 'Failed to track trial. Please try again.' });
     }
   });

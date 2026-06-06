@@ -1,5 +1,6 @@
 const groq = require('./groqClient');
 const openRouter = require('./openRouterClient');
+const deepseek = require('./deepseekClient');
 
 async function completeChat(messages, options = {}) {
   // Try Groq first (free tier, 14,400 req/day)
@@ -15,8 +16,15 @@ async function completeChat(messages, options = {}) {
     return orResult;
   }
 
+  // Fallback to DeepSeek via OpenRouter
+  console.log('[PROVIDER] OpenRouter failed, falling back to DeepSeek:', orResult.error);
+  const dsResult = await deepseek.completeChat(messages, options);
+  if (!dsResult.error && dsResult.content) {
+    return dsResult;
+  }
+
   return {
-    error: orResult.error || 'All providers failed',
+    error: dsResult.error || 'All providers failed',
     content: null,
     finishReason: 'error',
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
@@ -27,6 +35,6 @@ async function completeChat(messages, options = {}) {
 module.exports = {
   completeChat,
   streamChat: openRouter.streamChat,
-  getStatus: () => ({ groq: groq.getStatus(), openRouter: openRouter.getStatus() }),
-  getUsageStats: () => ({ groq: groq.getUsageStats(), openRouter: openRouter.getUsageStats() }),
+  getStatus: () => ({ groq: groq.getStatus(), openRouter: openRouter.getStatus(), deepseek: deepseek.getStatus() }),
+  getUsageStats: () => ({ groq: groq.getUsageStats(), openRouter: openRouter.getUsageStats(), deepseek: deepseek.getUsageStats() }),
 };

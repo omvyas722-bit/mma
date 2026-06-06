@@ -57,7 +57,7 @@ function formatTime(timestamp) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function ChatPanel({ messages, onSend, isLoading, placeholder, suggestions }) {
+export default function ChatPanel({ messages, onSend = () => {}, isLoading, placeholder, suggestions }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -69,7 +69,7 @@ export default function ChatPanel({ messages, onSend, isLoading, placeholder, su
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
-    onSend(input);
+    try { onSend(input); } catch (e) { console.error('Chat send failed:', e); }
     setInput('');
   };
 

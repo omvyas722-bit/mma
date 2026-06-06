@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 // Shared form fields for Add/Edit Class modals
+import { useOptions, optionLabel } from '../../lib/useOptions';
 
 const initialClassForm = {
   name: '', description: '', instructor: '', location: '',
@@ -29,7 +30,8 @@ function validateClassForm(formData) {
   return errors;
 }
 
-function ClassFormFields({ formData, errors, handleChange }) {
+function ClassFormFields({ formData, errors, handleChange, hideDayOfWeek }) {
+  const { data: options } = useOptions();
   return (
     <>
       {/* Basic Information */}
@@ -53,13 +55,9 @@ function ClassFormFields({ formData, errors, handleChange }) {
               <select name="class_type" value={formData.class_type} onChange={handleChange}
                 className={`input ${errors.class_type ? 'border-red-500' : ''}`}>
                 <option value="">Select Type</option>
-                <option value="bjj">Brazilian Jiu-Jitsu</option>
-                <option value="muay_thai">Muay Thai</option>
-                <option value="mma">MMA</option>
-                <option value="boxing">Boxing</option>
-                <option value="wrestling">Wrestling</option>
-                <option value="fitness">Fitness</option>
-                <option value="kids">Kids Class</option>
+                {(options?.class_types || []).map(v => (
+                  <option key={v} value={v}>{optionLabel(v)}</option>
+                ))}
               </select>
               {errors.class_type && <p className="text-red-500 text-sm mt-1">{errors.class_type}</p>}
             </div>
@@ -77,6 +75,7 @@ function ClassFormFields({ formData, errors, handleChange }) {
       <div>
         <h3 className="text-lg font-semibold mb-4">Schedule</h3>
         <div className="grid grid-cols-2 gap-4">
+          {!hideDayOfWeek && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Day of Week *</label>
             <select name="day_of_week" value={formData.day_of_week} onChange={handleChange}
@@ -92,14 +91,16 @@ function ClassFormFields({ formData, errors, handleChange }) {
             </select>
             {errors.day_of_week && <p className="text-red-500 text-sm mt-1">{errors.day_of_week}</p>}
           </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
-            <select name="location" value={formData.location} onChange={handleChange}
-              className={`input ${errors.location ? 'border-red-500' : ''}`}>
-              <option value="">Select Location</option>
-              <option value="rockingham">Rockingham</option>
-              <option value="bibra_lake">Bibra Lake</option>
-            </select>
+              <select name="location" value={formData.location} onChange={handleChange}
+                className={`input ${errors.location ? 'border-red-500' : ''}`}>
+                <option value="">Select Location</option>
+                {(options?.locations || []).map(v => (
+                  <option key={v} value={v}>{optionLabel(v)}</option>
+                ))}
+              </select>
             {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location}</p>}
           </div>
           <div>
@@ -125,8 +126,9 @@ function ClassFormFields({ formData, errors, handleChange }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Min. Belt Requirement</label>
             <select name="min_belt" value={formData.min_belt} onChange={handleChange} className="input">
               <option value="">None</option>
-              <option value="white">White</option><option value="blue">Blue</option><option value="purple">Purple</option>
-              <option value="brown">Brown</option><option value="black">Black</option>
+              {(options?.belt_levels || []).map(v => (
+                <option key={v} value={v}>{optionLabel(v)}</option>
+              ))}
             </select>
           </div>
         </div>

@@ -7,6 +7,8 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { LocationProvider } from './contexts/LocationContext';
 import { queryClient } from './lib/queryClient';
 import ErrorBoundary from './components/Shared/ErrorBoundary';
+import PageWrapper from './components/PageWrapper';
+import NotFound from './pages/NotFound';
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -19,6 +21,7 @@ const Staff = lazy(() => import('./pages/Staff'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const AIDashboard = lazy(() => import('./pages/AIDashboard'));
 const AgentTracking = lazy(() => import('./pages/AgentTracking'));
+const MissionControl = lazy(() => import('./pages/MissionControl'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Communications = lazy(() => import('./pages/Communications'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -52,6 +55,7 @@ const LeadPipeline = lazy(() => import('./pages/agentic/LeadPipeline'));
 const SystemHealth = lazy(() => import('./pages/agentic/SystemHealth'));
 const WeeklyReports = lazy(() => import('./pages/agentic/WeeklyReports'));
 const AgentNetwork = lazy(() => import('./pages/agentic/AgentNetwork'));
+const InventoryManagement = lazy(() => import('./pages/InventoryManagement'));
 
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -65,11 +69,11 @@ function App() {
           <LocationProvider>
           <WebSocketProvider>
             <NotificationProvider>
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>}>
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin rounded-full border-b-2 border-blue-600 h-12 w-12"></div></div>}>
                 <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/kiosk/waiver" element={<KioskWaiver />} />
-                  <Route path="/portal/*" element={<MemberPortal />} />
+                  <Route path="/login" element={<PageWrapper title="Login"><Login /></PageWrapper>} />
+                  <Route path="/kiosk/waiver" element={<PageWrapper title="Kiosk Waiver"><KioskWaiver /></PageWrapper>} />
+                  <Route path="/portal/*" element={<PageWrapper title="Member Portal"><MemberPortal /></PageWrapper>} />
 
                   <Route
                     path="/"
@@ -80,50 +84,52 @@ function App() {
                     }
                   >
                     <Route index element={<Navigate to="/dashboard" replace />} />
-                    <Route path="dashboard" element={<Dashboard />} />
-                    <Route path="members" element={<Members />} />
-                    <Route path="members/:id" element={<MemberProfile />} />
-                    <Route path="classes" element={<Classes />} />
-                    <Route path="leads" element={<Leads />} />
-                    <Route path="leads/wizard" element={<LeadsWizard />} />
-                    <Route path="billing" element={<Billing />} />
-                    <Route path="staff" element={<Staff />} />
-                    <Route path="reports" element={<Reports />} />
-                    <Route path="ai" element={<AIAssistant />} />
-                    <Route path="ai-dashboard" element={<AIDashboard />} />
-                    <Route path="agents" element={<AgentTracking />} />
-                    <Route path="calendar" element={<Calendar />} />
-                    <Route path="communications" element={<Communications />} />
-                    <Route path="settings" element={<Settings />} />
-                    <Route path="trial-conversion" element={<TrialConversionDashboard />} />
-                    <Route path="coaching" element={<Coaching />} />
-                    <Route path="gradings" element={<Gradings />} />
-                    <Route path="pos" element={<POS />} />
-                    <Route path="waivers" element={<Waivers />} />
-                    <Route path="social-media" element={<SocialMedia />} />
-                    <Route path="approval-queue" element={<ApprovalQueue />} />
-                    <Route path="workflows" element={<WorkflowBuilder />} />
-                    <Route path="perfectgym" element={<PerfectGymHub />} />
-                    <Route path="staff-schedule" element={<StaffSchedule />} />
-                    <Route path="subscriptions" element={<Subscriptions />} />
-                    <Route path="family-discounts" element={<FamilyDiscounts />} />
-                    <Route path="lead-scoring" element={<LeadScoring />} />
-                    <Route path="retention" element={<Retention />} />
-                    <Route path="makeup-classes" element={<MakeupClasses />} />
-                    <Route path="pt-sessions" element={<PTSessions />} />
-                    <Route path="phone-system" element={<PhoneSystem />} />
-                    <Route path="privacy" element={<Privacy />} />
-                    <Route path="agentic" element={<AgenticOS />} />
-                    <Route path="agentic/ceo" element={<CEODashboard />} />
-                    <Route path="agentic/intelligence" element={<IntelligenceFeed />} />
-                    <Route path="agentic/content" element={<ContentPipeline />} />
-                    <Route path="agentic/leads" element={<LeadPipeline />} />
-                    <Route path="agentic/system" element={<SystemHealth />} />
-                    <Route path="agentic/reports" element={<WeeklyReports />} />
-                    <Route path="agentic/network" element={<AgentNetwork />} />
+                    <Route path="dashboard" element={<PageWrapper title="Dashboard"><Dashboard /></PageWrapper>} />
+                    <Route path="members" element={<PageWrapper title="Members"><Members /></PageWrapper>} />
+                    <Route path="members/:id" element={<PageWrapper title="Member Profile"><MemberProfile /></PageWrapper>} />
+                    <Route path="classes" element={<PageWrapper title="Classes"><Classes /></PageWrapper>} />
+                    <Route path="leads" element={<PageWrapper title="Leads"><Leads /></PageWrapper>} />
+                    <Route path="leads/wizard" element={<PageWrapper title="Leads Wizard"><LeadsWizard /></PageWrapper>} />
+                    <Route path="billing" element={<PageWrapper title="Billing"><Billing /></PageWrapper>} />
+                    <Route path="staff" element={<PageWrapper title="Staff"><Staff /></PageWrapper>} />
+                    <Route path="reports" element={<PageWrapper title="Reports"><Reports /></PageWrapper>} />
+                    <Route path="ai" element={<PageWrapper title="AI Assistant"><AIAssistant /></PageWrapper>} />
+                    <Route path="ai-dashboard" element={<PageWrapper title="AI Dashboard"><AIDashboard /></PageWrapper>} />
+                    <Route path="agents" element={<PageWrapper title="Agent Tracking"><AgentTracking /></PageWrapper>} />
+                    <Route path="mission-control" element={<PageWrapper title="Mission Control"><MissionControl /></PageWrapper>} />
+                    <Route path="calendar" element={<PageWrapper title="Calendar"><Calendar /></PageWrapper>} />
+                    <Route path="communications" element={<PageWrapper title="Communications"><Communications /></PageWrapper>} />
+                    <Route path="settings" element={<PageWrapper title="Settings"><Settings /></PageWrapper>} />
+                    <Route path="trial-conversion" element={<PageWrapper title="Trial Conversion"><TrialConversionDashboard /></PageWrapper>} />
+                    <Route path="coaching" element={<PageWrapper title="Coaching"><Coaching /></PageWrapper>} />
+                    <Route path="gradings" element={<PageWrapper title="Gradings"><Gradings /></PageWrapper>} />
+                    <Route path="pos" element={<PageWrapper title="POS"><POS /></PageWrapper>} />
+                    <Route path="inventory" element={<PageWrapper title="Inventory"><InventoryManagement /></PageWrapper>} />
+                    <Route path="waivers" element={<PageWrapper title="Waivers"><Waivers /></PageWrapper>} />
+                    <Route path="social-media" element={<PageWrapper title="Social Media"><SocialMedia /></PageWrapper>} />
+                    <Route path="approval-queue" element={<PageWrapper title="Approval Queue"><ApprovalQueue /></PageWrapper>} />
+                    <Route path="workflows" element={<PageWrapper title="Workflows"><WorkflowBuilder /></PageWrapper>} />
+                    <Route path="perfectgym" element={<PageWrapper title="PerfectGym"><PerfectGymHub /></PageWrapper>} />
+                    <Route path="staff-schedule" element={<PageWrapper title="Staff Schedule"><StaffSchedule /></PageWrapper>} />
+                    <Route path="subscriptions" element={<PageWrapper title="Subscriptions"><Subscriptions /></PageWrapper>} />
+                    <Route path="family-discounts" element={<PageWrapper title="Family Discounts"><FamilyDiscounts /></PageWrapper>} />
+                    <Route path="lead-scoring" element={<PageWrapper title="Lead Scoring"><LeadScoring /></PageWrapper>} />
+                    <Route path="retention" element={<PageWrapper title="Retention"><Retention /></PageWrapper>} />
+                    <Route path="makeup-classes" element={<PageWrapper title="Makeup Classes"><MakeupClasses /></PageWrapper>} />
+                    <Route path="pt-sessions" element={<PageWrapper title="PT Sessions"><PTSessions /></PageWrapper>} />
+                    <Route path="phone-system" element={<PageWrapper title="Phone System"><PhoneSystem /></PageWrapper>} />
+                    <Route path="privacy" element={<PageWrapper title="Privacy"><Privacy /></PageWrapper>} />
+                    <Route path="agentic" element={<PageWrapper title="Agentic OS"><AgenticOS /></PageWrapper>} />
+                    <Route path="agentic/ceo" element={<PageWrapper title="CEO Dashboard"><CEODashboard /></PageWrapper>} />
+                    <Route path="agentic/intelligence" element={<PageWrapper title="Intelligence Feed"><IntelligenceFeed /></PageWrapper>} />
+                    <Route path="agentic/content" element={<PageWrapper title="Content Pipeline"><ContentPipeline /></PageWrapper>} />
+                    <Route path="agentic/leads" element={<PageWrapper title="Lead Pipeline"><LeadPipeline /></PageWrapper>} />
+                    <Route path="agentic/system" element={<PageWrapper title="System Health"><SystemHealth /></PageWrapper>} />
+                    <Route path="agentic/reports" element={<PageWrapper title="Weekly Reports"><WeeklyReports /></PageWrapper>} />
+                    <Route path="agentic/network" element={<PageWrapper title="Agent Network"><AgentNetwork /></PageWrapper>} />
                   </Route>
 
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
             </NotificationProvider>

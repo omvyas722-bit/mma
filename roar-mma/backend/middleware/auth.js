@@ -149,9 +149,34 @@ function requirePermission(permission) {
   };
 }
 
+function requirePasswordChange(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const { getDatabase } = require('../db/connection');
+    const db = getDatabase();
+    const staffCols = db.prepare("PRAGMA table_info('staff')").all().map(c => c.name);
+    if (!staffCols.includes('must_change_password')) {
+      return next();
+    }
+    const user = db.prepare('SELECT must_change_password FROM staff WHERE id = ?').get(req.user.id);
+    if (user && user.must_change_password === 1) {
+      return res.status(403).json({
+        error: 'Password change required',
+        must_change_password: true
+      });
+    }
+  } catch { /* ignore and proceed */ }
+
+  next();
+}
+
 module.exports = {
   authenticateToken,
   requireRole,
   requirePermission,
-  hasPermission
+  hasPermission,
+  requirePasswordChange
 };

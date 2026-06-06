@@ -41,7 +41,9 @@ const MIGRATIONS = [
   '025_billing_enhancements.sql',
   '026_ai_enhancements.sql',
   '027_member_portal.sql',
-  '028_workflow_builder.sql'
+  '028_workflow_builder.sql',
+  '029_system_settings.sql',
+  '030_missing_schema_columns.sql'
 ];
 
 function ensureMigrated(db) {
@@ -116,6 +118,39 @@ function ensureMigrated(db) {
     }
   }
 
+  // Patch: eod_reports table
+  if (!applied.has('patch_eod_reports')) {
+    try {
+      db.exec(`CREATE TABLE IF NOT EXISTS eod_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL DEFAULT 'daily',
+        date DATE NOT NULL,
+        content TEXT,
+        created_at DATETIME DEFAULT (datetime('now'))
+      )`);
+      db.prepare('INSERT OR IGNORE INTO schema_version (version, name, checksum, duration_ms, success) VALUES (?, ?, ?, ?, 1)')
+        .run(-26, 'patch_eod_reports', '', 0);
+      console.log('[DB] Patch eod_reports table created');
+    } catch (e) {
+      console.log('[DB] Patch eod_reports error:', e.message);
+    }
+  }
+
+  // Patch: staff table must_change_password column
+  if (!applied.has('patch_staff_must_change_password')) {
+    try {
+      const staffCols = db.prepare("PRAGMA table_info('staff')").all().map(c => c.name);
+      if (!staffCols.includes('must_change_password')) {
+        db.exec("ALTER TABLE staff ADD COLUMN must_change_password INTEGER DEFAULT 0");
+        console.log('[DB] Patch staff.must_change_password added');
+      }
+      db.prepare('INSERT OR IGNORE INTO schema_version (version, name, checksum, duration_ms, success) VALUES (?, ?, ?, ?, 1)')
+        .run(-27, 'patch_staff_must_change_password', '', 0);
+    } catch (e) {
+      console.log('[DB] Patch staff.must_change_password error:', e.message);
+    }
+  }
+
   MIGRATIONS.forEach((filename, index) => {
     const migrationPath = path.join(MIGRATIONS_DIR, filename);
     if (!fs.existsSync(migrationPath)) return;
@@ -149,7 +184,7 @@ function ensureMigrated(db) {
     try {
       const bcrypt = require('bcrypt');
       const hash = bcrypt.hashSync('changeme123', 10);
-      db.prepare(`INSERT INTO staff (name, email, password_hash, role, active) VALUES (?, ?, ?, ?, 1)`)
+      db.prepare(`INSERT INTO staff (name, email, password_hash, role, active, must_change_password) VALUES (?, ?, ?, ?, 1, 1)`)
         .run('Admin User', 'admin@roarmma.com.au', hash, 'owner');
       console.log('[DB] Default admin user seeded');
     } catch (e) {

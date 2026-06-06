@@ -4,6 +4,7 @@ const { authenticateToken, requirePermission } = require('../middleware/auth');
 const bookingsData = require('../data/bookings');
 const membersData = require('../data/members');
 const classesData = require('../data/classes');
+const beltGradingData = require('../data/beltGrading');
 
 const router = express.Router();
 
@@ -101,6 +102,22 @@ router.post('/', authenticateToken, requirePermission('bookings:create'), (req, 
 
     if (instance.status === 'completed') {
       return res.status(400).json({ error: 'Cannot book completed class' });
+    }
+
+    // Belt gate enforcement
+    if (instance.min_belt) {
+      const beltProgress = beltGradingData.getMemberBeltProgress(member_id);
+      if (beltProgress) {
+        const minBeltLevel = beltGradingData.getBeltLevelByName(instance.min_belt);
+        if (minBeltLevel && beltProgress.rank_order < minBeltLevel.rank_order) {
+          return res.status(400).json({ error: `Minimum belt required: ${instance.min_belt}` });
+        }
+      }
+    }
+
+    // Fighter-only enforcement
+    if (instance.fighter_only === 1 && !member.is_fighter) {
+      return res.status(400).json({ error: 'This class is for fighters only' });
     }
 
     // Check capacity

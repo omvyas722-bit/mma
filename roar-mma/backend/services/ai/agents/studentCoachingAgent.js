@@ -78,9 +78,8 @@ async function handler({ db, aiState, openRouter: orClient, broadcast, config, a
               { role: 'user', content: `Analyze this student's training data and provide coaching insights:\n\n${profile}` }
             ], { model: config?.model_override || 'openai/gpt-4o-mini', temperature: 0.3, max_tokens: 1000 });
 
-            if (response && response.choices && response.choices[0]) {
-              const text = response.choices[0].message.content;
-              const parsed = extractJson(text);
+            if (response && response.content) {
+              const parsed = extractJson(response.content);
               if (parsed) insightData = parsed;
             }
           }
@@ -130,7 +129,7 @@ async function handler({ db, aiState, openRouter: orClient, broadcast, config, a
         details: { error: err.message },
         summary: `Coaching agent failed: ${err.message}`
       });
-    } catch {}
+    } catch (logErr) { console.error('[COACHING] Log error:', logErr.message); }
   }
 }
 
@@ -179,7 +178,7 @@ function extractJson(text) {
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
-  } catch {}
+  } catch (err) { console.error('[COACHING] extractJson error:', err.message); }
   return null;
 }
 

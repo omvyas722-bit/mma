@@ -48,9 +48,10 @@ export default function CSVImportModal({ isOpen, onClose }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const text = evt.target.result;
-      const parsed = parseCSV(text);
-      if (parsed.length < 2) { error('CSV must have a header row and at least one data row'); return; }
+      try {
+        const text = evt.target.result;
+        const parsed = parseCSV(text);
+        if (parsed.length < 2) { error('CSV must have a header row and at least one data row'); return; }
       const hdrs = parsed[0];
       const data = parsed.slice(1);
       setHeaders(hdrs);
@@ -61,6 +62,7 @@ export default function CSVImportModal({ isOpen, onClose }) {
       hdrs.forEach(h => { const key = h.replace(/['"]/g, '').trim().toLowerCase(); autoMap[h] = known[key] || ''; });
       setFieldMapping(autoMap);
       setStep('map');
+      } catch (e) { error('Failed to parse CSV file: ' + (e.message || 'Invalid format')); }
     };
     reader.readAsText(file);
   };

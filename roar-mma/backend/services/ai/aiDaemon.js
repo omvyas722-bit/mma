@@ -1,6 +1,7 @@
 const aiState = require('./aiState');
 const openRouter = require('./openRouterClient');
 const { getDatabase } = require('../../db/connection');
+const weeklyDigest = require('../weeklyDigest');
 
 const agentHandlers = new Map();
 const failureTracker = new Map();
@@ -151,6 +152,22 @@ function start() {
 
   runLoop();
 
+  // Weekly digest check — every hour, check if Monday and digest not yet generated
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      if (now.getDay() !== 1) return;
+      const todayStr = now.toISOString().split('T')[0];
+      const db = getDatabase();
+      const existing = db.prepare("SELECT id FROM eod_reports WHERE type = 'weekly' AND date = ?").get(todayStr);
+      if (existing) return;
+      console.log('[AI-DAEMON] Monday detected — generating weekly digest...');
+      await weeklyDigest.generateWeeklyDigest(aiState);
+    } catch (err) {
+      console.error('[AI-DAEMON] Weekly digest check failed:', err.message);
+    }
+  }, 3600000);
+
   console.log(`[AI-DAEMON] Daemon started — interval=${intervalMs}ms`);
 }
 
@@ -177,9 +194,32 @@ function getStatus() {
   };
 }
 
+function resetCircuitBreakers() {
+  failureTracker.clear();
+  daemonErrors = [];
+  console.log('[AI-DAEMON] All circuit breakers and daemon errors reset');
+}
+
+function getCircuitBreakerStatus() {
+  const breakers = [];
+  for (const [agent, status] of failureTracker) {
+    if (status.count >= CIRCUIT_BREAKER_THRESHOLD && Date.now() < status.openUntil) {
+      breakers.push({
+        agent,
+        failures: status.count,
+        openUntil: status.openUntil,
+        retryInMs: Math.max(0, status.openUntil - Date.now()),
+      });
+    }
+  }
+  return breakers;
+}
+
 module.exports = {
   start,
   stop,
   getStatus,
-  registerAgent
+  registerAgent,
+  resetCircuitBreakers,
+  getCircuitBreakerStatus,
 };

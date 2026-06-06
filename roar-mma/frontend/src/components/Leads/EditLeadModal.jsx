@@ -1,12 +1,14 @@
 // Edit Lead Modal Component
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import Modal from '../Shared/Modal';
+import { Modal } from '../Modal';
 import api from '../../lib/api';
 import { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadNotesFields } from './LeadFormFields';
+import { useOptions, optionLabel } from '../../lib/useOptions';
 
 export default function EditLeadModal({ isOpen, onClose, lead }) {
   const queryClient = useQueryClient();
+  const { data: options } = useOptions();
   const [formData, setFormData] = useState(initialLeadForm);
   const [errors, setErrors] = useState({});
 
@@ -90,12 +92,9 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
                 <select name="source" value={formData.source} onChange={handleChange}
                   className={`input ${errors.source ? 'border-red-500' : ''}`}>
                   <option value="">Select Source</option>
-                  <option value="website">Website</option>
-                  <option value="facebook">Facebook</option>
-                  <option value="instagram">Instagram</option>
-                  <option value="referral">Referral</option>
-                  <option value="walk_in">Walk-in</option>
-                  <option value="other">Other</option>
+                  {(options?.lead_sources || []).map(v => (
+                    <option key={v} value={v}>{optionLabel(v)}</option>
+                  ))}
                 </select>
                 {errors.source && <p className="text-red-500 text-sm mt-1">{errors.source}</p>}
               </div>
@@ -119,8 +118,9 @@ export default function EditLeadModal({ isOpen, onClose, lead }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Location Preference</label>
               <select name="location" value={formData.location} onChange={handleChange} className="input">
                 <option value="">Select Location</option>
-                <option value="rockingham">Rockingham</option>
-                <option value="bibra_lake">Bibra Lake</option>
+                {(options?.locations || []).map(v => (
+                  <option key={v} value={v}>{optionLabel(v)}</option>
+                ))}
               </select>
             </div>
 

@@ -4,7 +4,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const { getDatabase } = require('../db/connection');
-const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { authenticateToken, requirePermission, requirePasswordChange } = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rateLimiter');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const router = express.Router();
@@ -20,7 +21,8 @@ const loginLimiter = rateLimit({
 });
 
 // Login
-router.post('/login', loginLimiter, async (req, res) => {
+const memoryLoginLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+router.post('/login', loginLimiter, memoryLoginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -53,12 +55,16 @@ router.post('/login', loginLimiter, async (req, res) => {
       { expiresIn: JWT_EXPIRY }
     );
 
+    // Check if user must change password
+    const mustChangePassword = user.must_change_password === 1;
+
     // Remove sensitive fields from response
     const { password_hash, reset_token, reset_token_expires, two_factor_secret, api_key, ...safeUser } = user;
 
     res.json({
       token,
-      user: safeUser
+      user: safeUser,
+      must_change_password: mustChangePassword || false
     });
   } catch (err) {
     console.error('[AUTH] Login error:', err.message, err.stack);
@@ -67,7 +73,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 // Get current user
-router.get('/me', authenticateToken, (req, res) => {
+router.get('/me', authenticateToken, requirePasswordChange, (req, res) => {
   const db = getDatabase();
   const user = db.prepare('SELECT id, name, email, role, phone, active FROM staff WHERE id = ?').get(req.user.id);
 
@@ -118,7 +124,7 @@ router.post('/change-password', changePasswordLimiter, authenticateToken, async 
 
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-    db.prepare("UPDATE staff SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
+    db.prepare("UPDATE staff SET password_hash = ?, must_change_password = 0, updated_at = datetime('now') WHERE id = ?")
       .run(newPasswordHash, req.user.id);
 
     res.json({ message: 'Password changed successfully' });
@@ -177,27 +183,7 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// === Change Password ===
-router.post('/change-password', authenticateToken, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current and new password required' });
-    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
 
-    const db = getDatabase();
-    const user = db.prepare('SELECT password_hash FROM staff WHERE id = ?').get(req.user.id);
-    if (!user || !(await bcrypt.compare(currentPassword, user.password_hash))) {
-      return res.status(400).json({ error: 'Current password is incorrect' });
-    }
-
-    const hash = await bcrypt.hash(newPassword, 10);
-    db.prepare("UPDATE staff SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(hash, req.user.id);
-    res.json({ message: 'Password changed successfully' });
-  } catch (err) {
-    console.error('[AUTH] Change password error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // === Two-Factor Auth ===
 router.post('/setup-2fa', authenticateToken, requirePermission('settings:write'), async (req, res) => {

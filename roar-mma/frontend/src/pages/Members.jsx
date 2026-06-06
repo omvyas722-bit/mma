@@ -6,7 +6,9 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { formatDate } from '../lib/formatters';
 import AddMemberModal from '../components/Members/AddMemberModal';
 import EditMemberModal from '../components/Members/EditMemberModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
+
+
 
 const LIMIT = 50;
 
@@ -59,6 +61,15 @@ export default function Members() {
   const [cancellingMember, setCancellingMember] = useState(null);
   const [changingPlanMember, setChangingPlanMember] = useState(null);
   const [selected, setSelected] = useState(new Set());
+  const [ctxMenu, setCtxMenu] = useState(null);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    document.addEventListener('click', close);
+    document.addEventListener('scroll', close, true);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('scroll', close, true); };
+  }, [ctxMenu]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['members', filters],
@@ -159,7 +170,7 @@ export default function Members() {
           <span className="text-sm text-blue-800 font-medium">{selected.size} selected</span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => exportCSV(members.filter(m => selected.has(m.id)))} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Export Selected</button>
-            <button type="button" onClick={() => { if (confirm(`Send message to ${selected.size} members?`)) { alert('Bulk messaging coming soon'); } }} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Message</button>
+            <button type="button" onClick={() => { if (confirm(`Send message to ${selected.size} members?`)) { success('Bulk messaging coming soon'); } }} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Message</button>
             <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setSelected(new Set())}>Clear</button>
           </div>
         </div>
@@ -176,9 +187,12 @@ export default function Members() {
           {isLoading ? <SkeletonTable rows={8} cols={8} /> :
           members.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-gray-500 mb-2">No members found</p>
-              {(filters.query || filters.status || filters.plan || filters.location) && (
+              <p className="text-3xl mb-3">📭</p>
+              <p className="text-sm text-gray-500 mb-1">No members found</p>
+              {(filters.query || filters.status || filters.plan || filters.location) ? (
                 <button type="button" onClick={() => { setFilter('query', ''); setFilter('status', ''); setFilter('plan', ''); setFilter('location', ''); }} className="text-sm text-red-600 hover:underline">Clear filters</button>
+              ) : (
+                <p className="text-xs text-gray-400">Add your first member to get started</p>
               )}
             </div>
           ) : (
@@ -202,7 +216,8 @@ export default function Members() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {members.map((member) => (
-                      <tr key={member.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}>
+                      <tr key={member.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}
+                        onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, member }); }}>
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" checked={selected.has(member.id)} onChange={() => { const s = new Set(selected); s.has(member.id) ? s.delete(member.id) : s.add(member.id); setSelected(s); }}
                             className="rounded border-gray-300 text-red-600 focus:ring-red-500" aria-label={`Select ${member.first_name} ${member.last_name}`} />
@@ -241,6 +256,31 @@ export default function Members() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {ctxMenu && (
+        <div style={{ position: 'fixed', top: ctxMenu.y, left: ctxMenu.x, zIndex: 50 }}
+          className="bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]"
+          onClick={(e) => e.stopPropagation()}>
+          <button type="button" onClick={() => { navigate(`/members/${ctxMenu.member.id}`); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">View Profile</button>
+          <button type="button" onClick={() => { navigate(`/communications?member=${ctxMenu.member.id}`); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Send Message</button>
+          <div className="my-1 h-px bg-gray-200" />
+          {ctxMenu.member.status === 'active' && (
+            <button type="button" onClick={() => { setPausingMember(ctxMenu.member); setCtxMenu(null); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Pause Membership</button>
+          )}
+          {ctxMenu.member.status === 'paused' && (
+            <button type="button" onClick={() => { resumeMember.mutate(ctxMenu.member.id); setCtxMenu(null); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Resume Membership</button>
+          )}
+          <div className="my-1 h-px bg-gray-200" />
+          <button type="button" onClick={() => { setEditingMember(ctxMenu.member); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Edit</button>
+          <button type="button" onClick={() => { setDeletingMember(ctxMenu.member); setCtxMenu(null); }}
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Delete</button>
         </div>
       )}
     </div>
@@ -287,9 +327,18 @@ function SkeletonTable({ rows, cols }) {
 function PauseModal({ member, onClose, onConfirm }) {
   const [start, setStart] = useState(new Date().toISOString().split('T')[0]);
   const [end, setEnd] = useState('');
+  const [holdRate, setHoldRate] = useState(0.71);
+  const [maxDays, setMaxDays] = useState(84);
+  useEffect(() => {
+    fetch('/api/settings', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(r => r.json()).then(s => {
+        if (s.system?.hold_fee_rate) setHoldRate(parseFloat(s.system.hold_fee_rate));
+        if (s.system?.hold_max_days) setMaxDays(parseInt(s.system.hold_max_days, 10));
+      }).catch(() => {});
+  }, []);
   const days = end && start ? Math.max(0, Math.ceil((new Date(end) - new Date(start)) / 86400000)) : 0;
-  const fee = (days * 0.71).toFixed(2);
-  const valid = start && end && days > 0 && days <= 84;
+  const fee = (days * holdRate).toFixed(2);
+  const valid = start && end && days > 0 && days <= maxDays;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="pause-title">
@@ -297,9 +346,9 @@ function PauseModal({ member, onClose, onConfirm }) {
         <p className="text-sm text-gray-500 mb-4">{member.first_name} {member.last_name}</p>
         <div className="space-y-3">
           <div><label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label><input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="input text-sm w-full" /></div>
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">End Date (max 84 days)</label><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="input text-sm w-full" /></div>
-          {days > 0 && <p className="text-sm text-gray-600">Hold fee: <span className="font-medium">${fee}</span> ({days} days × $0.71/day)</p>}
-          {days > 84 && <p className="text-sm text-red-500">Maximum hold period is 84 days</p>}
+          <div><label className="block text-xs font-medium text-gray-700 mb-1">End Date (max {maxDays} days)</label><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="input text-sm w-full" /></div>
+          {days > 0 && <p className="text-sm text-gray-600">Hold fee: <span className="font-medium">${fee}</span> ({days} days × ${holdRate.toFixed(2)}/day)</p>}
+          {days > maxDays && <p className="text-sm text-red-500">Maximum hold period is {maxDays} days</p>}
         </div>
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="btn-outline text-sm">Cancel</button>

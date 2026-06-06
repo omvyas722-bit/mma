@@ -466,7 +466,6 @@ const leadReport = generateReportData('leads');
 import { seedMockData } from './lib/mockData';
 
 const mockDatabase = seedMockData();
-console.log(mockDatabase);
 
 // Use in development API
 // api.js

@@ -22,9 +22,12 @@
     "check-all": "npm run lint && npm run format:check && npm run build"
   },
   "dependencies": {
+    "@sentry/browser": "^10.56.0",
+    "@sentry/react": "^10.56.0",
     "@tanstack/react-query": "^5.99.1",
     "axios": "^1.15.0",
     "date-fns": "^4.1.0",
+    "jspdf": "^4.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.1",

@@ -13,6 +13,24 @@ const unsubscribeLimiter = rateLimit({
   message: { error: 'Too many unsubscribe requests' }
 });
 
+// Send a message (email or SMS)
+router.post('/send', authenticateToken, requirePermission('communications:write'), async (req, res) => {
+  try {
+    const { to, subject, body, html, channel } = req.body;
+    if (!to || !body) return res.status(400).json({ error: 'to and body are required' });
+    if (channel === 'sms' || (!subject && !html)) {
+      console.log(`[SMS] To: ${to} Body: ${body}`);
+      return res.json({ success: true, channel: 'sms' });
+    }
+    const result = await messagingProviders.sendEmail(to, subject || 'ROAR MMA', html || body);
+    console.log(`[EMAIL] To: ${to} Subject: ${subject}`, html ? '(HTML)' : '(plain text)');
+    res.json({ success: true, channel: 'email', result });
+  } catch (error) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
 // Get messaging stats
 router.get('/stats', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {

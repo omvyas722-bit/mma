@@ -40,14 +40,7 @@ class TeamAgent {
         const cleaned = rawContent.replace(/```(?:json)?\s*[\s\S]*?```/gi, '').replace(/^[^{[]+|[}\]]+$/g, '').trim();
         const parsed = JSON.parse(cleaned);
         actions = Array.isArray(parsed) ? parsed : (parsed.actions || []);
-      } catch {
-        const extracted = extractJson(rawContent);
-        if (extracted) {
-          actions = Array.isArray(extracted) ? extracted : (extracted.actions || []);
-        } else {
-          actions = [];
-        }
-      }
+      } catch (logErr) { console.error('[TEAM] Log activity error:', logErr.message); }
 
       let executedCount = 0;
       let failedCount = 0;

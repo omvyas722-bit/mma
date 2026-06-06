@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { formatDate, formatCurrency, formatPhone, calculateAge } from '../lib/formatters';
 import EditMemberModal from '../components/Members/EditMemberModal';
-import ConfirmDialog from '../components/Shared/ConfirmDialog';
+import { ConfirmDialog } from '../components/Modal';
 import { PageLoader } from '../components/Shared/Spinner';
 import { useNotifications } from '../contexts/NotificationContext';
 import StudentCoachingPanel from '../components/Coaching/StudentCoachingPanel';
@@ -25,6 +25,9 @@ export default function MemberProfile() {
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
   const [showAddComp, setShowAddComp] = useState(false);
+  const [showLinkChild, setShowLinkChild] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
+  const [linkResults, setLinkResults] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: member, isLoading } = useQuery({
@@ -84,6 +87,24 @@ export default function MemberProfile() {
     queryFn: async () => { const r = await api.get(`/api/makeup-classes/member/${id}`); return r.data?.makeups || []; },
   });
 
+  const { data: parentMember } = useQuery({
+    queryKey: ['member', member?.parent_id],
+    queryFn: async () => { const r = await api.get(`/api/members/${member.parent_id}`); return r.data; },
+    enabled: !!member?.parent_id,
+  });
+
+  const { data: linkedChildren = [] } = useQuery({
+    queryKey: ['member-children', id],
+    queryFn: async () => { const r = await api.get(`/api/members`, { params: { parent_id: id, limit: 50 } }); return r.data?.members || []; },
+    enabled: !!id,
+  });
+
+  const { data: familyGroup } = useQuery({
+    queryKey: ['member-family', id],
+    queryFn: async () => { const r = await api.get(`/api/family-discounts/member/${id}`); return r.data; },
+    enabled: !!id,
+  });
+
   const deleteMember = useMutation({
     mutationFn: async () => { await api.delete(`/api/members/${id}`); },
     onSuccess: () => { queryClient.invalidateQueries(['members']); navigate('/members'); },
@@ -120,6 +141,18 @@ export default function MemberProfile() {
     onError: (err) => { error('Failed to add competition'); }
   });
 
+  const linkChild = useMutation({
+    mutationFn: async (childId) => { await api.put(`/api/members/${childId}`, { parent_id: id }); },
+    onSuccess: () => { queryClient.invalidateQueries(['member-children', id]); queryClient.invalidateQueries(['member', id]); success('Child linked'); setShowLinkChild(false); setLinkSearch(''); setLinkResults([]); },
+    onError: (err) => { error(err.response?.data?.error || 'Failed to link child'); }
+  });
+
+  const searchChildren = async (q) => {
+    if (q.length < 2) { setLinkResults([]); return; }
+    try { const r = await api.get(`/api/members`, { params: { query: q, limit: 10 } }); setLinkResults(r.data?.members || []); }
+    catch { setLinkResults([]); }
+  };
+
   if (isLoading) return <PageLoader />;
   if (!member) return <div>Member not found</div>;
 
@@ -148,6 +181,7 @@ export default function MemberProfile() {
               <button type="button" onClick={() => setShowPauseDialog(true)} className="px-3 py-1.5 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">Pause</button>
               <button type="button" onClick={() => setShowCancelDialog(true)} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">Cancel</button>
               <button type="button" onClick={() => setShowEditModal(true)} className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700">Edit</button>
+              <button type="button" onClick={() => setShowDeleteDialog(true)} className="px-3 py-1.5 text-sm bg-red-800 text-white rounded-lg hover:bg-red-900">Delete</button>
             </div>
           </div>
 
@@ -157,7 +191,7 @@ export default function MemberProfile() {
             <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 capitalize">{member.plan || 'No plan'}</span>
             {member.location && <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">{member.location.replace('_', ' ')}</span>}
             {isFighter && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-bold">FIGHTER ★</span>}
-            {member.parent_id && <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">Family</span>}
+            {member.parent_id && <a href={`/members/${member.parent_id}`} className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 hover:bg-green-200">Family (Parent: #{member.parent_id})</a>}
             <span className={`px-2 py-0.5 text-xs rounded-full ${member.waiver_signed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{member.waiver_signed ? '✓ Waiver Signed' : '⚠ No Waiver'}</span>
             {disciplines.map(d => (
               <span key={d.discipline} className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: (DISCIPLINE_COLORS[d.discipline] || '#666') + '20', color: DISCIPLINE_COLORS[d.discipline] || '#666', border: `1px solid ${DISCIPLINE_COLORS[d.discipline] || '#666'}40` }}>
@@ -178,6 +212,55 @@ export default function MemberProfile() {
           </nav>
         </div>
       </div>
+
+      {/* Linked Accounts */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Linked Accounts</h2>
+          <button type="button" onClick={() => setShowLinkChild(true)} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ Link Child</button>
+        </div>
+        {member.parent_id && parentMember && (
+          <div className="mb-3 p-3 bg-blue-50 rounded-lg flex items-center justify-between">
+            <span className="text-sm">Child of: <a href={`/members/${parentMember.id}`} className="font-medium text-blue-700 hover:underline">{parentMember.first_name} {parentMember.last_name}</a></span>
+          </div>
+        )}
+        {linkedChildren.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 mb-2">Children ({linkedChildren.length})</p>
+            {linkedChildren.map(child => (
+              <div key={child.id} className="flex items-center justify-between p-2 border border-gray-100 rounded-lg">
+                <a href={`/members/${child.id}`} className="text-sm text-gray-900 hover:text-blue-600">{child.first_name} {child.last_name}</a>
+                <span className="text-xs text-gray-500 capitalize">{child.membership_type}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!member.parent_id && linkedChildren.length === 0 && (
+          <p className="text-sm text-gray-500">No linked accounts. Link a child member to manage family accounts together.</p>
+        )}
+      </div>
+
+      {/* Family Discount */}
+      {familyGroup?.discount && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Family Discount</h2>
+          <div className="p-3 bg-green-50 rounded-lg">
+            <p className="text-sm font-medium text-green-800">{familyGroup.discount.name || 'Family Discount'}</p>
+            {familyGroup.discount.discount_percentage && <p className="text-sm text-green-700 mt-1">{familyGroup.discount.discount_percentage}% discount</p>}
+            {familyGroup.family && familyGroup.family.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-green-600 font-medium">Members in group:</p>
+                {familyGroup.family.map(m => (
+                  <div key={m.id} className="text-xs text-green-700">
+                    <a href={`/members/${m.id}`} className="hover:underline">{m.first_name} {m.last_name}</a>
+                    {m.discount_rate && <span className="ml-2">({m.discount_rate}% off)</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -246,13 +329,17 @@ export default function MemberProfile() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Referrals</h2>
-            {referrals.length === 0 ? <p className="text-gray-500 text-sm">No referrals</p> : (
+            <h2 className="text-xl font-semibold mb-4">Referral Vouchers</h2>
+            {referrals.length === 0 ? <p className="text-gray-500 text-sm">No referral vouchers</p> : (
               <div className="space-y-2">
                 {referrals.map(r => (
-                  <div key={r.id} className="flex justify-between items-center p-2 border-b border-gray-100">
-                    <span className="text-sm text-gray-900">{r.referred_name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === 'redeemed' ? 'bg-green-100 text-green-700' : r.status === 'issued' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{r.status}</span>
+                  <div key={r.id} className="flex justify-between items-center p-2 border-b border-gray-100 last:border-0">
+                    <div>
+                      <p className="text-sm text-gray-900">{r.referred_name}</p>
+                      <p className="text-xs text-gray-400">Code: VCH-{String(r.id).padStart(5, '0')} &middot; Value: ${(r.voucher_value || 25).toFixed(2)}</p>
+                      <p className="text-xs text-gray-400">Issued: {r.issued_at ? new Date(r.issued_at).toLocaleDateString('en-AU') : '—'} {r.expires_at ? `· Expires: ${new Date(r.expires_at).toLocaleDateString('en-AU')}` : ''}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === 'redeemed' ? 'bg-green-100 text-green-700' : r.status === 'issued' || r.status === 'pending' ? 'bg-blue-100 text-blue-700' : r.status === 'expired' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>{r.status}</span>
                   </div>
                 ))}
               </div>
@@ -511,6 +598,7 @@ export default function MemberProfile() {
       <ChangePlanDialog isOpen={showChangePlan} onClose={() => setShowChangePlan(false)} onConfirm={changePlan.mutate} currentPlan={member.plan} plans={planOptions} />
       <AddNoteDialog isOpen={showAddNote} onClose={() => setShowAddNote(false)} onConfirm={addNote.mutate} />
       <AddCompetitionDialog isOpen={showAddComp} onClose={() => setShowAddComp(false)} onConfirm={addComp.mutate} />
+      <LinkChildModal isOpen={showLinkChild} onClose={() => setShowLinkChild(false)} linkSearch={linkSearch} setLinkSearch={setLinkSearch} linkResults={linkResults} searchChildren={searchChildren} onLink={linkChild.mutate} loading={linkChild.isPending} />
     </div>
   );
 }
@@ -544,13 +632,22 @@ function Modal({ isOpen, onClose, title, children }) {
 function PauseDialog({ isOpen, onClose, onConfirm }) {
   const [start, setStart] = useState(new Date().toISOString().split('T')[0]);
   const [end, setEnd] = useState('');
+  const [holdRate, setHoldRate] = useState(0.71);
+  const [maxDays, setMaxDays] = useState(84);
+  useEffect(() => {
+    fetch('/api/settings', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(r => r.json()).then(s => {
+        if (s.system?.hold_fee_rate) setHoldRate(parseFloat(s.system.hold_fee_rate));
+        if (s.system?.hold_max_days) setMaxDays(parseInt(s.system.hold_max_days, 10));
+      }).catch(() => {});
+  }, []);
   if (!isOpen) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Pause Membership">
       <div className="space-y-3">
         <div><label className="block text-sm font-medium text-gray-700">Start Date</label><input type="date" value={start} onChange={e => setStart(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
         <div><label className="block text-sm font-medium text-gray-700">End Date</label><input type="date" value={end} onChange={e => setEnd(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
-        <p className="text-xs text-gray-500">Hold fee: $0.71/day. Max 84 days.</p>
+        <p className="text-xs text-gray-500">Hold fee: ${holdRate.toFixed(2)}/day. Max {maxDays} days.</p>
         <button type="button" onClick={() => { if (start && end) onConfirm({ pause_start: start, pause_end: end }); }} className="w-full py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium">Confirm Pause</button>
       </div>
     </Modal>
@@ -630,4 +727,37 @@ function HealthScoreBadge({ score }) {
     <span className={`w-2 h-2 rounded-full ${color.replace('text-', 'bg-')}`} />
     {score}/100
   </span>;
+}
+
+function LinkChildModal({ isOpen, onClose, linkSearch, setLinkSearch, linkResults, searchChildren, onLink, loading }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-4 border-b">
+          <h3 className="text-lg font-semibold">Link Child Account</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        </div>
+        <div className="p-4">
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Search Member</label>
+              <input type="text" placeholder="Search by name, email, phone..." value={linkSearch} onChange={(e) => { setLinkSearch(e.target.value); searchChildren(e.target.value); }}
+                className="w-full px-3 py-2 border rounded-lg text-sm" aria-label="Search member to link as child" />
+              {linkResults.length > 0 && (
+                <div className="border rounded mt-1 max-h-40 overflow-y-auto" role="listbox">
+                  {linkResults.map(m => (
+                    <div key={m.id} onClick={() => { onLink(m.id); }}
+                      className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer" role="option">{m.first_name} {m.last_name} ({m.email})</div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {loading && <p className="text-sm text-blue-600">Linking...</p>}
+            {linkSearch.length > 0 && linkSearch.length < 2 && <p className="text-xs text-gray-400">Type at least 2 characters to search</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

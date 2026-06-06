@@ -6,8 +6,8 @@ import { useKeyPress, useClickOutside } from '../../hooks/useCustomHooks';
 
 // Base Modal Component
 export function Modal({
-  isOpen,
-  onClose,
+  isOpen = false,
+  onClose = () => {},
   title,
   children,
   size = 'md',
@@ -160,9 +160,9 @@ export function ModalFooter({ children, className = '' }) {
 
 // Confirm Dialog Component
 export function ConfirmDialog({
-  isOpen,
-  onClose,
-  onConfirm,
+  isOpen = false,
+  onClose = () => {},
+  onConfirm = () => {},
   title = 'Confirm Action',
   message,
   confirmText = 'Confirm',
@@ -175,7 +175,7 @@ export function ConfirmDialog({
       await onConfirm();
       onClose();
     } catch (err) {
-      console.error('Confirm action failed:', err);
+      if (import.meta.env.DEV) console.error('Confirm action failed:', err);
     }
   };
 
@@ -214,8 +214,8 @@ export function ConfirmDialog({
 
 // Alert Dialog Component
 export function AlertDialog({
-  isOpen,
-  onClose,
+  isOpen = false,
+  onClose = () => {},
   title,
   message,
   variant = 'info',
@@ -283,8 +283,8 @@ export function AlertDialog({
 
 // Drawer Component (Side Modal)
 export function Drawer({
-  isOpen,
-  onClose,
+  isOpen = false,
+  onClose = () => {},
   title,
   children,
   position = 'right',
@@ -377,8 +377,8 @@ export function Drawer({
 
 // Bottom Sheet Component (Mobile-friendly)
 export function BottomSheet({
-  isOpen,
-  onClose,
+  isOpen = false,
+  onClose = () => {},
   title,
   children,
   snapPoints = ['50%', '90%'],
@@ -444,100 +444,3 @@ export default {
   BottomSheet,
 };
 
-// Usage examples:
-/*
-import { Modal, ConfirmDialog, AlertDialog, Drawer, BottomSheet } from './components/Modal';
-
-// Basic Modal
-function MyComponent() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <>
-      <button type="button" onClick={() => setIsOpen(true)}>Open Modal</button>
-
-      <Modal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        title="My Modal"
-        size="lg"
-      >
-        <p>Modal content goes here</p>
-      </Modal>
-    </>
-  );
-}
-
-// Confirm Dialog
-function DeleteButton() {
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const handleDelete = async () => {
-    await deleteMember(memberId);
-  };
-
-  return (
-    <>
-      <button type="button" onClick={() => setShowConfirm(true)}>Delete</button>
-
-      <ConfirmDialog
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={handleDelete}
-        title="Delete Member"
-        message="Are you sure you want to delete this member? This action cannot be undone."
-        confirmText="Delete"
-        variant="danger"
-      />
-    </>
-  );
-}
-
-// Alert Dialog
-function SuccessMessage() {
-  const [showAlert, setShowAlert] = useState(false);
-
-  return (
-    <AlertDialog
-      isOpen={showAlert}
-      onClose={() => setShowAlert(false)}
-      title="Success"
-      message="Member has been created successfully!"
-      variant="success"
-    />
-  );
-}
-
-// Drawer
-function FilterDrawer() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <Drawer
-      isOpen={isOpen}
-      onClose={() => setIsOpen(false)}
-      title="Filters"
-      position="right"
-      size="md"
-    >
-      <div>Filter options here</div>
-    </Drawer>
-  );
-}
-
-// Bottom Sheet (Mobile)
-function MobileMenu() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <BottomSheet
-      isOpen={isOpen}
-      onClose={() => setIsOpen(false)}
-      title="Menu"
-      snapPoints={['50%', '90%']}
-    >
-      <div>Menu items here</div>
-    </BottomSheet>
-  );
-}
-*/

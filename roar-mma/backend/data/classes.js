@@ -116,7 +116,8 @@ function getClassInstances(filters = {}) {
       c.location,
       c.min_belt, c.fighter_only,
       s.name as coach_name,
-      (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as booked_count
+      (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as booked_count,
+      (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND waitlist = 1) as waitlist_count
     FROM class_instances ci
     JOIN classes c ON ci.class_id = c.id
     LEFT JOIN staff s ON ci.coach_id = s.id

@@ -1,0 +1,9 @@
+make a route showing all students from the db where coaches can write notes about their students, add students,
+rate their defense, stance, offense etc
+how they practiced
+that data gets passed to AI every day and it builds a profile of the student
+based on many days of data, the AI searches for drills to give the student and sends them to the coach
+
+It cancheck skill level if theyre ready for a fight, what there diet should be, what weihht class they should be in,weather they should cut or bulk
+
+all of this should be permanent in the database including all ai insights from all dates and viewable easily from a student card dropdown

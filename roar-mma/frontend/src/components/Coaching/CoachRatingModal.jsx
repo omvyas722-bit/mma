@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
-import Modal from '../Shared/Modal';
+import { Modal } from '../Modal';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 const defaultForm = { defense: '', stance: '', offense: '', practice_quality: '', notes: '' };
@@ -45,7 +45,8 @@ export default function CoachRatingModal({ isOpen, onClose, member }) {
     if (formData.practice_quality) payload.practice_quality = parseInt(formData.practice_quality, 10);
     if (formData.notes.trim()) payload.notes = formData.notes.trim();
     if (!payload.defense && !payload.stance && !payload.offense && !payload.practice_quality && !payload.notes) return;
-    createRating.mutate(payload);
+    try { createRating.mutate(payload); }
+    catch (e) { showError('Failed to save rating: ' + (e.message || 'Unknown error')); }
   }
 
   const ratingFields = [

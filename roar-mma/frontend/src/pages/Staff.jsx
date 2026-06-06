@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +27,7 @@ export default function Staff() {
     queryKey: ['staff-stats'],
     queryFn: async () => { const r = await api.get('/api/staff/stats'); return r.data; },
     retry: 1,
+    staleTime: 300000,
   });
 
   const canManageStaff = hasPermission('staff:create');
@@ -43,11 +44,12 @@ export default function Staff() {
         <button onClick={() => setTab('schedule')} className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'schedule' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-500'}`}>Schedule</button>
       </nav>
 
-      {showAddModal && <AddStaffModal onClose={() => setShowAddModal(false)} />}
+        {showAddModal && <AddStaffModal onClose={() => setShowAddModal(false)} />}
 
       {tab === 'schedule' && <StaffScheduleView />}
 
       {tab === 'list' && (<>
+        <ExpiringCertsAlert />
         {isError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4" role="alert">
             <p className="text-red-700 text-sm">Failed to load staff. <button onClick={refetch} className="underline hover:no-underline">Try again</button></p>
@@ -212,6 +214,29 @@ function StaffProfile({ staff, onClose }) {
     queryFn: async () => { const r = await api.get(`/api/staff-performance/${staff.id}`); return r.data; },
     enabled: !!staff.id,
     retry: 1,
+    staleTime: 10000,
+  });
+
+  const { data: monthlyEarnings = [] } = useQuery({
+    queryKey: ['staff-monthly-earnings', staff.id],
+    queryFn: async () => {
+      const end = new Date();
+      const start = new Date(); start.setMonth(start.getMonth() - 5);
+      const earnings = [];
+      for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+        const m = d.getMonth() + 1;
+        const y = d.getFullYear();
+        const dateFrom = `${y}-${String(m).padStart(2, '0')}-01`;
+        const dateTo = new Date(y, m, 0).toISOString().split('T')[0];
+        try {
+          const r = await api.get(`/api/staff-performance/${staff.id}`, { params: { date_from: dateFrom, date_to: dateTo } });
+          earnings.push({ month: `${d.toLocaleString('default', { month: 'short' })}`, pt_revenue: r.data?.pt_revenue || 0, classes_taught: r.data?.classes_taught || 0 });
+        } catch { earnings.push({ month: d.toLocaleString('default', { month: 'short' }), pt_revenue: 0, classes_taught: 0 }); }
+      }
+      return earnings;
+    },
+    enabled: !!staff.id && staff.role === 'coach',
+    staleTime: 10000,
   });
 
   const toggleActive = useMutation({
@@ -221,13 +246,6 @@ function StaffProfile({ staff, onClose }) {
   });
 
   const docExpiry = (staff.documents || []).map(d => ({ ...d, status: daysUntil(d.expiry) }));
-  if (docExpiry.length === 0) {
-    docExpiry.push(...[
-      { name: 'First Aid Cert', expiry: null, status: null },
-      { name: 'Working with Children', expiry: null, status: null },
-      { name: 'Police Clearance', expiry: null, status: null },
-    ]);
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -259,12 +277,31 @@ function StaffProfile({ staff, onClose }) {
                 <MetricBox label="PT sessions" value={perf?.pt_sessions ?? '-'} />
                 <MetricBox label="PT revenue" value={perf?.pt_revenue != null ? `$${perf.pt_revenue}` : '-'} />
               </div>
+              {monthlyEarnings.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Monthly PT Revenue (Last 6 Months)</h4>
+                  <div className="flex items-end gap-2 h-20">
+                    {(() => {
+                      const max = Math.max(...monthlyEarnings.map(m => m.pt_revenue), 1);
+                      return monthlyEarnings.map((m, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center">
+                          <div className="w-full bg-green-500 rounded-t transition-colors min-h-[4px]" style={{ height: `${(m.pt_revenue / max) * 100}%` }} title={`$${m.pt_revenue}`} />
+                          <span className="text-[9px] text-gray-400 mt-1">{m.month}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
           {(staff.role === 'coach' || staff.role === 'owner' || staff.role === 'gm') && (
             <section className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Document Compliance</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">Document Compliance</h3>
+                <button onClick={() => { const n = prompt('Certification name:'); if (n) api.post('/api/certifications', { staff_id: staff.id, cert_name: n }).then(() => queryClient.invalidateQueries({ queryKey: ['staff'] })).catch(() => error('Failed')); }} className="text-xs text-blue-600 hover:underline">+ Add</button>
+              </div>
               <div className="space-y-2">
                   {docExpiry.map(doc => {
                   const isExpired = doc.status != null && doc.status < 0;
@@ -305,13 +342,14 @@ function StaffScheduleView() {
     queryKey: ['staff-schedule'],
     queryFn: () => api.get('/api/staff-schedule').then(r => r.data?.schedule || { shifts: [], timeOff: [] }),
     refetchInterval: 30000,
+    staleTime: 10000,
   });
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ staff_id: '', day_of_week: 1, start_time: '09:00', end_time: '17:00', location: '' });
 
-  const { data: staffList } = useQuery({ queryKey: ['staff', {}], queryFn: () => api.get('/api/staff').then(r => r.data) });
+  const { data: staffList } = useQuery({ queryKey: ['staff', {}], queryFn: () => api.get('/api/staff').then(r => r.data), staleTime: 10000 });
 
   const addShift = useMutation({
     mutationFn: () => api.post('/api/staff-schedule/shifts', form),
@@ -379,22 +417,31 @@ function StaffScheduleView() {
 }
 
 function ExpiringCertsAlert() {
+  const [alertDays, setAlertDays] = useState(60);
+  const [criticalDays, setCriticalDays] = useState(14);
+  useEffect(() => {
+    fetch('/api/settings', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(r => r.json()).then(s => {
+        if (s.system?.doc_expiry_alert_days) setAlertDays(parseInt(s.system.doc_expiry_alert_days, 10));
+        if (s.system?.doc_expiry_critical_days) setCriticalDays(parseInt(s.system.doc_expiry_critical_days, 10));
+      }).catch(() => {});
+  }, []);
   const { data: certs = [] } = useQuery({
-    queryKey: ['expiring-certs'],
-    queryFn: async () => { const r = await api.get('/api/certifications/expiring?days=60'); return r.data?.certs || []; },
+    queryKey: ['expiring-certs', alertDays],
+    queryFn: async () => { const r = await api.get(`/api/certifications/expiring?days=${alertDays}`); return r.data?.certs || []; },
     staleTime: 60000,
   });
   if (certs.length === 0) return null;
   const expired = certs.filter(c => daysUntil(c.expiry_date) < 0);
-  const urgent = certs.filter(c => { const d = daysUntil(c.expiry_date); return d >= 0 && d < 14; });
-  const warning = certs.filter(c => { const d = daysUntil(c.expiry_date); return d >= 14 && d < 60; });
+  const urgent = certs.filter(c => { const d = daysUntil(c.expiry_date); return d >= 0 && d < criticalDays; });
+  const warning = certs.filter(c => { const d = daysUntil(c.expiry_date); return d >= criticalDays && d < alertDays; });
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-4">
       <div className="flex items-center gap-3 flex-wrap">
         <h3 className="text-sm font-semibold text-gray-900">Compliance Summary</h3>
         {expired.length > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{expired.length} Expired</span>}
-        {urgent.length > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">{urgent.length} Urgent (&lt;14d)</span>}
-        {warning.length > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">{warning.length} Warning (&lt;60d)</span>}
+        {urgent.length > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">{urgent.length} Urgent (&lt;{criticalDays}d)</span>}
+        {warning.length > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">{warning.length} Warning (&lt;{alertDays}d)</span>}
         {certs.length > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{certs.length} Total Certifications</span>}
       </div>
     </div>

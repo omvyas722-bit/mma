@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 // Shared form fields for Add/Edit Lead modals
+import { useOptions, optionLabel } from '../../lib/useOptions';
 
 const initialLeadForm = {
   first_name: '', last_name: '', email: '', phone: '',
@@ -56,24 +57,23 @@ function LeadContactFields({ formData, errors, handleChange, showEmail = true })
 }
 
 function LeadSourceFields({ formData, handleChange }) {
+  const { data: options } = useOptions();
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
         <select name="source" value={formData.source} onChange={handleChange} className="input">
-          <option value="website">Website</option>
-          <option value="facebook">Facebook</option>
-          <option value="instagram">Instagram</option>
-          <option value="referral">Referral</option>
-          <option value="walk_in">Walk-in</option>
-          <option value="other">Other</option>
+          {(options?.lead_sources || []).map(v => (
+            <option key={v} value={v}>{optionLabel(v)}</option>
+          ))}
         </select>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Location</label>
         <select name="location" value={formData.location} onChange={handleChange} className="input">
-          <option value="rockingham">Rockingham</option>
-          <option value="bibra_lake">Bibra Lake</option>
+          {(options?.locations || []).map(v => (
+            <option key={v} value={v}>{optionLabel(v)}</option>
+          ))}
         </select>
       </div>
     </div>

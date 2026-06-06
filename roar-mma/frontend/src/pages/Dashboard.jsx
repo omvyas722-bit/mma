@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
@@ -29,6 +30,7 @@ function useAiStatus() {
     queryFn: async () => { const r = await api.get('/api/ai/status'); return r.data; },
     refetchInterval: 30000,
     retry: 1,
+    staleTime: 5000,
   });
 }
 
@@ -260,14 +262,27 @@ function Sparkline({ data = [], color = '#dc2626' }) {
 function KpiCard({ title, value, change, onClick, loading, sparkline, color }) {
   if (loading) return <div className="bg-white rounded-lg shadow p-4 animate-pulse"><div className="h-3 bg-gray-200 rounded w-20 mb-2"></div><div className="h-6 bg-gray-200 rounded w-16"></div></div>;
   const changeNum = Number(change) || 0;
+  const [hovered, setHovered] = useState(false);
   return (
-    <button type="button" onClick={onClick} className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow w-full group" aria-label={`${title}: ${value}`}>
+    <button type="button" onClick={onClick} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow w-full group relative" aria-label={`${title}: ${value}`}>
       <p className="text-xs text-gray-500 mb-1">{title}</p>
       <p className="text-xl font-bold text-gray-900">{value}</p>
       <Sparkline data={sparkline} color={color} />
       {change != null && <p className={`text-xs mt-0.5 ${changeNum >= 0 ? 'text-green-600' : 'text-red-600'}`}>
         {changeNum >= 0 ? '↑' : '↓'} {Math.abs(changeNum)}%
       </p>}
+      {hovered && sparkline && sparkline.length > 0 && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+          <div className="text-center font-medium mb-1">Recent Trend</div>
+          <div className="flex gap-1.5">
+            {sparkline.map((v, i) => (
+              <span key={i} className="inline-block w-5 text-center">{v}</span>
+            ))}
+          </div>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+        </div>
+      )}
     </button>
   );
 }
@@ -338,6 +353,7 @@ function ClassCard({ item, onClick }) {
 }
 
 function ActivityItem({ activity }) {
+  const navigate = useNavigate();
   const fmt = (ts) => {
     if (!ts) return '';
     const diff = Date.now() - new Date(ts).getTime();
@@ -347,15 +363,21 @@ function ActivityItem({ activity }) {
     if (h < 24) return `${h}h ago`;
     return `${Math.floor(diff / 86400000)}d ago`;
   };
-  return (
+  const linkTo = activity.type === 'member_joined' && activity.entity_id ? `/members/${activity.entity_id}` :
+    activity.type === 'payment_completed' && activity.entity_id ? `/billing?member=${activity.entity_id}` : null;
+  const content = (
     <li className="flex items-start gap-2 py-1.5 border-b border-gray-100 last:border-0">
-      <span className="text-base mt-0.5" aria-hidden="true">📌</span>
+      <span className="text-base mt-0.5" aria-hidden="true">
+        {activity.type === 'member_joined' ? '👤' : activity.type === 'booking_created' ? '📅' : '💰'}
+      </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-900 truncate">{activity.description}</p>
         <p className="text-[10px] text-gray-400">{fmt(activity.timestamp)}</p>
       </div>
     </li>
   );
+  if (linkTo) return <button onClick={() => navigate(linkTo)} className="w-full text-left hover:bg-gray-50 rounded">{content}</button>;
+  return content;
 }
 
 function ChartCard({ title, children, loading }) {

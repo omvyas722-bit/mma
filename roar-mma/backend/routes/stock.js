@@ -65,6 +65,16 @@ router.put('/products/:id', authenticateToken, requirePermission('stock:write'),
   }
 });
 
+// Product-specific stock adjustment
+router.post('/products/:id/adjust', authenticateToken, requirePermission('stock:write'), (req, res) => {
+  try {
+    const { quantity_change, reason, notes } = req.body;
+    const adjustment = stockData.createStockAdjustment({ product_id: parseInt(req.params.id), quantity_change: parseInt(quantity_change, 10) || 0, reason: reason || 'adjustment', notes: notes || null, adjusted_by: req.user.id });
+    if (global.wsBroadcast) global.wsBroadcast({ type: 'stock_adjustment', data: adjustment });
+    res.status(201).json(adjustment);
+  } catch (error) { console.error('Error adjusting stock:', error); res.status(500).json({ error: 'Failed to adjust stock' }); }
+});
+
 // Stock adjustments
 router.post('/adjustments', authenticateToken, requirePermission('stock:write'), (req, res) => {
   try {
