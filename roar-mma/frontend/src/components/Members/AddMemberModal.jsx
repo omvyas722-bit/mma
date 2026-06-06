@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
-import Modal from '../Modal';
+import { Modal } from '../Modal';
 import SignWaiverModal from '../Waivers/SignWaiverModal';
 import { PersonalInfoFields, EmergencyContactFields, MedicalGoalsFields } from './MemberFormFields';
 import { useOptions, optionLabel } from '../../lib/useOptions';

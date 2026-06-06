@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
-import Modal from '../Modal';
+import { Modal } from '../Modal';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 const defaultForm = { defense: '', stance: '', offense: '', practice_quality: '', notes: '' };

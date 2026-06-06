@@ -1,7 +1,7 @@
 // Trial Tracking Modal - Log trial session details
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import Modal from '../Modal';
+import { Modal } from '../Modal';
 import api from '../../lib/api';
 import { useNotifications } from '../../contexts/NotificationContext';
 

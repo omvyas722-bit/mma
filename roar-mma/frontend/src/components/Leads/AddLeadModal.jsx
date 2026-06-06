@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
-import Modal from '../Modal';
+import { Modal } from '../Modal';
 import { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadSourceFields, LeadNotesFields, LeadUtmFields } from './LeadFormFields';
 
 export default function AddLeadModal({ isOpen, onClose }) {

@@ -1,7 +1,7 @@
 // Edit Lead Modal Component
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import Modal from '../Modal';
+import { Modal } from '../Modal';
 import api from '../../lib/api';
 import { initialLeadForm, validateLeadForm, LeadNameFields, LeadContactFields, LeadNotesFields } from './LeadFormFields';
 import { useOptions, optionLabel } from '../../lib/useOptions';
