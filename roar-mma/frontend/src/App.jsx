@@ -44,6 +44,14 @@ const MakeupClasses = lazy(() => import('./pages/MakeupClasses'));
 const PTSessions = lazy(() => import('./pages/PTSessions'));
 const PhoneSystem = lazy(() => import('./pages/PhoneSystem'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const AgenticOS = lazy(() => import('./pages/AgenticOS'));
+const CEODashboard = lazy(() => import('./pages/agentic/CEODashboard'));
+const IntelligenceFeed = lazy(() => import('./pages/agentic/IntelligenceFeed'));
+const ContentPipeline = lazy(() => import('./pages/agentic/ContentPipeline'));
+const LeadPipeline = lazy(() => import('./pages/agentic/LeadPipeline'));
+const SystemHealth = lazy(() => import('./pages/agentic/SystemHealth'));
+const WeeklyReports = lazy(() => import('./pages/agentic/WeeklyReports'));
+const AgentNetwork = lazy(() => import('./pages/agentic/AgentNetwork'));
 
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -105,6 +113,14 @@ function App() {
                     <Route path="pt-sessions" element={<PTSessions />} />
                     <Route path="phone-system" element={<PhoneSystem />} />
                     <Route path="privacy" element={<Privacy />} />
+                    <Route path="agentic" element={<AgenticOS />} />
+                    <Route path="agentic/ceo" element={<CEODashboard />} />
+                    <Route path="agentic/intelligence" element={<IntelligenceFeed />} />
+                    <Route path="agentic/content" element={<ContentPipeline />} />
+                    <Route path="agentic/leads" element={<LeadPipeline />} />
+                    <Route path="agentic/system" element={<SystemHealth />} />
+                    <Route path="agentic/reports" element={<WeeklyReports />} />
+                    <Route path="agentic/network" element={<AgentNetwork />} />
                   </Route>
 
                   <Route path="*" element={<Navigate to="/" replace />} />

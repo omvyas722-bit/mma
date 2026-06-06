@@ -48,6 +48,7 @@ const familyDiscountsRoutes = require('./routes/familyDiscounts');
 const staffScheduleRoutes = require('./routes/staffSchedule');
 const privacyRoutes = require('./routes/privacy');
 const documentsRoutes = require('./routes/documents');
+const agenticRoutes = require('./routes/agentic');
 const pixelRoutes = require('./routes/pixel');
 const memberPortalRoutes = require('./routes/memberPortal');
 const workflowsRoutes = require('./routes/workflows');
@@ -245,6 +246,7 @@ app.use('/api/documents', documentsRoutes);
 app.use('/api/pixel', pixelRoutes);
 app.use('/api/portal', memberPortalRoutes);
 app.use('/api/workflows', workflowsRoutes);
+app.use('/api/agentic', agenticRoutes);
 
 // Settings routes (inline — no dedicated module yet)
 const defaultSettings = {

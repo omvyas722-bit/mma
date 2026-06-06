@@ -121,6 +121,19 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'Agentic OS',
+    items: [
+      { name: 'Agentic Hub', path: '/agentic', icon: '🧠' },
+      { name: 'CEO Dashboard', path: '/agentic/ceo', icon: '👑' },
+      { name: 'Intelligence', path: '/agentic/intelligence', icon: '🔍' },
+      { name: 'Content Pipeline', path: '/agentic/content', icon: '📢' },
+      { name: 'Lead Pipeline', path: '/agentic/leads', icon: '🎯' },
+      { name: 'System Health', path: '/agentic/system', icon: '⚙️' },
+      { name: 'Weekly Reports', path: '/agentic/reports', icon: '📊' },
+      { name: 'Agent Network', path: '/agentic/network', icon: '🔗' },
+    ],
+  },
+  {
     label: 'System',
     items: [
       { name: 'Settings', path: '/settings', icon: '⚙️' },
