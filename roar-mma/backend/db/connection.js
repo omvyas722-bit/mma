@@ -118,6 +118,24 @@ function ensureMigrated(db) {
     }
   }
 
+  // Patch: eod_reports table
+  if (!applied.has('patch_eod_reports')) {
+    try {
+      db.exec(`CREATE TABLE IF NOT EXISTS eod_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL DEFAULT 'daily',
+        date DATE NOT NULL,
+        content TEXT,
+        created_at DATETIME DEFAULT (datetime('now'))
+      )`);
+      db.prepare('INSERT OR IGNORE INTO schema_version (version, name, checksum, duration_ms, success) VALUES (?, ?, ?, ?, 1)')
+        .run(-26, 'patch_eod_reports', '', 0);
+      console.log('[DB] Patch eod_reports table created');
+    } catch (e) {
+      console.log('[DB] Patch eod_reports error:', e.message);
+    }
+  }
+
   // Patch: staff table must_change_password column
   if (!applied.has('patch_staff_must_change_password')) {
     try {

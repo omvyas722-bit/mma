@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../lib/api';
+import { generateWaiverPdf } from '../lib/waiverPdf';
 
 function useDebounce(val, ms = 400) {
   const [debounced, setDebounced] = useState(val);
@@ -112,12 +113,13 @@ function StepWaiver({ member, template, templates, onSigned, onSelectTemplate })
   const [guardianRelation, setGuardianRelation] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState('email');
   const [deliveryContact, setDeliveryContact] = useState(member.email || '');
+  const signedDataRef = useRef(null);
 
   const isMinor = member.date_of_birth && new Date(member.date_of_birth) > new Date(Date.now() - 18 * 365 * 86400000);
 
   const signMutation = useMutation({
     mutationFn: (data) => api.post('/api/waivers/kiosk/sign', data),
-    onSuccess: () => onSigned(),
+    onSuccess: () => onSigned(signedDataRef.current),
     onError: (err) => alert(err?.response?.data?.error || 'Signing failed'),
   });
 
@@ -126,6 +128,7 @@ function StepWaiver({ member, template, templates, onSigned, onSelectTemplate })
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
     const signatureData = canvas.toDataURL('image/png');
+    signedDataRef.current = { member, template, signatureData, signedAt: new Date().toISOString() };
     signMutation.mutate({ member_id: member.id, template_id: template.id, signature_data: signatureData, guardian_name: isMinor ? guardianName : null, guardian_relation: isMinor ? guardianRelation : null, delivery_method: deliveryMethod, delivery_contact: deliveryContact });
   };
 
@@ -192,14 +195,35 @@ function StepWaiver({ member, template, templates, onSigned, onSelectTemplate })
   );
 }
 
-function StepComplete({ member }) {
+function StepComplete({ member, downloadData }) {
+  function handleDownload() {
+    if (!downloadData) return;
+    const pdfBlob = generateWaiverPdf(
+      { body_text: downloadData.template?.body_text, signature_data: downloadData.signatureData, signed_at: downloadData.signedAt },
+      { first_name: downloadData.member?.first_name, last_name: downloadData.member?.last_name, email: downloadData.member?.email, date_of_birth: downloadData.member?.date_of_birth }
+    );
+    if (!pdfBlob) { alert('Failed to generate PDF'); return; }
+    const url = window.URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = (downloadData.signedAt || '').split('T')[0] || 'unknown';
+    a.download = `waiver-${downloadData.member?.first_name || ''}-${downloadData.member?.last_name || ''}-${dateStr}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="text-center space-y-4 py-8">
       <div className="text-6xl">✅</div>
       <h2 className="text-2xl font-bold text-gray-900">Waiver Signed!</h2>
       <p className="text-gray-500">Thank you, <span className="font-medium text-gray-900">{member.first_name} {member.last_name}</span>.</p>
       <p className="text-sm text-gray-400">A copy has been queued for delivery to your email/phone.</p>
-      <button type="button" onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-red-700 mt-4">Sign for Another Person</button>
+      <div className="flex gap-3 justify-center mt-4">
+        <button type="button" onClick={handleDownload} className="btn-outline text-sm">Download PDF</button>
+        <button type="button" onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-red-700">Sign for Another Person</button>
+      </div>
     </div>
   );
 }
@@ -208,6 +232,7 @@ export default function KioskWaiver() {
   const [step, setStep] = useState('member');
   const [member, setMember] = useState(null);
   const [template, setTemplate] = useState(null);
+  const [downloadData, setDownloadData] = useState(null);
 
   const { data: templatesData } = useQuery({
     queryKey: ['kiosk-templates'],
@@ -220,7 +245,10 @@ export default function KioskWaiver() {
     setStep('waiver');
   };
 
-  const handleSigned = () => setStep('complete');
+  const handleSigned = (data) => {
+    setDownloadData(data);
+    setStep('complete');
+  };
 
   const handleSelectTemplate = (t) => setTemplate(t);
 
@@ -230,7 +258,7 @@ export default function KioskWaiver() {
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 sm:p-8">
           {step === 'member' && <StepMember onFound={handleFound} />}
           {step === 'waiver' && <StepWaiver member={member} template={template} templates={templatesData} onSigned={handleSigned} onSelectTemplate={handleSelectTemplate} />}
-          {step === 'complete' && <StepComplete member={member} />}
+          {step === 'complete' && <StepComplete member={member} downloadData={downloadData} />}
         </div>
       </div>
     </div>

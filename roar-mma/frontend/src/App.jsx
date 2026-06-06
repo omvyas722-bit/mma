@@ -21,6 +21,7 @@ const Staff = lazy(() => import('./pages/Staff'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const AIDashboard = lazy(() => import('./pages/AIDashboard'));
 const AgentTracking = lazy(() => import('./pages/AgentTracking'));
+const MissionControl = lazy(() => import('./pages/MissionControl'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Communications = lazy(() => import('./pages/Communications'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -87,6 +88,7 @@ function App() {
                     <Route path="ai" element={<PageWrapper title="AI Assistant"><AIAssistant /></PageWrapper>} />
                     <Route path="ai-dashboard" element={<PageWrapper title="AI Dashboard"><AIDashboard /></PageWrapper>} />
                     <Route path="agents" element={<PageWrapper title="Agent Tracking"><AgentTracking /></PageWrapper>} />
+                    <Route path="mission-control" element={<PageWrapper title="Mission Control"><MissionControl /></PageWrapper>} />
                     <Route path="calendar" element={<PageWrapper title="Calendar"><Calendar /></PageWrapper>} />
                     <Route path="communications" element={<PageWrapper title="Communications"><Communications /></PageWrapper>} />
                     <Route path="settings" element={<PageWrapper title="Settings"><Settings /></PageWrapper>} />

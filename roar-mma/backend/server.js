@@ -1,5 +1,7 @@
 // Main server file
 require('dotenv').config();
+const { initMonitoring, getRequestHandler, getErrorHandler, Sentry } = require('./monitoring');
+initMonitoring();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -8,6 +10,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 const { getDatabase, closeDatabase } = require('./db/connection');
+const { getHealth } = require('./monitoring');
 const { authenticateToken, requirePermission } = require('./middleware/auth');
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -48,11 +51,13 @@ const automatedMessagesRoutes = require('./routes/automatedMessages');
 const familyDiscountsRoutes = require('./routes/familyDiscounts');
 const staffScheduleRoutes = require('./routes/staffSchedule');
 const privacyRoutes = require('./routes/privacy');
+const missionControlRoutes = require('./routes/missionControl');
 const documentsRoutes = require('./routes/documents');
 const pixelRoutes = require('./routes/pixel');
 const memberPortalRoutes = require('./routes/memberPortal');
 const workflowsRoutes = require('./routes/workflows');
 const settingsRoutes = require('./routes/settings');
+const waiverPdfRoutes = require('./routes/waiverPdf');
 
 // Import services
 const messageScheduler = require('./services/messageScheduler');
@@ -163,6 +168,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Sentry request handler — must be before routes
+app.use(getRequestHandler());
+
 // Request logging middleware — logs method, path, status, duration
 app.use((req, res, next) => {
   const start = Date.now();
@@ -194,12 +202,18 @@ app.get('/api/health', healthLimiter, (req, res) => {
     // Test database connection
     db.prepare('SELECT 1').get();
 
+    const monitoring = getHealth();
+
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: 'connected',
-      websocket: wss.clients.size + ' clients connected'
+      websocket: wss.clients.size + ' clients connected',
+      sentry_initialized: monitoring.sentry_initialized,
+      sentry_dsn_configured: monitoring.sentry_dsn_configured,
+      memory_usage: process.memoryUsage(),
+      node_version: process.version
     });
   } catch (error) {
     res.status(503).json({
@@ -240,6 +254,7 @@ app.use('/api/agents', agentsRoutes.router);
 app.use('/api/coaching', studentCoachingRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/waivers', require('./routes/waivers'));
+app.use('/api/waivers', waiverPdfRoutes);
 app.use('/api/social-media', socialMediaRoutes);
 app.use('/api/certifications', certificationsRoutes);
 app.use('/api/approval-queue', approvalQueueRoutes);
@@ -253,6 +268,7 @@ app.use('/api/pixel', pixelRoutes);
 app.use('/api/portal', memberPortalRoutes);
 app.use('/api/workflows', workflowsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/mission-control', missionControlRoutes);
 
 // Settings routes (inline — no dedicated module yet)
 const defaultSettings = {
@@ -374,6 +390,9 @@ app.get('/api/reports/staff-performance', authenticateToken, requirePermission('
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
+
+// Sentry error handler — must be before the app-level error handler
+app.use(getErrorHandler());
 
 // Error handler — never leak stack traces in responses
 app.use(errorHandler);

@@ -103,8 +103,13 @@ export default function AIDashboard() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">AI Dashboard</h1>
-        <p className="text-gray-500 mt-1">Monitor AI system status and activity</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">AI Dashboard</h1>
+            <p className="text-gray-500 mt-1">Monitor AI system status and activity</p>
+          </div>
+          <Link to="/mission-control" className="text-sm text-red-600 hover:underline">Switch to Mission Control →</Link>
+        </div>
       </div>
 
       {/* Status Cards */}

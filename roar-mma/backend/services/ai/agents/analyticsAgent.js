@@ -72,7 +72,9 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
       anomalies.push(`Leads surged ${leadChange}% compared to yesterday`);
     }
 
-    const briefing = `Today: ${leadsToday} new leads, $${revenueToday} revenue, ${signupsToday} members joined, ${trialsToday} trials booked. Compared to yesterday: ${leadChange >= 0 ? '+' : ''}${leadChange}% leads, ${revenueChange >= 0 ? '+' : ''}${revenueChange}% revenue, ${signupChange >= 0 ? '+' : ''}${signupChange}% signups, ${trialChange >= 0 ? '+' : ''}${trialChange}% trials.${anomalies.length > 0 ? ` Anomalies: ${anomalies.join('; ')}.` : ''}`;
+    const isMonday = new Date().getDay() === 1;
+    const weeklyNote = isMonday ? ' It is Monday — a weekly owner digest was due today.' : '';
+    const briefing = `Today: ${leadsToday} new leads, $${revenueToday} revenue, ${signupsToday} members joined, ${trialsToday} trials booked. Compared to yesterday: ${leadChange >= 0 ? '+' : ''}${leadChange}% leads, ${revenueChange >= 0 ? '+' : ''}${revenueChange}% revenue, ${signupChange >= 0 ? '+' : ''}${signupChange}% signups, ${trialChange >= 0 ? '+' : ''}${trialChange}% trials.${anomalies.length > 0 ? ` Anomalies: ${anomalies.join('; ')}.` : ''}${weeklyNote}`;
 
     await aiState.logActivity({
       agentName: agentName || 'analytics',

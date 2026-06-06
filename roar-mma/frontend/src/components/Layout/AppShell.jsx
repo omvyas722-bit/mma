@@ -116,6 +116,7 @@ const NAV_SECTIONS = [
     label: 'AI',
     items: [
       { name: 'AI Dashboard', path: '/ai-dashboard', icon: '🤖' },
+      { name: 'Mission Control', path: '/mission-control', icon: '🎮' },
       { name: 'AI Assistant', path: '/ai', icon: '💬' },
       { name: 'Agent Tracking', path: '/agents', icon: '📡' },
       { name: 'Phone System', path: '/phone-system', icon: '📞' },

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
 import SignWaiverModal from '../components/Waivers/SignWaiverModal';
+import { generateWaiverPdf } from '../lib/waiverPdf';
 
 export default function Waivers() {
   const queryClient = useQueryClient();
@@ -68,6 +69,26 @@ export default function Waivers() {
   function handleSign(tpl) {
     setSigningTemplate(tpl);
     setShowSignModal(true);
+  }
+
+  async function handleDownloadPdf(waiver, e) {
+    e.stopPropagation();
+    try {
+      const data = await api.get(`/api/waivers/${waiver.id}/pdf`);
+      const pdfBlob = generateWaiverPdf(data, data);
+      if (!pdfBlob) { error('Failed to generate PDF'); return; }
+      const url = window.URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = (data.signed_at || '').split('T')[0] || 'unknown';
+      a.download = `waiver-${data.first_name}-${data.last_name}-${dateStr}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      error('Failed to download PDF');
+    }
   }
 
   return (
@@ -169,7 +190,10 @@ export default function Waivers() {
                     <tr key={w.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => alert(w.body_text || 'Waiver content not available')}>
                       <td className="px-4 py-2 text-sm text-gray-900">{w.template_name}</td>
                       <td className="px-4 py-2 text-sm text-gray-500">{new Date(w.signed_at).toLocaleString()}</td>
-                      <td className="px-4 py-2 text-sm text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); alert(w.body_text || 'Waiver content not available'); }}>View</td>
+                      <td className="px-4 py-2 text-sm">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); alert(w.body_text || 'Waiver content not available'); }} className="text-red-600 hover:underline mr-2">View</button>
+                        <button type="button" onClick={(e) => handleDownloadPdf(w, e)} className="btn-outline text-xs">Download PDF</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

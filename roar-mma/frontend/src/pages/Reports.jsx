@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 
-const REPORT_TABS = ['membership', 'revenue', 'attendance', 'leads', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history'];
+const REPORT_TABS = ['membership', 'revenue', 'attendance', 'leads', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history', 'staff_compliance'];
 
 export default function Reports() {
   const [reportType, setReportType] = useState('membership');
@@ -22,12 +22,12 @@ export default function Reports() {
     setDateFrom(from); setDateTo(to);
   };
 
-  const needsBackend = ['staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history'].includes(reportType);
+  const needsBackend = ['staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history', 'staff_compliance'].includes(reportType);
   const { data: report, isLoading, isError, refetch } = useQuery({
     queryKey: ['reports', reportType, dateFrom, dateTo],
     placeholderData: (prev) => prev,
     queryFn: async () => {
-      if (['membership', 'revenue', 'attendance', 'leads', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history'].includes(reportType)) {
+      if (['membership', 'revenue', 'attendance', 'leads', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history', 'staff_compliance'].includes(reportType)) {
         const response = await api.get(`/api/reports/${reportType}`, {
           params: { date_from: dateFrom, date_to: dateTo }
         });
@@ -46,9 +46,53 @@ export default function Reports() {
     staleTime: 300000,
   });
 
+  const { data: weeklyDigests = [] } = useQuery({
+    queryKey: ['weekly-digests'],
+    queryFn: async () => { const r = await api.get('/api/reports/weekly-digest'); return r.data || []; },
+    staleTime: 600000,
+  });
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Reports</h1>
+
+      {/* Weekly Digest section */}
+      {weeklyDigests.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4">Weekly Owner Digest</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Week Starting</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">New Members</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Leads</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Conversions</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Attendance</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Cancellations</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {weeklyDigests.map((d, i) => {
+                  const c = d.content || {};
+                  return (
+                    <tr key={d.id || i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-sm text-gray-900">{d.date || c.week_start || '—'}</td>
+                      <td className="px-3 py-2 text-sm text-right">{c.new_members ?? '—'}</td>
+                      <td className="px-3 py-2 text-sm text-right">${(c.total_revenue || 0).toFixed(0)}</td>
+                      <td className="px-3 py-2 text-sm text-right">{c.new_leads ?? '—'}</td>
+                      <td className="px-3 py-2 text-sm text-right">{c.trial_conversions ?? '—'}</td>
+                      <td className="px-3 py-2 text-sm text-right">{c.attendance_rate != null ? `${c.attendance_rate}%` : '—'}</td>
+                      <td className="px-3 py-2 text-sm text-right">{c.cancellations ?? '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Report controls */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -78,6 +122,7 @@ export default function Reports() {
               <option value="retention">Retention</option>
               <option value="social_media">Social Media</option>
               <option value="eod_history">EOD History</option>
+              <option value="staff_compliance">Staff Compliance</option>
             </select>
           </div>
 
@@ -109,7 +154,7 @@ export default function Reports() {
             <button type="button" onClick={() => refetch()} className="btn btn-primary w-full">
               Generate Report
             </button>
-            {report && !isError && !['eod_history', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media'].includes(reportType) && (
+            {report && !isError && !['eod_history', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'staff_compliance'].includes(reportType) && (
               <button type="button" onClick={() => exportCSV(report, reportType)} className="btn btn-outline w-full">
                 Export CSV
               </button>
@@ -119,7 +164,7 @@ export default function Reports() {
       </div>
 
       {/* Report content */}
-      {isError && !['staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media'].includes(reportType) && (
+      {isError && !['staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'staff_compliance'].includes(reportType) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-center" role="alert">
           <p className="text-red-700 text-sm mb-3">Failed to load report. Please try again.</p>
           <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Retry</button>
@@ -141,6 +186,7 @@ export default function Reports() {
           {reportType === 'grading_stats' && <GradingStatsReport data={report} />}
           {reportType === 'retention' && <RetentionReport data={report} />}
           {reportType === 'social_media' && <SocialMediaReport data={report} />}
+          {reportType === 'staff_compliance' && <StaffComplianceReport data={report} />}
         </>
       ) : !isError && !isLoading ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -631,6 +677,90 @@ function EODHistoryReport({ data, loading }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function StaffComplianceReport({ data }) {
+  if (!data) return null;
+  const summary = data.summary || {};
+  const staff = data.staff || [];
+
+  const statusColor = (status) => {
+    switch (status) {
+      case 'valid': return 'bg-green-100 text-green-700';
+      case 'expiring': return 'bg-yellow-100 text-yellow-700';
+      case 'expired': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-500';
+    }
+  };
+
+  const daysUntilExpiry = (date) => {
+    if (!date) return null;
+    const diff = new Date(date) - new Date();
+    return Math.ceil(diff / 86400000);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard label="Total Staff" value={summary.total_staff ?? 0} />
+        <StatCard label="Certified (All Docs Valid)" value={summary.certified ?? 0} color="green" />
+        <StatCard label="Expiring Soon (≤30 days)" value={summary.expiring_soon ?? 0} color="yellow" />
+        <StatCard label="Expired" value={summary.expired ?? 0} color="red" />
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Staff Certification Details</h3>
+        {staff.length === 0 ? (
+          <p className="text-sm text-gray-400">No staff data available.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Certifications</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Days Until Expiry</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {staff.map((s) => {
+                  const certList = s.certifications || [];
+                  const certNames = certList.map(c => c.name).join(', ') || 'None';
+                  const minExpiry = certList.length > 0
+                    ? Math.min(...certList.filter(c => c.expiry_date).map(c => daysUntilExpiry(c.expiry_date) || 9999))
+                    : null;
+                  const displayDays = minExpiry != null && minExpiry < 9999 ? minExpiry : null;
+                  return (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{s.name}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600 capitalize">{s.role?.replace(/_/g, ' ')}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{certNames}</td>
+                      <td className="px-4 py-2 text-center">
+                        <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(s.compliance_status)}`}>
+                          {s.compliance_status === 'valid' ? 'Valid' : s.compliance_status === 'expiring' ? 'Expiring' : s.compliance_status === 'expired' ? 'Expired' : 'No Certs'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        {displayDays != null ? (
+                          <span className={displayDays <= 0 ? 'text-red-600 font-medium' : displayDays <= 30 ? 'text-yellow-600 font-medium' : 'text-green-600'}>
+                            {displayDays <= 0 ? `${Math.abs(displayDays)} days overdue` : `${displayDays} days`}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

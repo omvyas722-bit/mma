@@ -6,6 +6,9 @@ const reportsData = require('../data/reports');
 
 const router = express.Router();
 
+const DEFAULT_DATE_FROM = '2020-01-01';
+function getDefaultDateTo() { return new Date().toISOString().split('T')[0]; }
+
 // Get membership report
 router.get('/membership', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
@@ -97,7 +100,7 @@ router.get('/pt_revenue', authenticateToken, requirePermission('reports:read'), 
   try {
     const db = getDatabase();
     const dateFrom = req.query.date_from || DEFAULT_DATE_FROM;
-    const dateTo = req.query.date_to || DEFAULT_DATE_TO;
+    const dateTo = req.query.date_to || getDefaultDateTo();
     const ptData = db.prepare(`
       SELECT COUNT(*) as total_sessions, COALESCE(SUM(amount), 0) as total_revenue
       FROM pt_sessions
@@ -122,7 +125,7 @@ router.get('/grading_stats', authenticateToken, requirePermission('reports:read'
   try {
     const db = getDatabase();
     const dateFrom = req.query.date_from || DEFAULT_DATE_FROM;
-    const dateTo = req.query.date_to || DEFAULT_DATE_TO;
+    const dateTo = req.query.date_to || getDefaultDateTo();
     const sessions = db.prepare(`
       SELECT COUNT(*) as total_sessions,
              COALESCE(SUM(CASE WHEN gp.result = 'passed' THEN 1 ELSE 0 END), 0) as passed,
@@ -179,7 +182,7 @@ router.get('/eod_history', authenticateToken, requirePermission('reports:read'),
   try {
     const db = getDatabase();
     const dateFrom = req.query.date_from || DEFAULT_DATE_FROM;
-    const dateTo = req.query.date_to || DEFAULT_DATE_TO;
+    const dateTo = req.query.date_to || getDefaultDateTo();
     const reports = db.prepare(`
       SELECT id, action_type, notes, created_at as date,
              json_extract(details, '$.leads_count') as leads_count,
@@ -194,6 +197,85 @@ router.get('/eod_history', authenticateToken, requirePermission('reports:read'),
   } catch (error) {
     console.error('Error fetching EOD history:', error);
     res.status(500).json({ error: 'Failed to fetch EOD history' });
+  }
+});
+
+// Weekly digest endpoint
+router.get('/weekly-digest', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const digests = db.prepare(`
+      SELECT id, date, content, created_at FROM eod_reports
+      WHERE type = 'weekly' ORDER BY date DESC LIMIT 4
+    `).all();
+    res.json(digests.map(d => ({
+      ...d,
+      content: d.content ? JSON.parse(d.content) : null
+    })));
+  } catch (error) {
+    console.error('Error fetching weekly digests:', error);
+    res.status(500).json({ error: 'Failed to fetch weekly digests' });
+  }
+});
+
+// Staff Compliance report
+router.get('/staff_compliance', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const in30Days = new Date();
+    in30Days.setDate(in30Days.getDate() + 30);
+    const in30DaysStr = in30Days.toISOString().split('T')[0];
+
+    const rows = db.prepare(`
+      SELECT s.id as staff_id, s.name, s.role, s.email, s.active,
+             sc.id as cert_id, sc.cert_name, sc.issuing_body,
+             sc.issued_date, sc.expiry_date, sc.verified
+      FROM staff s
+      LEFT JOIN staff_certifications sc ON s.id = sc.staff_id
+      WHERE s.active = 1
+      ORDER BY s.name, sc.expiry_date
+    `).all();
+
+    const staffMap = {};
+    rows.forEach(row => {
+      if (!staffMap[row.staff_id]) {
+        staffMap[row.staff_id] = { id: row.staff_id, name: row.name, role: row.role, email: row.email, certifications: [] };
+      }
+      if (row.cert_id) {
+        staffMap[row.staff_id].certifications.push({
+          id: row.cert_id, name: row.cert_name, issuing_body: row.issuing_body,
+          issued_date: row.issued_date, expiry_date: row.expiry_date, verified: !!row.verified
+        });
+      }
+    });
+
+    const staffList = Object.values(staffMap);
+    let totalStaff = 0, certified = 0, expiringSoon = 0, expired = 0;
+
+    staffList.forEach(s => {
+      totalStaff++;
+      const hasExpired = s.certifications.some(c => c.expiry_date && c.expiry_date < todayStr);
+      const hasExpiring = s.certifications.some(c => c.expiry_date && c.expiry_date >= todayStr && c.expiry_date <= in30DaysStr);
+      const allValid = s.certifications.length > 0 && s.certifications.every(c => !c.expiry_date || c.expiry_date > in30DaysStr);
+      if (hasExpired) expired++;
+      if (hasExpiring) expiringSoon++;
+      if (allValid) certified++;
+    });
+
+    res.json({
+      summary: { total_staff: totalStaff, certified, expiring_soon: expiringSoon, expired },
+      staff: staffList.map(s => ({
+        ...s,
+        compliance_status: s.certifications.some(c => c.expiry_date && c.expiry_date < todayStr) ? 'expired'
+          : s.certifications.some(c => c.expiry_date && c.expiry_date >= todayStr && c.expiry_date <= in30DaysStr) ? 'expiring'
+          : s.certifications.length > 0 ? 'valid' : 'no_certs'
+      }))
+    });
+  } catch (error) {
+    console.error('Error generating staff compliance report:', error);
+    res.status(500).json({ error: 'Failed to generate staff compliance report' });
   }
 });
 
