@@ -186,7 +186,26 @@ function getAttendanceReport(filters = {}) {
       GROUP BY m.id
       ORDER BY attended DESC
       LIMIT 10
-    `).all(dateFrom, dateTo)
+    `).all(dateFrom, dateTo),
+    by_day_of_week: db.prepare(`
+      SELECT
+        c.class_type,
+        CASE CAST(strftime('%w', ci.date) AS INTEGER)
+          WHEN 0 THEN 'Sun' WHEN 1 THEN 'Mon' WHEN 2 THEN 'Tue'
+          WHEN 3 THEN 'Wed' WHEN 4 THEN 'Thu' WHEN 5 THEN 'Fri'
+          WHEN 6 THEN 'Sat'
+        END as day_name,
+        CAST(strftime('%w', ci.date) AS INTEGER) as day_num,
+        COUNT(b.id) as bookings,
+        SUM(CASE WHEN b.status = 'attended' THEN 1 ELSE 0 END) as attended,
+        c.capacity
+      FROM bookings b
+      JOIN class_instances ci ON b.class_instance_id = ci.id
+      JOIN classes c ON ci.class_id = c.id
+      WHERE ci.date BETWEEN ? AND ?
+      GROUP BY c.class_type, CAST(strftime('%w', ci.date) AS INTEGER)
+      ORDER BY c.class_type, day_num
+    `).all(dateFrom, dateTo),
   };
 }
 

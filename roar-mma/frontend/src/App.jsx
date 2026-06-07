@@ -33,6 +33,7 @@ const POS = lazy(() => import('./pages/POS'));
 const Waivers = lazy(() => import('./pages/Waivers'));
 const SocialMedia = lazy(() => import('./pages/SocialMedia'));
 const KioskWaiver = lazy(() => import('./pages/KioskWaiver'));
+const ParentSign = lazy(() => import('./pages/ParentSign'));
 const ApprovalQueue = lazy(() => import('./pages/ApprovalQueue'));
 const LeadsWizard = lazy(() => import('./pages/LeadsWizard'));
 const MemberPortal = lazy(() => import('./pages/MemberPortal'));
@@ -73,6 +74,7 @@ function App() {
                 <Routes>
                   <Route path="/login" element={<PageWrapper title="Login"><Login /></PageWrapper>} />
                   <Route path="/kiosk/waiver" element={<PageWrapper title="Kiosk Waiver"><KioskWaiver /></PageWrapper>} />
+                  <Route path="/parent-sign/:token" element={<PageWrapper title="Parent Sign"><ParentSign /></PageWrapper>} />
                   <Route path="/portal/*" element={<PageWrapper title="Member Portal"><MemberPortal /></PageWrapper>} />
 
                   <Route

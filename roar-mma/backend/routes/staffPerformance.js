@@ -11,16 +11,35 @@ router.get('/:staffId', authenticateToken, requirePermission('staff:read'), (req
     const dateFrom = req.query.date_from;
     const dateTo = req.query.date_to;
 
-    const metrics = staffPerformanceData.getStaffPerformanceMetrics(
+    const result = staffPerformanceData.getStaffPerformanceWithExtras(
       req.params.staffId,
       dateFrom,
       dateTo
     );
 
-    res.json(metrics);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching staff performance:', error);
     res.status(500).json({ error: 'Failed to fetch staff performance' });
+  }
+});
+
+// Get staff PT earnings
+router.get('/:staffId/earnings', authenticateToken, requirePermission('staff:read'), (req, res) => {
+  try {
+    const dateFrom = req.query.date_from;
+    const dateTo = req.query.date_to;
+
+    const earnings = staffPerformanceData.getCoachPTEarnings(
+      req.params.staffId,
+      dateFrom,
+      dateTo
+    );
+
+    res.json(earnings);
+  } catch (error) {
+    console.error('Error fetching staff earnings:', error);
+    res.status(500).json({ error: 'Failed to fetch earnings' });
   }
 });
 

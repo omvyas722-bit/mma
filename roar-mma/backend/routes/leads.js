@@ -1,13 +1,14 @@
 // Leads routes
 const express = require('express');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { auditLog } = require('../middleware/auditLog');
 const leadsData = require('../data/leads');
 const messageScheduler = require('../services/messageScheduler');
 
 const router = express.Router();
 
 // Get all leads (with filters)
-router.get('/', authenticateToken, requirePermission('leads:read'), (req, res) => {
+router.get('/', authenticateToken, requirePermission('leads:read'), auditLog('view_list', 'lead'), (req, res) => {
   try {
     const filters = {
       stage: req.query.stage,
@@ -56,6 +57,56 @@ router.get('/winback', authenticateToken, requirePermission('leads:read'), (req,
   }
 });
 
+// Bulk export leads as CSV
+router.post('/bulk/export', authenticateToken, requirePermission('leads:read'), (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array required' });
+    if (ids.length > 500) return res.status(400).json({ error: 'Maximum 500 leads per export' });
+
+    const leads = ids.map(id => leadsData.getLeadById(id)).filter(Boolean);
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Source', 'Stage', 'Location', 'Created'];
+    const rows = leads.map(l => [l.first_name, l.last_name, l.email, l.phone, l.source, l.stage, l.location, l.created_at].map(v => `"${v || ''}"`).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="leads.csv"');
+    res.send(csv);
+  } catch (error) {
+    console.error('Error exporting leads:', error);
+    res.status(500).json({ error: 'Failed to export leads' });
+  }
+});
+
+// Bulk delete leads
+router.post('/bulk/delete', authenticateToken, requirePermission('leads:delete'), (req, res) => {
+  try {
+    const { ids, confirm } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array required' });
+    if (!confirm) return res.status(400).json({ error: 'Confirmation required, set confirm: true' });
+    if (ids.length > 500) return res.status(400).json({ error: 'Maximum 500 leads per operation' });
+
+    const results = [];
+    const errors = [];
+
+    for (const id of ids) {
+      try {
+        const lead = leadsData.getLeadById(id);
+        if (!lead) { errors.push({ id, error: 'Lead not found' }); continue; }
+        leadsData.deleteLead(id);
+        results.push(id);
+      } catch (err) {
+        errors.push({ id, error: err.message });
+      }
+    }
+
+    res.json({ deleted: results.length, errors });
+  } catch (error) {
+    console.error('Error bulk deleting leads:', error);
+    res.status(500).json({ error: 'Failed to delete leads' });
+  }
+});
+
 // Get single lead by ID
 router.get('/:id', authenticateToken, requirePermission('leads:read'), (req, res) => {
   try {
@@ -84,7 +135,7 @@ router.get('/:id/interactions', authenticateToken, requirePermission('leads:read
 });
 
 // Create new lead
-router.post('/', authenticateToken, requirePermission('leads:create'), (req, res) => {
+router.post('/', authenticateToken, requirePermission('leads:create'), auditLog('create', 'lead'), (req, res) => {
   try {
     const { first_name, last_name, phone } = req.body;
 
@@ -142,7 +193,7 @@ router.post('/', authenticateToken, requirePermission('leads:create'), (req, res
 });
 
 // Update lead
-router.put('/:id', authenticateToken, requirePermission('leads:update'), (req, res) => {
+router.put('/:id', authenticateToken, requirePermission('leads:update'), auditLog('update', 'lead'), (req, res) => {
   try {
     const lead = leadsData.getLeadById(req.params.id);
 
@@ -384,7 +435,7 @@ Return a JSON object with: interests_analysis (2-3 sentences), recommended_appro
 });
 
 // Delete lead
-router.delete('/:id', authenticateToken, requirePermission('leads:delete'), (req, res) => {
+router.delete('/:id', authenticateToken, requirePermission('leads:delete'), auditLog('delete', 'lead'), (req, res) => {
   try {
     const lead = leadsData.getLeadById(req.params.id);
 

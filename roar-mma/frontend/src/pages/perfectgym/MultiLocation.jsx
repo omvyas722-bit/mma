@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../lib/api';
 
-const LOCATIONS = [
+const DEFAULT_LOCS = [
   { id: 1, name: 'ROAR MMA Perth CBD', city: 'Perth', members: 847, open: true },
   { id: 2, name: 'ROAR MMA Fremantle', city: 'Fremantle', members: 423, open: true },
   { id: 3, name: 'ROAR MMA Joondalup', city: 'Joondalup', members: 312, open: true },
@@ -10,6 +12,29 @@ const LOCATIONS = [
 
 export default function MultiLocation() {
   const [selectedId, setSelectedId] = useState(1);
+
+  const { data: locData } = useQuery({
+    queryKey: ['locations-pg'],
+    queryFn: () => api.get('/api/settings/locations').catch(() => null),
+    staleTime: 60000,
+  });
+
+  const { data: memberStats } = useQuery({
+    queryKey: ['member-stats-pg'],
+    queryFn: () => api.get('/api/members/stats').catch(() => null),
+    staleTime: 60000,
+  });
+
+  const LOCATIONS = locData && Array.isArray(locData) && locData.length > 0
+    ? locData.map((l, i) => ({
+        id: l.id || i + 1,
+        name: l.name || `ROAR MMA ${l.city || l}`,
+        city: l.city || (typeof l === 'string' ? l : `Location ${i + 1}`),
+        members: l.member_count || l.members || Math.floor((memberStats?.total || 800) / Math.max(locData.length, 1)),
+        open: l.open !== undefined ? l.open : l.active !== undefined ? l.active : true,
+      }))
+    : DEFAULT_LOCS;
+
   const selected = LOCATIONS.find(l => l.id === selectedId);
 
   return (

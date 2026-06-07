@@ -15,6 +15,8 @@ export default function Staff() {
   const [roleFilter, setRoleFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [detailStaff, setDetailStaff] = useState(null);
+  const [complianceStaff, setComplianceStaff] = useState(null);
+  const [detailTab, setDetailTab] = useState('overview');
 
   const { data: staff = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['staff', { role: roleFilter }],
@@ -29,6 +31,21 @@ export default function Staff() {
     retry: 1,
     staleTime: 300000,
   });
+
+  const { data: allCerts = [] } = useQuery({
+    queryKey: ['all-certifications'],
+    queryFn: async () => { const r = await api.get('/api/certifications'); return r.data?.certifications || []; },
+    staleTime: 60000,
+  });
+
+  const cStatus = (staffId) => {
+    const staffCerts = allCerts.filter(c => c.staff_id === staffId);
+    if (staffCerts.length === 0) return null;
+    const minDays = Math.min(...staffCerts.map(c => daysUntil(c.expiry_date) ?? 999));
+    if (minDays < 0 || minDays < 14) return 'expired';
+    if (minDays < 60) return 'warning';
+    return 'valid';
+  };
 
   const canManageStaff = hasPermission('staff:create');
 
@@ -103,6 +120,7 @@ export default function Staff() {
                     <th className="px-4 py-3 hidden sm:table-cell">Phone</th>
                     <th className="px-4 py-3 hidden lg:table-cell">Location</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Compliance</th>
                     <th className="px-4 py-3 hidden sm:table-cell">Joined</th>
                   </tr>
                 </thead>
@@ -115,6 +133,15 @@ export default function Staff() {
                       <td className="px-4 py-3 whitespace-nowrap text-gray-500 hidden sm:table-cell">{member.phone || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 capitalize hidden lg:table-cell">{member.location || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">{member.active ? <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span> : <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">Inactive</span>}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {(() => {
+                          const s = cStatus(member.id);
+                          if (!s) return <span className="text-xs text-gray-400">—</span>;
+                          const colors = { expired: 'bg-red-100 text-red-700', warning: 'bg-yellow-100 text-yellow-700', valid: 'bg-green-100 text-green-700' };
+                          const labels = { expired: '⚠ Overdue', warning: '🟡 Expiring', valid: '✅ Compliant' };
+                          return <button onClick={(e) => { e.stopPropagation(); setComplianceStaff(member); }} className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors[s]}`}>{labels[s]}</button>;
+                        })()}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{new Date(member.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
@@ -125,7 +152,8 @@ export default function Staff() {
         </div>
         </>)}
 
-      {detailStaff && <StaffProfile staff={detailStaff} onClose={() => setDetailStaff(null)} />}
+      {detailStaff && <StaffProfile staff={detailStaff} onClose={() => setDetailStaff(null)} tab={detailTab} onTabChange={setDetailTab} />}
+      {complianceStaff && <ComplianceModal staff={complianceStaff} onClose={() => setComplianceStaff(null)} />}
     </div>
   );
 }
@@ -205,7 +233,7 @@ function AddStaffModal({ onClose }) {
   );
 }
 
-function StaffProfile({ staff, onClose }) {
+function StaffProfile({ staff, onClose, tab, onTabChange }) {
   const queryClient = useQueryClient();
   const { success, error } = useNotifications();
 
@@ -245,7 +273,18 @@ function StaffProfile({ staff, onClose }) {
     onError: () => error('Failed to update'),
   });
 
-  const docExpiry = (staff.documents || []).map(d => ({ ...d, status: daysUntil(d.expiry) }));
+  const { data: staffCerts = [] } = useQuery({
+    queryKey: ['staff-certs', staff.id],
+    queryFn: async () => { const r = await api.get(`/api/certifications/staff/${staff.id}`); return r.data?.certifications || []; },
+    enabled: !!staff.id,
+    staleTime: 30000,
+  });
+
+  const addCert = useMutation({
+    mutationFn: (name) => api.post('/api/certifications', { staff_id: staff.id, cert_name: name }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['staff-certs', staff.id] }); queryClient.invalidateQueries({ queryKey: ['all-certifications'] }); success('Cert added'); },
+    onError: (err) => error(err?.response?.data?.error || 'Failed'),
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -260,25 +299,25 @@ function StaffProfile({ staff, onClose }) {
             {staff.active ? <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span> : <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">Inactive</span>}
           </div>
         </div>
-        <div className="p-5 space-y-4">
-          <dl className="space-y-2 text-sm">
-            <div><dt className="text-gray-500 inline">Email:</dt><dd className="inline ml-1">{staff.email}</dd></div>
-            <div><dt className="text-gray-500 inline">Phone:</dt><dd className="inline ml-1">{staff.phone || '—'}</dd></div>
-            {staff.location && <div><dt className="text-gray-500 inline">Location:</dt><dd className="inline ml-1 capitalize">{staff.location.replace(/_/g, ' ')}</dd></div>}
-            <div><dt className="text-gray-500 inline">Joined:</dt><dd className="inline ml-1">{new Date(staff.created_at).toLocaleDateString()}</dd></div>
-          </dl>
 
-          {staff.role === 'coach' && (
-            <section className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Performance</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <MetricBox label="Classes/month" value={perf?.classes_taught ?? '-'} />
-                <MetricBox label="Avg fill rate" value={perf?.avg_fill_rate != null ? `${perf.avg_fill_rate}%` : '-'} />
-                <MetricBox label="PT sessions" value={perf?.pt_sessions ?? '-'} />
-                <MetricBox label="PT revenue" value={perf?.pt_revenue != null ? `$${perf.pt_revenue}` : '-'} />
-              </div>
+        <nav className="flex gap-1 border-b border-gray-200 px-5">
+          <button onClick={() => onTabChange('overview')} className={`px-3 py-2 text-xs font-medium border-b-2 ${tab === 'overview' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-500'}`}>Overview</button>
+          {staff.role === 'coach' && <button onClick={() => onTabChange('performance')} className={`px-3 py-2 text-xs font-medium border-b-2 ${tab === 'performance' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-500'}`}>Performance</button>}
+          {staff.role === 'coach' && <button onClick={() => onTabChange('pt-earnings')} className={`px-3 py-2 text-xs font-medium border-b-2 ${tab === 'pt-earnings' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-500'}`}>PT Earnings</button>}
+        </nav>
+
+        <div className="p-5 space-y-4">
+          {tab === 'overview' && (
+            <>
+              <dl className="space-y-2 text-sm">
+                <div><dt className="text-gray-500 inline">Email:</dt><dd className="inline ml-1">{staff.email}</dd></div>
+                <div><dt className="text-gray-500 inline">Phone:</dt><dd className="inline ml-1">{staff.phone || '—'}</dd></div>
+                {staff.location && <div><dt className="text-gray-500 inline">Location:</dt><dd className="inline ml-1 capitalize">{staff.location.replace(/_/g, ' ')}</dd></div>}
+                <div><dt className="text-gray-500 inline">Joined:</dt><dd className="inline ml-1">{new Date(staff.created_at).toLocaleDateString()}</dd></div>
+              </dl>
+
               {monthlyEarnings.length > 0 && (
-                <div className="mt-4">
+                <section className="border-t pt-4">
                   <h4 className="text-xs font-semibold text-gray-700 mb-2">Monthly PT Revenue (Last 6 Months)</h4>
                   <div className="flex items-end gap-2 h-20">
                     {(() => {
@@ -291,48 +330,177 @@ function StaffProfile({ staff, onClose }) {
                       ));
                     })()}
                   </div>
-                </div>
+                </section>
               )}
-            </section>
+
+              <section className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Document Compliance</h3>
+                  <button onClick={() => { const n = prompt('Certification name:'); if (n) addCert.mutate(n); }} className="text-xs text-blue-600 hover:underline">+ Add</button>
+                </div>
+                <div className="space-y-2">
+                  {staffCerts.length === 0 && <p className="text-xs text-gray-400">No certifications on file.</p>}
+                  {staffCerts.map(doc => {
+                    const d = daysUntil(doc.expiry_date);
+                    const isExpired = d != null && d < 0;
+                    const isUrgent = d != null && d >= 0 && d < 14;
+                    const isWarning = d != null && d >= 14 && d < 60;
+                    const noDate = d == null;
+                    const bg = noDate ? 'bg-gray-50 border-gray-200 text-gray-500' : isExpired ? 'bg-red-50 border-red-200 text-red-700' : isUrgent ? 'bg-red-50 border-red-200 text-red-700' : isWarning ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-gray-50 border-gray-200 text-gray-600';
+                    return (
+                      <div key={doc.id} className={`border rounded-lg p-2 flex items-center justify-between ${bg}`}>
+                        <span className="text-xs font-medium">{doc.cert_name}</span>
+                        <span className="text-xs">{doc.expiry_date || 'Not set'}{isExpired ? ' (EXPIRED)' : ''}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <div className="border-t pt-4 flex gap-2">
+                <button onClick={toggleActive.mutate} className={`text-xs px-3 py-1.5 rounded-lg border ${staff.active ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
+                  {staff.active ? 'Deactivate' : 'Activate'}
+                </button>
+              </div>
+            </>
           )}
 
-          {(staff.role === 'coach' || staff.role === 'owner' || staff.role === 'gm') && (
-            <section className="border-t pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">Document Compliance</h3>
-                <button onClick={() => { const n = prompt('Certification name:'); if (n) api.post('/api/certifications', { staff_id: staff.id, cert_name: n }).then(() => queryClient.invalidateQueries({ queryKey: ['staff'] })).catch(() => error('Failed')); }} className="text-xs text-blue-600 hover:underline">+ Add</button>
-              </div>
-              <div className="space-y-2">
-                  {docExpiry.map(doc => {
-                  const isExpired = doc.status != null && doc.status < 0;
-                  const isUrgent = doc.status != null && doc.status >= 0 && doc.status < 14;
-                  const isWarning = doc.status != null && doc.status >= 14 && doc.status < 60;
-                  const noDate = doc.status == null;
-                  const bg = noDate ? 'bg-gray-50 border-gray-200 text-gray-500' : isExpired ? 'bg-red-50 border-red-200 text-red-700' : isUrgent ? 'bg-red-50 border-red-200 text-red-700' : isWarning ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-gray-50 border-gray-200 text-gray-600';
-                  return (
-                    <div key={doc.name} className={`border rounded-lg p-2 flex items-center justify-between ${bg}`}>
-                      <span className="text-xs font-medium">{doc.name}</span>
-                      <span className="text-xs">{doc.expiry ? doc.expiry : 'Not set'}{isExpired ? ' (EXPIRED)' : ''}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+          {tab === 'performance' && staff.role === 'coach' && (
+            <CoachPerformanceTab perf={perf} staffId={staff.id} />
           )}
 
-          <div className="border-t pt-4 flex gap-2">
-            <button onClick={toggleActive.mutate} className={`text-xs px-3 py-1.5 rounded-lg border ${staff.active ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
-              {staff.active ? 'Deactivate' : 'Activate'}
-            </button>
-          </div>
+          {tab === 'pt-earnings' && staff.role === 'coach' && (
+            <PTEarningsTab staffId={staff.id} />
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function MetricBox({ label, value }) {
-  return <div className="bg-gray-50 rounded p-3 text-center"><p className="text-lg font-bold text-gray-900">{value}</p><p className="text-xs text-gray-500">{label}</p></div>;
+function TrendArrow({ value }) {
+  if (value == null) return null;
+  if (value > 0) return <span className="text-green-600 text-xs ml-1">↑{value}</span>;
+  if (value < 0) return <span className="text-red-600 text-xs ml-1">↓{Math.abs(value)}</span>;
+  return <span className="text-gray-400 text-xs ml-1">→0</span>;
+}
+
+function CoachPerformanceTab({ perf, staffId }) {
+  const { data: activePTClients = [] } = useQuery({
+    queryKey: ['pt-clients', staffId],
+    queryFn: async () => { const r = await api.get(`/api/staff-performance/${staffId}`); return r.data?.pt_clients || []; },
+    enabled: !!staffId,
+    staleTime: 10000,
+  });
+
+  const weeklyClasses = perf?.weekly_classes || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <MetricBox label="Classes/month" value={perf?.classes_taught ?? '-'} trend={perf?.trends?.classes_taught} />
+        <MetricBox label="Avg fill rate" value={perf?.avg_fill_rate != null ? `${perf.avg_fill_rate}%` : '-'} trend={perf?.trends?.avg_fill_rate} />
+        <MetricBox label="PT sessions" value={perf?.pt_sessions ?? '-'} trend={perf?.trends?.pt_sessions} />
+        <MetricBox label="PT revenue" value={perf?.pt_revenue != null ? `$${perf.pt_revenue}` : '-'} trend={perf?.trends?.pt_revenue} />
+        <MetricBox label="Attendance rate" value={perf?.attendance_rate != null ? `${perf.attendance_rate}%` : '-'} trend={perf?.trends?.attendance_rate} />
+        <MetricBox label="Retention rate" value={perf?.student_retention_rate != null ? `${perf.student_retention_rate}%` : '-'} trend={perf?.trends?.student_retention_rate} />
+      </div>
+
+      <section className="border-t pt-4">
+        <h4 className="text-xs font-semibold text-gray-700 mb-2">This Week's Classes</h4>
+        {weeklyClasses.length === 0 ? (
+          <p className="text-xs text-gray-400">No classes this week.</p>
+        ) : (
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-gray-500 uppercase">
+                <th className="pb-1 pr-2">Class</th>
+                <th className="pb-1 pr-2">Date</th>
+                <th className="pb-1 pr-2">Time</th>
+                <th className="pb-1 pr-2">Fill</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {weeklyClasses.map(c => {
+                const fill = c.capacity > 0 ? Math.round((c.booked_count / c.capacity) * 100) : 0;
+                const fillColor = fill >= 80 ? 'text-green-600' : fill >= 50 ? 'text-yellow-600' : 'text-red-600';
+                return (
+                  <tr key={c.id}>
+                    <td className="py-1.5 pr-2 font-medium">{c.class_name}</td>
+                    <td className="py-1.5 pr-2 text-gray-500">{new Date(c.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</td>
+                    <td className="py-1.5 pr-2 text-gray-500">{c.start_time?.slice(0, 5)}</td>
+                    <td className={`py-1.5 font-medium ${fillColor}`}>{fill}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="border-t pt-4">
+        <h4 className="text-xs font-semibold text-gray-700 mb-2">PT Clients</h4>
+        {activePTClients.length === 0 ? (
+          <p className="text-xs text-gray-400">No active PT clients.</p>
+        ) : (
+          <div className="space-y-2">
+            {activePTClients.map(c => (
+              <div key={c.member_id} className="flex items-center justify-between bg-gray-50 rounded p-2">
+                <div>
+                  <p className="text-xs font-medium text-gray-900">{c.first_name} {c.last_name}</p>
+                  <p className="text-[10px] text-gray-500">{c.package_name}</p>
+                </div>
+                <span className={`text-xs font-medium ${c.sessions_remaining <= 2 ? 'text-red-600' : 'text-green-600'}`}>{c.sessions_remaining}/{c.sessions_total} remaining</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function PTEarningsTab({ staffId }) {
+  const { data: perf } = useQuery({
+    queryKey: ['staff-performance', staffId],
+    queryFn: async () => { const r = await api.get(`/api/staff-performance/${staffId}`); return r.data; },
+    enabled: !!staffId,
+    retry: 1,
+    staleTime: 10000,
+  });
+
+  const earnings = perf?.pt_earnings;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <MetricBox label="Total Sessions" value={earnings?.total_sessions ?? '-'} />
+        <MetricBox label="Total Revenue" value={earnings?.total_revenue != null ? `$${earnings.total_revenue.toLocaleString()}` : '-'} />
+        <MetricBox label={`Coach's Cut (${earnings?.split_pct ?? 0}%)`} value={earnings?.coach_cut != null ? `$${earnings.coach_cut.toLocaleString()}` : '-'} />
+        <MetricBox label="Gym's Cut" value={earnings?.gym_cut != null ? `$${earnings.gym_cut.toLocaleString()}` : '-'} />
+      </div>
+      {earnings && (
+        <div className="bg-gray-50 rounded p-3">
+          <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-green-500 rounded-full" style={{ width: `${earnings.split_pct}%` }} />
+          </div>
+          <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+            <span>Coach: {earnings.split_pct}% (${earnings.coach_cut.toLocaleString()})</span>
+            <span>Gym: {100 - earnings.split_pct}% (${earnings.gym_cut.toLocaleString()})</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricBox({ label, value, trend }) {
+  return (
+    <div className="bg-gray-50 rounded p-3 text-center">
+      <p className="text-lg font-bold text-gray-900 flex items-center justify-center gap-1">{value}{trend != null && <TrendArrow value={trend} />}</p>
+      <p className="text-xs text-gray-500">{label}</p>
+    </div>
+  );
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -416,6 +584,78 @@ function StaffScheduleView() {
   );
 }
 
+function ComplianceModal({ staff, onClose }) {
+  const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
+
+  const { data: certs = [] } = useQuery({
+    queryKey: ['staff-certs', staff.id],
+    queryFn: async () => { const r = await api.get(`/api/certifications/staff/${staff.id}`); return r.data?.certifications || []; },
+    enabled: !!staff.id,
+    staleTime: 10000,
+  });
+
+  const renewCert = useMutation({
+    mutationFn: (cert) => {
+      const expiry = prompt(`Enter new expiry date for ${cert.cert_name} (YYYY-MM-DD):`, cert.expiry_date || '');
+      if (!expiry) return Promise.reject();
+      return api.put(`/api/certifications/${cert.id}`, { expiry_date: expiry });
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['staff-certs', staff.id] }); queryClient.invalidateQueries({ queryKey: ['all-certifications'] }); success('Certification renewed'); },
+    onError: (err) => { if (err) error(err?.response?.data?.error || 'Failed to renew'); },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="compliance-title">
+        <div className="flex items-center justify-between mb-4">
+          <h2 id="compliance-title" className="text-lg font-semibold text-gray-900">{staff.name} — Compliance</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        {certs.length === 0 ? (
+          <p className="text-sm text-gray-500">No certifications on file.</p>
+        ) : (
+          <div className="space-y-3">
+            {certs.map(cert => {
+              const d = daysUntil(cert.expiry_date);
+              const isExpired = d != null && d < 0;
+              const isUrgent = d != null && d >= 0 && d < 14;
+              const isWarning = d != null && d >= 14 && d < 60;
+              const noDate = d == null;
+              const border = noDate ? 'border-gray-200' : isExpired || isUrgent ? 'border-red-200' : isWarning ? 'border-yellow-200' : 'border-green-200';
+              const bg = noDate ? 'bg-gray-50' : isExpired || isUrgent ? 'bg-red-50' : isWarning ? 'bg-yellow-50' : 'bg-green-50';
+              return (
+                <div key={cert.id} className={`border rounded-lg p-3 ${border} ${bg}`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{cert.cert_name}</p>
+                      {cert.issuing_body && <p className="text-xs text-gray-500">{cert.issuing_body}</p>}
+                    </div>
+                    <button onClick={() => renewCert.mutate(cert)} className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded hover:bg-blue-700">Renew</button>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs">
+                    <span className={noDate ? 'text-gray-400' : isExpired ? 'text-red-600 font-medium' : isUrgent ? 'text-red-600 font-medium' : isWarning ? 'text-yellow-600' : 'text-green-600'}>
+                      {cert.expiry_date || 'No expiry date'}
+                    </span>
+                    {d != null && (
+                      <span className={d < 0 ? 'text-red-600 font-medium' : d < 14 ? 'text-red-600 font-medium' : d < 60 ? 'text-yellow-600' : 'text-green-600'}>
+                        ({d < 0 ? `${Math.abs(d)} days overdue` : `${d} days remaining`})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="mt-4 flex justify-end">
+          <button onClick={onClose} className="btn-outline text-sm">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExpiringCertsAlert() {
   const [alertDays, setAlertDays] = useState(60);
   const [criticalDays, setCriticalDays] = useState(14);
@@ -428,7 +668,7 @@ function ExpiringCertsAlert() {
   }, []);
   const { data: certs = [] } = useQuery({
     queryKey: ['expiring-certs', alertDays],
-    queryFn: async () => { const r = await api.get(`/api/certifications/expiring?days=${alertDays}`); return r.data?.certs || []; },
+    queryFn: async () => { const r = await api.get(`/api/certifications/expiring?days=${alertDays}`); return r.data?.expiring || []; },
     staleTime: 60000,
   });
   if (certs.length === 0) return null;

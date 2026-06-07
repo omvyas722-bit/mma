@@ -1,13 +1,47 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../lib/api';
 
 export default function BrandedMemberApp() {
   const [activeTab, setActiveTab] = useState('home');
 
-  const checkins = [
-    { date: '2026-06-04', location: 'Perth CBD', time: '06:30' },
-    { date: '2026-06-03', location: 'Perth CBD', time: '07:00' },
-    { date: '2026-06-01', location: 'Fremantle', time: '09:15' },
-  ];
+  const { data: attendance = [] } = useQuery({
+    queryKey: ['member-attendance-pg'],
+    queryFn: async () => {
+      const data = await api.get('/api/members/1/attendance', { params: { limit: 3 } });
+      return Array.isArray(data) ? data : data?.data || [];
+    },
+    staleTime: 30000,
+  });
+
+  const { data: upcomingClasses = [] } = useQuery({
+    queryKey: ['upcoming-class-pg'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const data = await api.get('/api/classes/instances', { params: { date: today, status: 'scheduled' } });
+      const items = Array.isArray(data) ? data : data?.data || [];
+      return items.slice(0, 1);
+    },
+    staleTime: 30000,
+  });
+
+  const checkins = attendance.length > 0
+    ? attendance.map(a => ({
+        date: a.date || a.created_at?.split('T')[0] || '',
+        location: a.location || a.class_name || 'Perth CBD',
+        time: a.time || a.start_time || '',
+      }))
+    : [
+        { date: '2026-06-04', location: 'Perth CBD', time: '06:30' },
+        { date: '2026-06-03', location: 'Perth CBD', time: '07:00' },
+        { date: '2026-06-01', location: 'Fremantle', time: '09:15' },
+      ];
+
+  const nextClass = upcomingClasses[0];
+  const nextClassName = nextClass?.name || nextClass?.class_name || 'Morning MMA';
+  const nextClassTime = nextClass?.start_time
+    ? `${nextClass.start_time?.slice(0, 5)} – ${nextClass.end_time?.slice(0, 5) || '07:00'}`
+    : '06:00 – 07:00';
 
   return (
     <div>
@@ -60,9 +94,9 @@ export default function BrandedMemberApp() {
               {/* Upcoming Class Card */}
               <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-xl p-4 text-white mb-4">
                 <p className="text-xs opacity-80 mb-1">Up Next</p>
-                <p className="font-bold text-base">Morning MMA</p>
+                <p className="font-bold text-base">{nextClassName}</p>
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-sm opacity-90">06:00 – 07:00</p>
+                  <p className="text-sm opacity-90">{nextClassTime}</p>
                   <button className="text-xs underline">View booking</button>
                 </div>
               </div>

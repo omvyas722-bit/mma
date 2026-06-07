@@ -2,12 +2,13 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { auditLog } = require('../middleware/auditLog');
 const staffData = require('../data/staff');
 
 const router = express.Router();
 
 // Get all staff
-router.get('/', authenticateToken, requirePermission('staff:read'), (req, res) => {
+router.get('/', authenticateToken, requirePermission('staff:read'), auditLog('view_list', 'staff'), (req, res) => {
   try {
     const filters = {
       role: req.query.role,
@@ -50,7 +51,7 @@ router.get('/:id', authenticateToken, requirePermission('staff:read'), (req, res
 });
 
 // Create new staff member
-router.post('/', authenticateToken, requirePermission('staff:create'), async (req, res) => {
+router.post('/', authenticateToken, requirePermission('staff:create'), auditLog('create', 'staff'), async (req, res) => {
   try {
     const { name, email, password, role, phone } = req.body;
 
@@ -94,7 +95,7 @@ router.post('/', authenticateToken, requirePermission('staff:create'), async (re
 });
 
 // Update staff member
-router.put('/:id', authenticateToken, requirePermission('staff:update'), (req, res) => {
+router.put('/:id', authenticateToken, requirePermission('staff:update'), auditLog('update', 'staff'), (req, res) => {
   try {
     const staff = staffData.getStaffById(req.params.id);
 
@@ -167,7 +168,7 @@ router.post('/:id/password', authenticateToken, requirePermission('staff:update'
 });
 
 // Deactivate staff member (soft delete)
-router.delete('/:id', authenticateToken, requirePermission('staff:delete'), (req, res) => {
+router.delete('/:id', authenticateToken, requirePermission('staff:delete'), auditLog('delete', 'staff'), (req, res) => {
   try {
     const staff = staffData.getStaffById(req.params.id);
 

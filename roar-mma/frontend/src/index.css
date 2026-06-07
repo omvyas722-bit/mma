@@ -199,6 +199,47 @@
   .no-print {
     display: none !important;
   }
+
+  .report-print nav,
+  .report-print aside,
+  .report-print .sidebar,
+  .report-print .no-print {
+    display: none !important;
+  }
+
+  .report-print {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .report-print table {
+    page-break-inside: auto;
+  }
+
+  .report-print tr {
+    page-break-inside: avoid;
+  }
+
+  .report-print thead {
+    display: table-header-group;
+  }
+
+  .report-print .bg-white {
+    background: #fff !important;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .report-print .shadow {
+    box-shadow: none !important;
+  }
+
+  .report-print .text-green-600,
+  .report-print .text-blue-600,
+  .report-print .text-red-600,
+  .report-print .text-yellow-600 {
+    color: #000 !important;
+  }
 }
 
 /* Accessibility */

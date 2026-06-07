@@ -1,37 +1,75 @@
 import { useState } from 'react';
-
-const INITIAL_SCHEDULE = [
-  { id: 1, name: 'Morning MMA', trainer: 'Alex Reid', time: '06:00', capacity: 20, booked: 18 },
-  { id: 2, name: 'BJJ Fundamentals', trainer: 'Carlos Santos', time: '09:00', capacity: 15, booked: 15 },
-  { id: 3, name: 'Muay Thai', trainer: 'Sakda Somchai', time: '12:00', capacity: 18, booked: 10 },
-  { id: 4, name: 'Boxing Fitness', trainer: 'Mike Tyson Jr', time: '17:00', capacity: 25, booked: 25 },
-  { id: 5, name: 'Evening MMA', trainer: 'Alex Reid', time: '18:30', capacity: 20, booked: 7 },
-  { id: 6, name: 'Yoga for Fighters', trainer: 'Lena Park', time: '19:00', capacity: 12, booked: 12 },
-];
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../../lib/api';
 
 export default function ClassBooking() {
-  const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
-  const [booked, setBooked] = useState(new Set());
-  const [waitlisted, setWaitlisted] = useState(new Set());
+  const queryClient = useQueryClient();
+
+  const { data: instances = [] } = useQuery({
+    queryKey: ['class-instances-pg'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const data = await api.get('/api/classes/instances', { params: { date: today } });
+      return Array.isArray(data) ? data : data?.data || [];
+    },
+    staleTime: 30000,
+  });
+
+  const { data: bookings = [] } = useQuery({
+    queryKey: ['my-bookings-pg'],
+    queryFn: async () => {
+      const data = await api.get('/api/bookings');
+      return Array.isArray(data) ? data : data?.data || [];
+    },
+    staleTime: 30000,
+  });
+
+  const schedule = instances.length > 0
+    ? instances.map(c => ({
+        id: c.id,
+        name: c.name || c.class_name || 'Class',
+        trainer: c.instructor_name || c.coach_name || c.trainer || 'Trainer',
+        time: c.start_time?.slice(0, 5) || c.time || '00:00',
+        capacity: c.capacity || c.max_capacity || 20,
+        booked: c.booked_count || c.booked || 0,
+      }))
+    : [
+      { id: 1, name: 'Morning MMA', trainer: 'Alex Reid', time: '06:00', capacity: 20, booked: 18 },
+      { id: 2, name: 'BJJ Fundamentals', trainer: 'Carlos Santos', time: '09:00', capacity: 15, booked: 15 },
+      { id: 3, name: 'Muay Thai', trainer: 'Sakda Somchai', time: '12:00', capacity: 18, booked: 10 },
+      { id: 4, name: 'Boxing Fitness', trainer: 'Mike Tyson Jr', time: '17:00', capacity: 25, booked: 25 },
+      { id: 5, name: 'Evening MMA', trainer: 'Alex Reid', time: '18:30', capacity: 20, booked: 7 },
+      { id: 6, name: 'Yoga for Fighters', trainer: 'Lena Park', time: '19:00', capacity: 12, booked: 12 },
+    ];
+
+  const bookedIds = new Set(bookings.filter(b => b.status === 'booked' || b.status === 'confirmed').map(b => b.class_instance_id));
+  const waitlistedIds = new Set(bookings.filter(b => b.status === 'waitlisted').map(b => b.class_instance_id));
 
   const spotsLeft = (cls) => cls.capacity - cls.booked;
   const isFull = (cls) => spotsLeft(cls) <= 0;
 
+  const bookMutation = useMutation({
+    mutationFn: (classInstanceId) => api.post('/api/bookings', { member_id: 1, class_instance_id: classInstanceId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-bookings-pg'] }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id) => api.post(`/api/bookings/${id}/cancel`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-bookings-pg'] }),
+  });
+
   const handleBook = (id) => {
-    if (booked.has(id)) return;
-    setBooked(prev => new Set(prev).add(id));
-    setSchedule(prev => prev.map(c => c.id === id ? { ...c, booked: c.booked + 1 } : c));
+    if (bookedIds.has(id)) return;
+    bookMutation.mutate(id);
   };
 
   const handleWaitlist = (id) => {
-    if (waitlisted.has(id)) return;
-    setWaitlisted(prev => new Set(prev).add(id));
+    bookMutation.mutate(id);
   };
 
-  const handleCancel = (id) => {
-    setBooked(prev => { const n = new Set(prev); n.delete(id); return n; });
-    setWaitlisted(prev => { const n = new Set(prev); n.delete(id); return n; });
-    setSchedule(prev => prev.map(c => c.id === id ? { ...c, booked: c.booked - 1 } : c));
+  const handleCancel = (clsId) => {
+    const booking = bookings.find(b => b.class_instance_id === clsId && (b.status === 'booked' || b.status === 'confirmed' || b.status === 'waitlisted'));
+    if (booking) cancelMutation.mutate(booking.id);
   };
 
   return (
@@ -46,8 +84,8 @@ export default function ClassBooking() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {schedule.map(cls => {
           const remaining = spotsLeft(cls);
-          const isBooked = booked.has(cls.id);
-          const isWaitlisted = waitlisted.has(cls.id);
+          const isBooked = bookedIds.has(cls.id);
+          const isWaitlisted = waitlistedIds.has(cls.id);
 
           return (
             <div key={cls.id} className="card">

@@ -237,7 +237,25 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
       ? ((currentPeriodLeads - previousPeriodLeads) / previousPeriodLeads * 100).toFixed(1)
       : 0;
 
+    // Failed payments (members with overdue balance)
+    const failedPaymentMembers = db.prepare(`
+      SELECT m.id, m.first_name || ' ' || m.last_name as name, COALESCE(t.amount_due, 0) as amount
+      FROM members m
+      JOIN (
+        SELECT member_id, SUM(CASE WHEN status = 'failed' OR status = 'pending' THEN amount ELSE 0 END) as amount_due
+        FROM transactions
+        WHERE status IN ('failed','pending')
+        GROUP BY member_id
+        HAVING amount_due > 0
+      ) t ON m.id = t.member_id
+      ORDER BY amount_due DESC
+      LIMIT 10
+    `).all();
+    const failedPaymentsCount = failedPaymentMembers.length;
+    const failedPaymentsTotal = failedPaymentMembers.reduce((s, m) => s + m.amount, 0);
+
     res.json({
+      failed_payments: { count: failedPaymentsCount, total: failedPaymentsTotal, members: failedPaymentMembers },
       kpis: {
         active_members: {
           value: memberStats.active,

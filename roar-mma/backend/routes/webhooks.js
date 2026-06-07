@@ -326,4 +326,29 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
   }
 });
 
+// Get webhook status info
+router.get('/status', require('../middleware/auth').authenticateToken, require('../middleware/auth').requirePermission('settings:read'), (req, res) => {
+  try {
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const db = getDatabase();
+    const lastLightspeed = db.prepare("SELECT created_at FROM audit_logs WHERE entity_type = 'webhook' AND details LIKE '%lightspeed%' ORDER BY created_at DESC LIMIT 1").get();
+    const lastStripe = db.prepare("SELECT created_at FROM audit_logs WHERE entity_type = 'webhook' AND details LIKE '%stripe%' ORDER BY created_at DESC LIMIT 1").get();
+    res.json({
+      lightspeed: {
+        url: `${baseUrl}/api/webhooks/lightspeed`,
+        enabled: !!process.env.LIGHTSPEED_WEBHOOK_SECRET,
+        last_delivery: lastLightspeed?.created_at || null
+      },
+      stripe: {
+        url: `${baseUrl}/api/webhooks/stripe`,
+        enabled: !!process.env.STRIPE_WEBHOOK_SECRET,
+        last_delivery: lastStripe?.created_at || null
+      }
+    });
+  } catch (error) {
+    console.error('[WEBHOOKS] Status error:', error);
+    res.status(500).json({ error: 'Failed to get webhook status' });
+  }
+});
+
 module.exports = router;

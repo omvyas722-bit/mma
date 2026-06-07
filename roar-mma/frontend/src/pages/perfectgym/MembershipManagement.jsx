@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import api from '../../lib/api';
 
 const PLAN_TYPES = [
   { value: 'rolling', label: 'Rolling' },
@@ -6,25 +8,40 @@ const PLAN_TYPES = [
   { value: 'corporate', label: 'Corporate' },
 ];
 
+const DEFAULT_PLANS = [
+  { id: 1, name: 'Unlimited MMA', type: 'rolling', price: 89, freeze: true, autoRenew: true, active: true },
+  { id: 2, name: '2x Week', type: 'rolling', price: 59, freeze: false, autoRenew: true, active: true },
+  { id: 3, name: 'Corporate Platinum', type: 'corporate', price: 129, freeze: true, autoRenew: true, active: true },
+];
+
 export default function MembershipManagement() {
-  const [plans, setPlans] = useState([
-    { id: 1, name: 'Unlimited MMA', type: 'rolling', price: 89, freeze: true, autoRenew: true, active: true },
-    { id: 2, name: '2x Week', type: 'rolling', price: 59, freeze: false, autoRenew: true, active: true },
-    { id: 3, name: 'Corporate Platinum', type: 'corporate', price: 129, freeze: true, autoRenew: true, active: true },
-  ]);
+  const [plans, setPlans] = useState(() => {
+    const saved = localStorage.getItem('pg_plans');
+    return saved ? JSON.parse(saved) : DEFAULT_PLANS;
+  });
   const [form, setForm] = useState({ name: '', type: 'rolling', price: '', freeze: false, autoRenew: true });
   const [showForm, setShowForm] = useState(false);
+
+  const persistPlans = useMutation({
+    mutationFn: (p) => api.put('/api/settings', { membershipPlans: p }).catch(() => {}),
+  });
+
+  const savePlans = (updated) => {
+    setPlans(updated);
+    localStorage.setItem('pg_plans', JSON.stringify(updated));
+    persistPlans.mutate(updated);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name || !form.price) return;
-    setPlans([...plans, { ...form, id: Date.now(), price: Number(form.price), active: true }]);
+    savePlans([...plans, { ...form, id: Date.now(), price: Number(form.price), active: true }]);
     setForm({ name: '', type: 'rolling', price: '', freeze: false, autoRenew: true });
     setShowForm(false);
   };
 
   const toggleActive = (id) => {
-    setPlans(plans.map(p => p.id === id ? { ...p, active: !p.active } : p));
+    savePlans(plans.map(p => p.id === id ? { ...p, active: !p.active } : p));
   };
 
   return (

@@ -31,16 +31,16 @@ function getPostById(id) {
   return getDatabase().prepare('SELECT * FROM social_posts WHERE id = ?').get(id);
 }
 
-function createPost({ platform_ids, title, content, media_urls, scheduled_at, status, created_by }) {
+function createPost({ platform_ids, title, content, media_urls, scheduled_at, status, created_by, post_type }) {
   const db = getDatabase();
-  const result = db.prepare(`INSERT INTO social_posts (platform_ids, title, content, media_urls, scheduled_at, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(platform_ids || '[]', title || null, content, media_urls || '[]', scheduled_at || null, status || 'draft', created_by || null);
+  const result = db.prepare(`INSERT INTO social_posts (platform_ids, title, content, media_urls, scheduled_at, status, created_by, post_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(platform_ids || '[]', title || null, content, media_urls || '[]', scheduled_at || null, status || 'draft', created_by || null, post_type || 'image');
   return db.prepare('SELECT * FROM social_posts WHERE id = ?').get(result.lastInsertRowid);
 }
 
 function updatePost(id, fields) {
   const db = getDatabase();
-  const allowed = ['platform_ids', 'title', 'content', 'media_urls', 'scheduled_at', 'status', 'published_at'];
+  const allowed = ['platform_ids', 'title', 'content', 'media_urls', 'scheduled_at', 'status', 'published_at', 'post_type'];
   const sets = [];
   const params = [];
   for (const k of allowed) {
@@ -117,6 +117,46 @@ function getCampaignLeads(campaignId) {
   return getDatabase().prepare("SELECT * FROM leads WHERE utm_campaign = ? ORDER BY created_at DESC").all(c.utm_campaign);
 }
 
+// Hashtag Groups
+function getHashtagGroups() {
+  return getDatabase().prepare('SELECT * FROM social_hashtag_groups ORDER BY name').all();
+}
+
+function getHashtagGroupById(id) {
+  return getDatabase().prepare('SELECT * FROM social_hashtag_groups WHERE id = ?').get(id);
+}
+
+function createHashtagGroup(data) {
+  const db = getDatabase();
+  const r = db.prepare('INSERT INTO social_hashtag_groups (name, hashtags, created_by) VALUES (?, ?, ?)')
+    .run(data.name, JSON.stringify(data.hashtags || []), data.created_by || null);
+  return getHashtagGroupById(r.lastInsertRowid);
+}
+
+function updateHashtagGroup(id, fields) {
+  const db = getDatabase();
+  const allowed = ['name', 'hashtags'];
+  const sets = []; const vals = [];
+  for (const k of allowed) {
+    if (fields[k] !== undefined) {
+      sets.push(`${k}=?`);
+      vals.push(k === 'hashtags' ? JSON.stringify(fields[k]) : fields[k]);
+    }
+  }
+  if (sets.length === 0) return getHashtagGroupById(id);
+  sets.push("updated_at=datetime('now')"); vals.push(id);
+  db.prepare(`UPDATE social_hashtag_groups SET ${sets.join(',')} WHERE id=?`).run(...vals);
+  return getHashtagGroupById(id);
+}
+
+function deleteHashtagGroup(id) {
+  return getDatabase().prepare('DELETE FROM social_hashtag_groups WHERE id = ?').run(id);
+}
+
+function getCampaignAnalyticsAgg(campaignId) {
+  return getDatabase().prepare('SELECT COALESCE(SUM(impressions),0) as impressions, COALESCE(SUM(clicks),0) as clicks, COALESCE(SUM(conversions),0) as conversions, COALESCE(SUM(spend),0) as spend FROM social_campaign_analytics WHERE campaign_id = ?').get(campaignId);
+}
+
 // Lead-from-post correlation
 function getLeadsByUtmSource(source) {
   return getDatabase().prepare("SELECT * FROM leads WHERE utm_source = ? ORDER BY created_at DESC").all(source);
@@ -171,5 +211,11 @@ module.exports = {
   updateCampaign,
   deleteCampaign,
   getCampaignLeads,
+  getCampaignAnalyticsAgg,
+  getHashtagGroups,
+  getHashtagGroupById,
+  createHashtagGroup,
+  updateHashtagGroup,
+  deleteHashtagGroup,
   getLeadsByUtmSource,
 };

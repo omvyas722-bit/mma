@@ -43,8 +43,38 @@ export default function DocumentsPanel({ memberId }) {
     catch (e) { error('Failed to upload document: ' + (e.message || 'Unknown error')); }
   }
 
+  const healthDoc = documents.find(d => d.doc_type === 'health');
+
   return (
     <div>
+      {/* Health Declaration */}
+      <div className="mb-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Health Declaration</h3>
+        {healthDoc ? (
+          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+            <div>
+              <span className="text-sm font-medium text-green-800">Signed</span>
+              <span className="text-xs text-green-600 ml-2">{new Date(healthDoc.uploaded_at).toLocaleDateString('en-AU')}</span>
+              {healthDoc.notes && <p className="text-xs text-green-600 mt-0.5">{healthDoc.notes}</p>}
+            </div>
+            <div className="flex gap-2">
+              {healthDoc.file_path && (
+                <a href={healthDoc.file_path} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline px-2 py-1 rounded border border-blue-200">View</a>
+              )}
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">On File</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <div>
+              <span className="text-sm font-medium text-red-800">Awaiting Health Declaration</span>
+              <p className="text-xs text-red-600 mt-0.5">Member has not submitted a health declaration form</p>
+            </div>
+            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Pending</span>
+          </div>
+        )}
+      </div>
+
       {/* Signed Waivers */}
       <div className="mb-6">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">Signed Waivers</h3>

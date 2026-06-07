@@ -202,4 +202,222 @@ Respond with valid JSON only: { "class_name": "...", "class_type": "...", "coach
   }
 });
 
+// HEALER proposal endpoints
+router.get('/healer/proposals', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const db = require('../db/connection').getDatabase();
+    const proposals = db.prepare(`
+      SELECT * FROM ai_activity_log
+      WHERE agent_name = 'healer' AND action_type = 'healer_proposal'
+      ORDER BY created_at DESC LIMIT 50
+    `).all();
+    const mapped = proposals.map(p => ({
+      id: p.id,
+      suggestion: p.summary,
+      details: (() => { try { return JSON.parse(p.details); } catch { return p.details; } })(),
+      status: p.status,
+      created_at: p.created_at
+    }));
+    res.json({ proposals: mapped });
+  } catch (error) { console.error('HEALER proposals error:', error); res.status(500).json({ error: 'Failed to fetch proposals' }); }
+});
+
+router.post('/healer/proposals/:id/approve', authenticateToken, requirePermission('ai:manage'), (req, res) => {
+  try {
+    const db = require('../db/connection').getDatabase();
+    const proposal = db.prepare("SELECT * FROM ai_activity_log WHERE id = ? AND agent_name = 'healer' AND action_type = 'healer_proposal'").get(req.params.id);
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    db.prepare("UPDATE ai_activity_log SET status = 'approved' WHERE id = ?").run(req.params.id);
+    res.json({ success: true, message: 'Proposal approved. Will be applied on next agent restart.' });
+  } catch (error) { console.error('HEALER approve error:', error); res.status(500).json({ error: 'Failed to approve proposal' }); }
+});
+
+router.post('/healer/proposals/:id/reject', authenticateToken, requirePermission('ai:manage'), (req, res) => {
+  try {
+    const db = require('../db/connection').getDatabase();
+    const proposal = db.prepare("SELECT * FROM ai_activity_log WHERE id = ? AND agent_name = 'healer' AND action_type = 'healer_proposal'").get(req.params.id);
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    db.prepare("UPDATE ai_activity_log SET status = 'rejected' WHERE id = ?").run(req.params.id);
+    res.json({ success: true });
+  } catch (error) { console.error('HEALER reject error:', error); res.status(500).json({ error: 'Failed to reject proposal' }); }
+});
+
+// Natural Language Scheduling
+router.post('/nl-schedule', authenticateToken, requirePermission('ai:manage'), async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      return res.status(400).json({ error: 'query is required' });
+    }
+
+    const parsed = parseNlSchedule(query.trim());
+    if (!parsed) {
+      return res.status(400).json({ error: 'Could not parse scheduling request. Try: "Every Monday at 7am, have ORACLE send me membership count"' });
+    }
+
+    const db = require('../db/connection').getDatabase();
+    const aiState = require('../services/ai/aiState');
+
+    const now = new Date();
+    const scheduleDate = parsed.nextOccurrence || now.toISOString().split('T')[0];
+    const scheduleTime = parsed.time || '09:00';
+    const scheduledFor = `${scheduleDate}T${scheduleTime}:00`;
+
+    const payload = JSON.stringify({
+      task_description: parsed.taskDescription,
+      agent: parsed.agentName,
+      frequency: parsed.frequency,
+      day: parsed.day || null,
+      time: parsed.time,
+      original_query: query
+    });
+
+    const insertStmt = db.prepare(`
+      INSERT INTO scheduled_agent_tasks (agent_name, task_description, frequency, day_of_week, day_of_month, time_of_day, interval_hours, payload)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = insertStmt.run(
+      parsed.agentName || 'system',
+      parsed.taskDescription,
+      parsed.frequency,
+      parsed.day || null,
+      parsed.dayNum || null,
+      parsed.time || '09:00',
+      parsed.hours || null,
+      payload
+    );
+
+    await aiState.logActivity({
+      agentName: 'nl_scheduler',
+      actionType: 'schedule_created',
+      summary: `Scheduled: ${parsed.frequency} — ${parsed.agentName} — ${parsed.taskDescription}`,
+      status: 'completed',
+      details: { parsed, query, schedule_id: result.lastInsertRowid }
+    });
+
+    res.status(201).json({
+      message: 'Schedule created',
+      parsed,
+      schedule_id: result.lastInsertRowid
+    });
+  } catch (error) {
+    console.error('NL scheduling error:', error);
+    res.status(500).json({ error: 'Failed to create schedule' });
+  }
+});
+
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const FREQ_PATTERNS = [
+  { pattern: /every\s+(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i, freq: 'weekly', dayIndex: 1, timeIndex: 2 },
+  { pattern: /daily\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i, freq: 'daily', timeIndex: 1 },
+  { pattern: /every\s+(\d+)\s+hours?/i, freq: 'hours', hoursIndex: 1 },
+  { pattern: /every\s+(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, freq: 'weekly', dayIndex: 1 },
+  { pattern: /every\s+week\s+on\s+(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, freq: 'weekly', dayIndex: 1 },
+  { pattern: /weekly\s+on\s+(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, freq: 'weekly', dayIndex: 1 },
+  { pattern: /monthly\s+on\s+(?:day\s+)?(\d+)/i, freq: 'monthly', dayNumIndex: 1 },
+];
+
+const AGENTS = ['oracle', 'scout', 'healer', 'pixel', 'leads', 'trials', 'retention', 'tasks', 'analytics', 'billing', 'grading', 'stock', 'staff', 'messaging', 'sales_team', 'member_success_team', 'operations_team', 'finance_team', 'student_coaching'];
+
+function parseNlSchedule(text) {
+  const lower = text.toLowerCase();
+  let scheduleDate = null;
+
+  let agentName = 'system';
+  for (const agent of AGENTS) {
+    if (lower.includes(agent.replace(/_/g, ' ')) || lower.includes(agent)) {
+      agentName = agent;
+      break;
+    }
+  }
+
+  let taskDescription = text;
+  let frequency = null;
+  let day = null;
+  let time = null;
+  let hours = null;
+  let dayNum = null;
+
+  for (const fp of FREQ_PATTERNS) {
+    const m = text.match(fp.pattern);
+    if (!m) continue;
+
+    frequency = fp.freq;
+
+    if (fp.dayIndex) {
+      const dayStr = m[fp.dayIndex].toLowerCase();
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      const dayAbbr = dayStr.substring(0, 3);
+      const idx = dayNames.indexOf(dayStr.length === 3 ? dayAbbr : dayStr);
+      if (idx >= 0) {
+        day = idx <= 6 ? ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][idx <= 6 ? idx : idx - 7] : dayStr;
+      } else {
+        day = dayStr;
+      }
+
+      const dayIdx = DAY_NAMES.indexOf(day);
+      const now = new Date();
+      const currentDay = now.getDay();
+      let daysUntil = (dayIdx - currentDay + 7) % 7;
+      if (daysUntil === 0) daysUntil = 7;
+      const nextDate = new Date(now);
+      nextDate.setDate(now.getDate() + daysUntil);
+      scheduleDate = nextDate.toISOString().split('T')[0];
+    }
+
+    if (fp.timeIndex) {
+      let hour = parseInt(m[fp.timeIndex]);
+      const minute = fp.timeIndex + 1 < m.length && m[fp.timeIndex + 1] !== undefined ? parseInt(m[fp.timeIndex + 1] || '0') : 0;
+      const ampm = fp.timeIndex + 2 < m.length ? (m[fp.timeIndex + 2] || '').toLowerCase() : '';
+
+      if (ampm === 'pm' && hour < 12) hour += 12;
+      if (ampm === 'am' && hour === 12) hour = 0;
+
+      time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    }
+
+    if (fp.hoursIndex) {
+      hours = parseInt(m[fp.hoursIndex]);
+    }
+
+    if (fp.dayNumIndex) {
+      dayNum = parseInt(m[fp.dayNumIndex]);
+    }
+
+    const agentMatch = text.match(/\b(have|tell|ask|make|let)\s+(\w+)/i);
+    if (agentMatch) {
+      const found = agentMatch[2].toLowerCase();
+      for (const agent of AGENTS) {
+        if (agent.includes(found) || found.includes(agent)) {
+          agentName = agent;
+          break;
+        }
+      }
+    }
+
+    const taskMatch = text.match(/(?:send|get|give|show|tell|create|run|generate|check|update)\s+me\s+(.+?)(?:$|,\s*every|,\s*daily|,\s*at\s|\.)/i);
+    if (taskMatch) {
+      taskDescription = taskMatch[1].trim();
+    } else {
+      const parts = text.split(/\b(every|daily|weekly|monthly)\b/i);
+      taskDescription = (parts[0] || text).replace(new RegExp(`\\b${agentName}\\b`, 'i'), '').replace(/\b(have|tell|ask|make|let)\b/i, '').trim();
+    }
+
+    return {
+      agentName,
+      taskDescription: taskDescription || text,
+      frequency,
+      day,
+      time: time || (m[fp.timeIndex] ? `${parseInt(m[fp.timeIndex]).toString().padStart(2, '0')}:00` : '09:00'),
+      hours,
+      dayNum,
+      nextOccurrence: scheduleDate,
+      raw: text
+    };
+  }
+
+  return null;
+}
+
 module.exports = { router, registerTeamAgent, teamAgents };

@@ -1,11 +1,32 @@
 // Messaging management routes
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const messagingProviders = require('../services/messagingProviders');
+const scheduledMessagesData = require('../data/scheduledMessages');
 const { getDatabase } = require('../db/connection');
 
 const router = express.Router();
+
+// Ensure uploads/comms directory exists
+const commsDir = path.join(__dirname, '..', 'uploads', 'comms');
+if (!fs.existsSync(commsDir)) fs.mkdirSync(commsDir, { recursive: true });
+
+const attStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, commsDir),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + Math.random().toString(36).slice(2) + path.extname(file.originalname))
+});
+const fileUpload = multer({
+  storage: attStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    cb(null, allowed.includes(path.extname(file.originalname).toLowerCase()));
+  }
+});
 
 const unsubscribeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -14,17 +35,27 @@ const unsubscribeLimiter = rateLimit({
 });
 
 // Send a message (email or SMS)
-router.post('/send', authenticateToken, requirePermission('communications:write'), async (req, res) => {
+router.post('/send', authenticateToken, requirePermission('communications:write'), fileUpload.array('files', 5), async (req, res) => {
   try {
     const { to, subject, body, html, channel } = req.body;
     if (!to || !body) return res.status(400).json({ error: 'to and body are required' });
+
+    const files = req.files || [];
+    const totalSize = files.reduce((s, f) => s + f.size, 0);
+    if (totalSize > 10 * 1024 * 1024) return res.status(400).json({ error: 'Total file size exceeds 10MB' });
+
+    const attachments = files.map(f => ({
+      filename: f.filename, originalName: f.originalname,
+      mimeType: f.mimetype, size: f.size, path: f.path
+    }));
+
     if (channel === 'sms' || (!subject && !html)) {
       console.log(`[SMS] To: ${to} Body: ${body}`);
-      return res.json({ success: true, channel: 'sms' });
+      return res.json({ success: true, channel: 'sms', attachments });
     }
     const result = await messagingProviders.sendEmail(to, subject || 'ROAR MMA', html || body);
     console.log(`[EMAIL] To: ${to} Subject: ${subject}`, html ? '(HTML)' : '(plain text)');
-    res.json({ success: true, channel: 'email', result });
+    res.json({ success: true, channel: 'email', result, attachments });
   } catch (error) {
     console.error('Error sending message:', error);
     res.status(500).json({ error: 'Failed to send message' });
@@ -45,21 +76,62 @@ router.get('/stats', authenticateToken, requirePermission('reports:read'), (req,
   }
 });
 
-// Get delivery status for a scheduled message
+// Get delivery status for a scheduled message (with per-recipient detail + summary)
 router.get('/deliveries/:scheduledMessageId', authenticateToken, requirePermission('reports:read'), (req, res) => {
   try {
     const db = getDatabase();
 
     const deliveries = db.prepare(`
-      SELECT * FROM message_deliveries
-      WHERE scheduled_message_id = ?
-      ORDER BY created_at DESC
+      SELECT md.*,
+             m.first_name || ' ' || m.last_name as member_name,
+             l.first_name || ' ' || l.last_name as lead_name
+      FROM message_deliveries md
+      LEFT JOIN scheduled_messages sm ON md.scheduled_message_id = sm.id
+      LEFT JOIN members m ON sm.member_id = m.id
+      LEFT JOIN leads l ON sm.lead_id = l.id
+      WHERE md.scheduled_message_id = ?
+      ORDER BY md.created_at DESC
     `).all(req.params.scheduledMessageId);
 
-    res.json(deliveries);
+    const total = deliveries.length;
+    const statusCounts = deliveries.reduce((acc, d) => {
+      acc[d.status] = (acc[d.status] || 0) + 1;
+      return acc;
+    }, {});
+    const deliveredCount = (statusCounts.delivered || 0) + (statusCounts.sent || 0);
+    const successRate = total > 0 ? Math.round((deliveredCount / total) * 100) : 0;
+
+    res.json({ deliveries, summary: { total, deliveredCount, failedCount: statusCounts.failed || 0, successRate, statusCounts } });
   } catch (error) {
     console.error('Error fetching deliveries:', error);
     res.status(500).json({ error: 'Failed to fetch deliveries' });
+  }
+});
+
+// Retry a failed delivery
+router.post('/deliveries/:deliveryId/retry', authenticateToken, requirePermission('communications:write'), async (req, res) => {
+  try {
+    const db = getDatabase();
+    const delivery = db.prepare(`SELECT * FROM message_deliveries WHERE id = ?`).get(req.params.deliveryId);
+    if (!delivery) return res.status(404).json({ error: 'Delivery not found' });
+    if (delivery.status !== 'failed' && delivery.status !== 'bounced') return res.status(400).json({ error: 'Can only retry failed deliveries' });
+
+    db.prepare(`UPDATE message_deliveries SET status = 'sending', status_detail = NULL, failed_at = NULL, updated_at = datetime('now') WHERE id = ?`).run(delivery.id);
+
+    if (delivery.channel === 'sms') {
+      const scheduledMsg = db.prepare(`SELECT body FROM scheduled_messages WHERE id = ?`).get(delivery.scheduled_message_id);
+      const result = await messagingProviders.sendSMS(delivery.recipient, scheduledMsg?.body || 'Retry message', delivery.scheduled_message_id);
+      if (result.success) res.json({ success: true });
+      else res.status(500).json({ error: result.error || result.reason });
+    } else {
+      const scheduledMsg = db.prepare(`SELECT subject, body FROM scheduled_messages WHERE id = ?`).get(delivery.scheduled_message_id);
+      const result = await messagingProviders.sendEmail(delivery.recipient, scheduledMsg?.subject || 'ROAR MMA', scheduledMsg?.body || 'Retry message', delivery.scheduled_message_id);
+      if (result.success) res.json({ success: true });
+      else res.status(500).json({ error: result.error || result.reason });
+    }
+  } catch (error) {
+    console.error('Error retrying delivery:', error);
+    res.status(500).json({ error: 'Failed to retry delivery' });
   }
 });
 
@@ -105,6 +177,103 @@ router.get('/deliveries/failed/recent', authenticateToken, requirePermission('re
   } catch (error) {
     console.error('Error fetching failed deliveries:', error);
     res.status(500).json({ error: 'Failed to fetch failed deliveries' });
+  }
+});
+
+// ---- 2-Way SMS Conversations ----
+
+// List conversations grouped by phone number
+router.get('/conversations', authenticateToken, requirePermission('communications:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+
+    const conversations = db.prepare(`
+      SELECT
+        sm.recipient_phone as phone,
+        MAX(sm.created_at) as last_message_at,
+        (SELECT body FROM scheduled_messages WHERE recipient_phone = sm.recipient_phone AND message_type = 'sms' ORDER BY created_at DESC LIMIT 1) as last_message,
+        (SELECT response_text FROM scheduled_messages WHERE recipient_phone = sm.recipient_phone AND response_received = 1 ORDER BY created_at DESC LIMIT 1) as last_reply,
+        SUM(CASE WHEN sm.response_received = 1 AND sm.status = 'sent' THEN 1 ELSE 0 END) as unread_count,
+        sm.member_id,
+        sm.lead_id,
+        m.first_name || ' ' || m.last_name as member_name,
+        l.first_name || ' ' || l.last_name as lead_name,
+        COALESCE(m.phone, l.phone) as contact_phone
+      FROM scheduled_messages sm
+      LEFT JOIN members m ON sm.member_id = m.id
+      LEFT JOIN leads l ON sm.lead_id = l.id
+      WHERE sm.recipient_phone IS NOT NULL
+        AND sm.message_type = 'sms'
+      GROUP BY sm.recipient_phone
+      ORDER BY last_message_at DESC
+    `).all();
+
+    res.json({ conversations });
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    res.status(500).json({ error: 'Failed to fetch conversations' });
+  }
+});
+
+// Get messages for a single conversation
+router.get('/conversations/:phone', authenticateToken, requirePermission('communications:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+
+    const messages = db.prepare(`
+      SELECT sm.*,
+             m.first_name || ' ' || m.last_name as member_name,
+             l.first_name || ' ' || l.last_name as lead_name
+      FROM scheduled_messages sm
+      LEFT JOIN members m ON sm.member_id = m.id
+      LEFT JOIN leads l ON sm.lead_id = l.id
+      WHERE sm.recipient_phone = ?
+        AND sm.message_type = 'sms'
+      ORDER BY sm.created_at ASC
+    `).all(req.params.phone);
+
+    // Mark responses as read
+    db.prepare(`UPDATE scheduled_messages SET response_received = 0 WHERE recipient_phone = ? AND response_received = 1 AND message_type = 'sms'`).run(req.params.phone);
+
+    res.json({ messages, phone: req.params.phone });
+  } catch (error) {
+    console.error('Error fetching conversation:', error);
+    res.status(500).json({ error: 'Failed to fetch conversation' });
+  }
+});
+
+// Reply to a conversation
+router.post('/conversations/:phone/reply', authenticateToken, requirePermission('communications:write'), async (req, res) => {
+  try {
+    const { body } = req.body;
+    if (!body || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
+
+    const db = getDatabase();
+    const lastMsg = db.prepare(`
+      SELECT member_id, lead_id FROM scheduled_messages
+      WHERE recipient_phone = ? ORDER BY created_at DESC LIMIT 1
+    `).get(req.params.phone);
+
+    const msg = scheduledMessagesData.createScheduledMessage({
+      recipient_phone: req.params.phone,
+      body,
+      message_type: 'sms',
+      scheduled_for: new Date().toISOString(),
+      member_id: lastMsg?.member_id || null,
+      lead_id: lastMsg?.lead_id || null
+    });
+
+    const result = await messagingProviders.sendSMS(req.params.phone, body, msg.id);
+    if (result.success) {
+      scheduledMessagesData.markMessageSent(msg.id);
+    } else {
+      scheduledMessagesData.markMessageFailed(msg.id, result.error || result.reason);
+    }
+
+    res.json({ success: true, sent: result.success, message: { ...msg, member_name: lastMsg?.member_name, lead_name: lastMsg?.lead_name } });
+  } catch (error) {
+    console.error('Error sending reply:', error);
+    res.status(500).json({ error: 'Failed to send reply' });
   }
 });
 

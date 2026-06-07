@@ -216,6 +216,9 @@ export const membersApi = {
   getAttendance: (id, params) => api.get(`/api/members/${id}/attendance`, { params }),
   getPayments: (id, params) => api.get(`/api/members/${id}/payments`, { params }),
   uploadPhoto: (id, formData, onProgress) => api.upload(`/api/members/${id}/photo`, formData, onProgress),
+  bulkExport: (ids) => api.post('/api/members/bulk/export', { ids }),
+  bulkStatus: (ids, status) => api.post('/api/members/bulk/status', { ids, status }),
+  bulkMessage: (ids, message, channel) => api.post('/api/members/bulk/message', { ids, message, channel }),
   export: (format, params) => api.get('/api/members/export', { params: { format, ...params } }),
 };
 
@@ -231,6 +234,8 @@ export const leadsApi = {
   convertToMember: (id, memberData) => api.post(`/api/leads/${id}/convert`, memberData),
   addNote: (id, note) => api.post(`/api/leads/${id}/notes`, { note }),
   getNotes: (id) => api.get(`/api/leads/${id}/notes`),
+  bulkExport: (ids) => api.post('/api/leads/bulk/export', { ids }),
+  bulkDelete: (ids) => api.post('/api/leads/bulk/delete', { ids, confirm: true }),
   export: (format, params) => api.get('/api/leads/export', { params: { format, ...params } }),
 };
 
@@ -274,6 +279,12 @@ export const communicationsApi = {
   deleteTemplate: (id) => api.delete(`/api/communications/templates/${id}`),
   scheduleMessage: (data) => api.post('/api/communications/schedule', data),
   cancelScheduled: (id) => api.delete(`/api/communications/schedule/${id}`),
+  getConversations: () => api.get('/api/messaging/conversations'),
+  getConversation: (phone) => api.get(`/api/messaging/conversations/${encodeURIComponent(phone)}`),
+  sendReply: (phone, data) => api.post(`/api/messaging/conversations/${encodeURIComponent(phone)}/reply`, data),
+  getDeliveries: (scheduledMessageId) => api.get(`/api/messaging/deliveries/${scheduledMessageId}`),
+  retryDelivery: (deliveryId) => api.post(`/api/messaging/deliveries/${deliveryId}/retry`),
+  sendWithAttachments: (formData) => api.upload('/api/scheduled-messages', formData),
 };
 
 // Reports API

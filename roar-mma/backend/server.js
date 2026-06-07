@@ -3,6 +3,7 @@ require('dotenv').config();
 const { initMonitoring, getRequestHandler, getErrorHandler, Sentry } = require('./monitoring');
 initMonitoring();
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -13,6 +14,7 @@ const { getDatabase, closeDatabase } = require('./db/connection');
 const { getHealth } = require('./monitoring');
 const { authenticateToken, requirePermission } = require('./middleware/auth');
 const { errorHandler } = require('./middleware/errorHandler');
+const { ensureAuditLogTable } = require('./middleware/auditLog');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -65,6 +67,7 @@ const messageScheduler = require('./services/messageScheduler');
 const aiDaemon = require('./services/ai/aiDaemon');
 
 // Import AI agents
+const zeusAgent = require('./services/ai/agents/zeusAgent');
 const scoutAgent = require('./services/ai/agents/scoutAgent');
 const healerAgent = require('./services/ai/agents/healerAgent');
 const pixelAgent = require('./services/ai/agents/pixelAgent');
@@ -145,6 +148,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Request body field validation middleware
 app.use((req, res, next) => {
@@ -575,11 +579,15 @@ server.listen(PORT, HOST, () => {
   console.log(`Health check: http://${HOST}:${PORT}/api/health`);
   console.log('=================================');
 
+  // Ensure audit log table exists
+  ensureAuditLogTable();
+
   // Start message scheduler
   messageScheduler.start();
   console.log('Message scheduler started');
 
   // Start AI daemon heartbeat
+  aiDaemon.registerAgent('zeus', zeusAgent.handler);
   aiDaemon.registerAgent('scout', scoutAgent.handler);
   aiDaemon.registerAgent('healer', healerAgent.handler);
   aiDaemon.registerAgent('pixel', pixelAgent.handler);

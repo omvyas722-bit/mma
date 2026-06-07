@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -33,7 +33,10 @@ function ProductList() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', sku: '', sell_price: '', stock_qty: '', min_stock: '10', cost_price: '', category: 'apparel', description: '', supplier_id: '' });
+  const [form, setForm] = useState({ name: '', sku: '', barcode: '', sell_price: '', stock_qty: '', min_stock: '10', cost_price: '', category: 'apparel', description: '', supplier_id: '' });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const fileInputRef = useRef(null);
   const [adjustProduct, setAdjustProduct] = useState(null);
   const [adjustForm, setAdjustForm] = useState({ reason: 'restock', quantity: '', notes: '' });
 
@@ -55,7 +58,7 @@ function ProductList() {
 
   const saveProduct = useMutation({
     mutationFn: (data) => editing ? api.put(`/api/stock/products/${editing.id}`, data) : api.post('/api/stock/products', { ...data, sell_price: parseFloat(data.sell_price), stock_qty: parseInt(data.stock_qty, 10), min_stock: parseInt(data.min_stock, 10), cost_price: data.cost_price ? parseFloat(data.cost_price) : null, supplier_id: data.supplier_id ? parseInt(data.supplier_id, 10) : null }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['inv-products'] }); setShowForm(false); setEditing(null); setForm({ name: '', sku: '', sell_price: '', stock_qty: '', min_stock: '10', cost_price: '', category: 'apparel', description: '', supplier_id: '' }); success(editing ? 'Product updated' : 'Product created'); },
+    onSuccess: (data) => { queryClient.invalidateQueries({ queryKey: ['inv-products'] }); setShowForm(false); setEditing(null); setForm({ name: '', sku: '', barcode: '', sell_price: '', stock_qty: '', min_stock: '10', cost_price: '', category: 'apparel', description: '', supplier_id: '' }); setPhotoFile(null); setPhotoPreview(''); if (fileInputRef.current) fileInputRef.current.value = ''; success(editing ? 'Product updated' : 'Product created'); return data; },
     onError: () => error('Failed to save product'),
   });
 
@@ -73,14 +76,25 @@ function ProductList() {
 
   function openEdit(p) {
     setEditing(p);
-    setForm({ name: p.name, sku: p.sku || '', sell_price: String(p.sell_price || ''), stock_qty: String(p.stock_qty || ''), min_stock: String(p.min_stock || '10'), cost_price: String(p.cost_price || ''), category: p.category || 'apparel', description: p.description || '', supplier_id: String(p.supplier_id || '') });
+    setForm({ name: p.name, sku: p.sku || '', barcode: p.barcode || '', sell_price: String(p.sell_price || ''), stock_qty: String(p.stock_qty || ''), min_stock: String(p.min_stock || '10'), cost_price: String(p.cost_price || ''), category: p.category || 'apparel', description: p.description || '', supplier_id: String(p.supplier_id || '') });
+    setPhotoPreview(p.image_url || '');
+    setPhotoFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setShowForm(true);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!form.name || !form.sell_price) return;
-    saveProduct.mutate(form);
+    const result = await saveProduct.mutateAsync(form);
+    if (photoFile && result?.id) {
+      const fd = new FormData();
+      fd.append('photo', photoFile);
+      try {
+        await api.upload(`/api/stock/products/${result.id}/photo`, fd);
+        queryClient.invalidateQueries({ queryKey: ['inv-products'] });
+      } catch { error('Photo upload failed, product saved'); }
+    }
   }
 
   if (isError) return <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert"><p className="text-red-700 text-sm mb-3">Failed to load products</p><button onClick={refetch} className="text-sm text-red-600 underline">Retry</button></div>;
@@ -89,7 +103,7 @@ function ProductList() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 justify-between">
         <input type="text" placeholder="Search products by name or SKU..." value={search} onChange={e => setSearch(e.target.value)} className="input text-sm max-w-xs" aria-label="Search products" />
-        <button onClick={() => { setEditing(null); setForm({ name: '', sku: '', sell_price: '', stock_qty: '', min_stock: '10', cost_price: '', category: 'apparel', description: '', supplier_id: '' }); setShowForm(true); }} className="btn-primary text-sm">+ Add Product</button>
+        <button onClick={() => { setEditing(null); setForm({ name: '', sku: '', barcode: '', sell_price: '', stock_qty: '', min_stock: '10', cost_price: '', category: 'apparel', description: '', supplier_id: '' }); setPhotoFile(null); setPhotoPreview(''); if (fileInputRef.current) fileInputRef.current.value = ''; setShowForm(true); }} className="btn-primary text-sm">+ Add Product</button>
       </div>
 
       {showForm && (
@@ -98,12 +112,18 @@ function ProductList() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Name *</label><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className="input text-sm w-full" required /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">SKU</label><input value={form.sku} onChange={e => setForm(f => ({...f, sku: e.target.value}))} className="input text-sm w-full" /></div>
+            <div><label className="block text-xs font-medium text-gray-700 mb-1">Barcode</label><input value={form.barcode} onChange={e => setForm(f => ({...f, barcode: e.target.value}))} className="input text-sm w-full" /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Sell Price *</label><input type="number" step="0.01" min="0" value={form.sell_price} onChange={e => setForm(f => ({...f, sell_price: e.target.value}))} className="input text-sm w-full" required /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Cost Price</label><input type="number" step="0.01" min="0" value={form.cost_price} onChange={e => setForm(f => ({...f, cost_price: e.target.value}))} className="input text-sm w-full" /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Stock Qty</label><input type="number" min="0" value={form.stock_qty} onChange={e => setForm(f => ({...f, stock_qty: e.target.value}))} className="input text-sm w-full" /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Min Stock</label><input type="number" min="0" value={form.min_stock} onChange={e => setForm(f => ({...f, min_stock: e.target.value}))} className="input text-sm w-full" /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Category</label><select value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className="input text-sm w-full"><option value="apparel">Apparel</option><option value="equipment">Equipment</option><option value="supplements">Supplements</option><option value="accessories">Accessories</option><option value="other">Other</option></select></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Supplier</label><select value={form.supplier_id} onChange={e => setForm(f => ({...f, supplier_id: e.target.value}))} className="input text-sm w-full"><option value="">None</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+            <div className="col-span-2 md:col-span-4">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Photo</label>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) { setPhotoFile(f); const reader = new FileReader(); reader.onload = ev => setPhotoPreview(ev.target.result); reader.readAsDataURL(f); } }} className="text-sm w-full" />
+              {photoPreview && <img src={photoPreview} alt="Preview" className="mt-2 w-20 h-20 object-cover rounded border" />}
+            </div>
           </div>
           <div><label className="block text-xs font-medium text-gray-700 mb-1">Description</label><textarea rows={2} value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} className="input text-sm w-full" /></div>
           <div className="flex justify-end gap-2">
@@ -118,12 +138,18 @@ function ProductList() {
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full text-sm">
-            <thead><tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase"><th className="px-4 py-3">Name</th><th className="px-4 py-3">SKU</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Stock</th><th className="px-4 py-3">Category</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
+            <thead><tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase"><th className="px-4 py-3">Name</th><th className="px-4 py-3">SKU</th><th className="px-4 py-3">Barcode</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Stock</th><th className="px-4 py-3">Category</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
             <tbody className="divide-y divide-gray-200">
               {filtered.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    <div className="flex items-center gap-2">
+                      {p.image_url && <img src={p.image_url} alt="" className="w-8 h-8 object-cover rounded" />}
+                      {p.name}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{p.sku || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.barcode || '—'}</td>
                   <td className="px-4 py-3">${(p.sell_price || 0).toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 ${p.stock_qty <= p.min_stock ? 'text-red-600 font-medium' : 'text-gray-700'}`}>

@@ -27,7 +27,7 @@ function parseCSV(text) {
   return lines;
 }
 
-export default function CSVImportModal({ isOpen, onClose }) {
+export default function MemberCSVImportModal({ isOpen, onClose }) {
   const [step, setStep] = useState('upload');
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
@@ -38,8 +38,8 @@ export default function CSVImportModal({ isOpen, onClose }) {
   const { success, error } = useNotifications();
 
   const importMutation = useMutation({
-    mutationFn: (leads) => api.post('/api/leads/import', { leads }),
-    onSuccess: (res) => { queryClient.invalidateQueries({ queryKey: ['leads'] }); success(`Imported ${res.data.imported} leads${res.data.errors?.length ? ` (${res.data.errors.length} errors)` : ''}`); setStep('upload'); setRows([]); setHeaders([]); onClose(); },
+    mutationFn: (members) => api.post('/api/members/bulk/import', { members }),
+    onSuccess: (res) => { queryClient.invalidateQueries({ queryKey: ['members'] }); success(`Imported ${res.imported} members${res.errors?.length ? ` (${res.errors.length} errors)` : ''}`); setStep('upload'); setRows([]); setHeaders([]); onClose(); },
     onError: (err) => error(err?.response?.data?.error || 'Import failed'),
   });
 
@@ -63,11 +63,14 @@ export default function CSVImportModal({ isOpen, onClose }) {
         lastname: 'last_name', last: 'last_name', surname: 'last_name', family_name: 'last_name', lname: 'last_name',
         e: 'email', e_mail: 'email', email_address: 'email', emailaddress: 'email', mail: 'email',
         phone: 'phone', telephone: 'phone', mobile: 'phone', tel: 'phone', cell: 'phone', phone_number: 'phone', phonenumber: 'phone',
-        source: 'source', lead_source: 'source', leadsource: 'source', origin: 'source',
-        notes: 'notes', comment: 'comment', description: 'notes', note: 'notes', comments: 'notes',
-        interest: 'interest_level', interests: 'interest_level', interest_level: 'interest_level', level: 'interest_level',
-        stage: 'stage', status: 'stage',
-        location: 'location', branch: 'location', gym: 'location', site: 'location', preferred_location: 'location', pref_location: 'location', location_pref: 'location'
+        location: 'location', branch: 'location', gym: 'location', site: 'location',
+        plan: 'plan', membership: 'plan', membership_type: 'plan', membershiptype: 'plan',
+        status: 'status', member_status: 'status',
+        notes: 'notes', comment: 'notes', comments: 'notes',
+        dob: 'date_of_birth', birthdate: 'date_of_birth', birth_date: 'date_of_birth', date_of_birth: 'date_of_birth',
+        joindate: 'joined_date', join_date: 'joined_date', start_date: 'joined_date', joined: 'joined_date', joined_date: 'joined_date',
+        emergencyname: 'emergency_contact_name', emergency_name: 'emergency_contact_name', emergencycontact: 'emergency_contact_name', emergency: 'emergency_contact_name',
+        emergencyphone: 'emergency_contact_phone', emergency_phone: 'emergency_contact_phone', emergencycontactphone: 'emergency_contact_phone',
       };
       hdrs.forEach(h => { const key = h.replace(/['"]/g, '').trim().toLowerCase(); autoMap[h] = known[key] || ''; });
       setFieldMapping(autoMap);
@@ -78,7 +81,7 @@ export default function CSVImportModal({ isOpen, onClose }) {
   };
 
   const handleImport = () => {
-    const leads = rows.map(row => {
+    const members = rows.map(row => {
       const obj = {};
       headers.forEach((h, i) => {
         const target = fieldMapping[h];
@@ -86,33 +89,33 @@ export default function CSVImportModal({ isOpen, onClose }) {
       });
       return obj;
     });
-    importMutation.mutate(leads);
+    importMutation.mutate(members);
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="csv-import-title">
-        <h2 id="csv-import-title" className="text-lg font-semibold text-gray-900 mb-4">Import Leads from CSV</h2>
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="member-csv-import-title">
+        <h2 id="member-csv-import-title" className="text-lg font-semibold text-gray-900 mb-4">Import Members from CSV</h2>
 
         {step === 'upload' && (
           <div className="space-y-4">
             <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-red-300 transition-colors cursor-pointer" onClick={() => fileRef.current?.click()}>
               <p className="text-gray-500 mb-2">Upload a CSV file</p>
-              <p className="text-xs text-gray-400">The first row should contain column headers (name, email, phone, source, etc.)</p>
+              <p className="text-xs text-gray-400">The first row should contain column headers (name, email, phone, location, plan, etc.)</p>
               <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" onChange={handleFile} className="hidden" />
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs font-medium text-gray-700 mb-1">Required: at least one of first_name, email, or phone</p>
-              <p className="text-xs text-gray-500">Optional: last_name, source, notes, interest_level, location, stage</p>
+              <p className="text-xs font-medium text-gray-700 mb-1">Required: first_name, last_name</p>
+              <p className="text-xs text-gray-500">Optional: email, phone, location, plan, status, notes, date_of_birth, joined_date, emergency_contact_name, emergency_contact_phone</p>
             </div>
           </div>
         )}
 
         {step === 'map' && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">{rows.length} rows found. Map CSV columns to lead fields:</p>
+            <p className="text-sm text-gray-600">{rows.length} rows found. Map CSV columns to member fields:</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
@@ -131,11 +134,14 @@ export default function CSVImportModal({ isOpen, onClose }) {
                           <option value="last_name">Last Name</option>
                           <option value="email">Email</option>
                           <option value="phone">Phone</option>
-                          <option value="source">Source</option>
-                          <option value="notes">Notes</option>
-                          <option value="interest_level">Interest Level</option>
                           <option value="location">Location</option>
-                          <option value="stage">Stage/Status</option>
+                          <option value="plan">Membership Plan</option>
+                          <option value="status">Status</option>
+                          <option value="notes">Notes</option>
+                          <option value="date_of_birth">Date of Birth</option>
+                          <option value="joined_date">Join Date</option>
+                          <option value="emergency_contact_name">Emergency Contact</option>
+                          <option value="emergency_contact_phone">Emergency Phone</option>
                         </select>
                       </td>
                       <td className="px-3 py-2 text-gray-500">{rows[0]?.[i]?.substring(0, 40) || ''}</td>
@@ -157,7 +163,7 @@ export default function CSVImportModal({ isOpen, onClose }) {
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setStep('upload')} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Back</button>
               <button type="button" onClick={handleImport} disabled={importMutation.isPending} className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-40">
-                {importMutation.isPending ? 'Importing...' : `Import ${rows.length} Leads`}
+                {importMutation.isPending ? 'Importing...' : `Import ${rows.length} Members`}
               </button>
             </div>
 

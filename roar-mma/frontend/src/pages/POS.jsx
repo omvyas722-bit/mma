@@ -116,6 +116,7 @@ function POSScreen() {
         items: cart.map(i => ({ product_id: i.id, quantity: i.qty, unit_price: i.price })),
         tendered: parseFloat(tendered) || total,
         member_id: selectedMember?.id || null,
+        discount: parseFloat(discount) || 0,
       });
       if (splits.length > 0) {
         for (const sp of splits) {
@@ -136,12 +137,13 @@ function POSScreen() {
         <h3 className="text-sm font-semibold text-gray-900 mb-3">Products</h3>
         <div className="grid grid-cols-3 gap-2">
           {(products || []).map(p => (
-            <button key={p.id} onClick={() => addToCart(p)} disabled={p.stock_qty <= 0}
-              className={`border rounded-lg p-2 text-left hover:bg-gray-50 ${p.stock_qty <= 0 ? 'opacity-40' : ''}`}>
-              <p className="text-xs font-medium text-gray-900 truncate">{p.name}</p>
-              <p className="text-xs text-gray-500">${(p.sell_price || 0).toFixed(2)}</p>
-              <p className="text-[10px] text-gray-400">{p.stock_qty > 0 ? `${p.stock_qty} in stock` : 'Out of stock'}</p>
-            </button>
+              <button key={p.id} onClick={() => addToCart(p)} disabled={p.stock_qty <= 0}
+                className={`border rounded-lg p-2 text-left hover:bg-gray-50 ${p.stock_qty <= 0 ? 'opacity-40' : ''}`}>
+                {p.image_url && <img src={p.image_url} alt={p.name} className="w-full h-16 object-cover rounded mb-1" />}
+                <p className="text-xs font-medium text-gray-900 truncate">{p.name}</p>
+                <p className="text-xs text-gray-500">${(p.sell_price || 0).toFixed(2)}</p>
+                <p className="text-[10px] text-gray-400">{p.stock_qty > 0 ? `${p.stock_qty} in stock` : 'Out of stock'}</p>
+              </button>
           ))}
         </div>
       </div>
@@ -212,7 +214,13 @@ function POSScreen() {
         <button onClick={recordSale.mutate} disabled={cart.length === 0 || (splits.length > 0 ? !splitsValid : (!tendered || parseFloat(tendered) < total))}
           className="w-full mt-3 bg-red-600 text-white py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-40">Complete Sale</button>
 
-        {lastReceipt && <ReceiptPreview receipt={lastReceipt} onClose={() => setLastReceipt(null)} />}
+        {lastReceipt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setLastReceipt(null)}>
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+              <ReceiptPreview receipt={lastReceipt} onClose={() => setLastReceipt(null)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

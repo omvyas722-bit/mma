@@ -1,6 +1,7 @@
 // Classes routes
 const express = require('express');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { auditLog } = require('../middleware/auditLog');
 const classesData = require('../data/classes');
 const { getDatabase } = require('../db/connection');
 const bookingsData = require('../data/bookings');
@@ -8,7 +9,7 @@ const bookingsData = require('../data/bookings');
 const router = express.Router();
 
 // Get all classes (recurring definitions)
-router.get('/', authenticateToken, requirePermission('classes:read'), (req, res) => {
+router.get('/', authenticateToken, requirePermission('classes:read'), auditLog('view_list', 'class'), (req, res) => {
   try {
     const filters = {
       location: req.query.location,
@@ -87,7 +88,7 @@ router.get('/instances/:id/roster', authenticateToken, requirePermission('classe
 });
 
 // Create new class
-router.post('/', authenticateToken, requirePermission('classes:create'), (req, res) => {
+router.post('/', authenticateToken, requirePermission('classes:create'), auditLog('create', 'class'), (req, res) => {
   try {
     const { name, location, day_of_week, start_time, class_type } = req.body;
 
@@ -115,7 +116,7 @@ router.post('/', authenticateToken, requirePermission('classes:create'), (req, r
 });
 
 // Update class
-router.put('/:id', authenticateToken, requirePermission('classes:update'), (req, res) => {
+router.put('/:id', authenticateToken, requirePermission('classes:update'), auditLog('update', 'class'), (req, res) => {
   try {
     const classInfo = classesData.getClassById(req.params.id);
 
@@ -139,7 +140,7 @@ router.put('/:id', authenticateToken, requirePermission('classes:update'), (req,
 });
 
 // Delete class
-router.delete('/:id', authenticateToken, requirePermission('classes:delete'), (req, res) => {
+router.delete('/:id', authenticateToken, requirePermission('classes:delete'), auditLog('delete', 'class'), (req, res) => {
   try {
     const classInfo = classesData.getClassById(req.params.id);
 
@@ -177,15 +178,15 @@ router.post('/:id/generate-instances', authenticateToken, requirePermission('cla
   }
 });
 
-// Update class instance (notes, coach, etc)
-router.put('/instances/:id', authenticateToken, requirePermission('classes:update'), (req, res) => {
+// Update class instance (notes, coach, capacity, etc)
+router.put('/instances/:id', authenticateToken, requirePermission('classes:update'), auditLog('update_capacity', 'class_instance', { getMeta: (req) => { const old = classesData.getClassInstanceById(req.params.id); return { old_capacity: old?.capacity, new_capacity: req.body.capacity, reason: req.body.reason || '' }; } }), (req, res) => {
   try {
     const instance = classesData.getClassInstanceById(req.params.id);
     if (!instance) return res.status(404).json({ error: 'Class instance not found' });
 
-    const allowedFields = ['start_time', 'coach_id', 'capacity', 'status', 'class_notes'];
+    const allowedFields = ['start_time', 'coach_id', 'capacity', 'status', 'class_notes', 'reason'];
     const updateData = {};
-    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    allowedFields.forEach(f => { if (req.body[f] !== undefined && f !== 'reason') updateData[f] = req.body[f]; });
 
     const updated = classesData.updateClassInstance(req.params.id, updateData);
     res.json(updated);

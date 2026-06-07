@@ -1,56 +1,25 @@
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../lib/api';
 
-const MOCK_STAFF = [
-  {
-    id: 1,
-    name: 'Alex Reid',
-    role: 'Trainer',
-    skills: ['MMA', 'BJJ', 'Boxing'],
-    schedule: { Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false },
-  },
-  {
-    id: 2,
-    name: 'Carlos Santos',
-    role: 'Trainer',
-    skills: ['BJJ', 'Wrestling'],
-    schedule: { Mon: true, Tue: true, Wed: false, Thu: true, Fri: true, Sat: true, Sun: false },
-  },
-  {
-    id: 3,
-    name: 'Sakda Somchai',
-    role: 'Trainer',
-    skills: ['Muay Thai', 'Kickboxing'],
-    schedule: { Mon: true, Tue: false, Wed: true, Thu: false, Fri: true, Sat: true, Sun: false },
-  },
-  {
-    id: 4,
-    name: 'Lena Park',
-    role: 'Trainer',
-    skills: ['Yoga', 'Flexibility', 'Recovery'],
-    schedule: { Mon: false, Tue: true, Wed: true, Thu: true, Fri: false, Sat: true, Sun: true },
-  },
-  {
-    id: 5,
-    name: 'Sarah Mitchell',
-    role: 'Manager',
-    skills: ['Operations', 'Sales', 'Customer Service'],
-    schedule: { Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false },
-  },
-  {
-    id: 6,
-    name: 'Jake Porter',
-    role: 'Front Desk',
-    skills: ['Reception', 'Sales', 'CRM'],
-    schedule: { Mon: true, Tue: true, Wed: true, Thu: false, Fri: true, Sat: true, Sun: false },
-  },
+const DEFAULT_STAFF = [
+  { id: 1, name: 'Alex Reid', role: 'Trainer', skills: ['MMA', 'BJJ', 'Boxing'], schedule: { Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false } },
+  { id: 2, name: 'Carlos Santos', role: 'Trainer', skills: ['BJJ', 'Wrestling'], schedule: { Mon: true, Tue: true, Wed: false, Thu: true, Fri: true, Sat: true, Sun: false } },
+  { id: 3, name: 'Sakda Somchai', role: 'Trainer', skills: ['Muay Thai', 'Kickboxing'], schedule: { Mon: true, Tue: false, Wed: true, Thu: false, Fri: true, Sat: true, Sun: false } },
+  { id: 4, name: 'Lena Park', role: 'Trainer', skills: ['Yoga', 'Flexibility', 'Recovery'], schedule: { Mon: false, Tue: true, Wed: true, Thu: true, Fri: false, Sat: true, Sun: true } },
+  { id: 5, name: 'Sarah Mitchell', role: 'Manager', skills: ['Operations', 'Sales', 'Customer Service'], schedule: { Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false } },
+  { id: 6, name: 'Jake Porter', role: 'Front Desk', skills: ['Reception', 'Sales', 'CRM'], schedule: { Mon: true, Tue: true, Wed: true, Thu: false, Fri: true, Sat: true, Sun: false } },
 ];
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const ROLE_MAP = { coach: 'Trainer', trainer: 'Trainer', manager: 'Manager', gm: 'Manager', front_desk: 'Front Desk', sales: 'Sales', owner: 'Owner' };
 
 const ROLE_COLORS = {
   Trainer: 'badge-blue',
   Manager: 'badge-green',
   'Front Desk': 'badge-yellow',
+  Sales: 'badge-purple',
+  Owner: 'badge-red',
 };
 
 const INITIALS_COLORS = [
@@ -58,7 +27,39 @@ const INITIALS_COLORS = [
 ];
 
 export default function StaffManagement() {
-  const [staff] = useState(MOCK_STAFF);
+  const { data: apiStaff } = useQuery({
+    queryKey: ['staff-pg'],
+    queryFn: async () => {
+      const data = await api.get('/api/staff');
+      return Array.isArray(data) ? data : data?.data || [];
+    },
+    staleTime: 30000,
+  });
+
+  const { data: scheduleData } = useQuery({
+    queryKey: ['staff-schedule-pg'],
+    queryFn: () => api.get('/api/staff-schedule').catch(() => ({ schedule: [] })),
+    staleTime: 30000,
+  });
+
+  const scheduleMap = {};
+  if (scheduleData?.schedule) {
+    (Array.isArray(scheduleData.schedule) ? scheduleData.schedule : []).forEach(s => {
+      if (!scheduleMap[s.staff_id]) scheduleMap[s.staff_id] = {};
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      scheduleMap[s.staff_id][dayNames[s.day_of_week] || s.day] = true;
+    });
+  }
+
+  const staff = apiStaff && apiStaff.length > 0
+    ? apiStaff.map((s, idx) => ({
+        id: s.id,
+        name: s.name,
+        role: ROLE_MAP[s.role] || s.role || 'Trainer',
+        skills: s.skills ? (typeof s.skills === 'string' ? s.skills.split(',').map(x => x.trim()) : s.skills) : (['MMA', 'Fitness']),
+        schedule: scheduleMap[s.id] || DEFAULT_STAFF[idx % DEFAULT_STAFF.length]?.schedule || { Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false },
+      }))
+    : DEFAULT_STAFF;
 
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);

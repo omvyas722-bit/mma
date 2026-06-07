@@ -1,23 +1,55 @@
 import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import api from '../../lib/api';
 
-const PRODUCTS = [
-  { id: 1, name: 'MMA Gloves', price: 59.99, stock: 15, category: 'Gear' },
-  { id: 2, name: 'Shin Guards', price: 79.99, stock: 8, category: 'Gear' },
-  { id: 3, name: 'Rash Guard', price: 44.99, stock: 22, category: 'Apparel' },
-  { id: 4, name: 'Fight Shorts', price: 39.99, stock: 3, category: 'Apparel' },
-  { id: 5, name: 'Protein Shake', price: 6.99, stock: 45, category: 'Supplements' },
-  { id: 6, name: 'Pre-Workout', price: 4.99, stock: 30, category: 'Supplements' },
-  { id: 7, name: 'Mouth Guard', price: 14.99, stock: 50, category: 'Gear' },
-  { id: 8, name: 'Hand Wraps', price: 9.99, stock: 2, category: 'Gear' },
-  { id: 9, name: 'Gym Towel', price: 19.99, stock: 40, category: 'Apparel' },
-  { id: 10, name: 'Day Pass', price: 25.00, stock: 999, category: 'Passes' },
-  { id: 11, name: 'PT Session', price: 65.00, stock: 999, category: 'Passes' },
-  { id: 12, name: '10-Class Pass', price: 199.00, stock: 999, category: 'Passes' },
+const DEFAULT_PRODUCTS = [
+  { id: 1, name: 'MMA Gloves', price: 59.99, stock: 15, category: 'Gear', sell_price: 59.99, stock_quantity: 15 },
+  { id: 2, name: 'Shin Guards', price: 79.99, stock: 8, category: 'Gear', sell_price: 79.99, stock_quantity: 8 },
+  { id: 3, name: 'Rash Guard', price: 44.99, stock: 22, category: 'Apparel', sell_price: 44.99, stock_quantity: 22 },
+  { id: 4, name: 'Fight Shorts', price: 39.99, stock: 3, category: 'Apparel', sell_price: 39.99, stock_quantity: 3 },
+  { id: 5, name: 'Protein Shake', price: 6.99, stock: 45, category: 'Supplements', sell_price: 6.99, stock_quantity: 45 },
+  { id: 6, name: 'Pre-Workout', price: 4.99, stock: 30, category: 'Supplements', sell_price: 4.99, stock_quantity: 30 },
+  { id: 7, name: 'Mouth Guard', price: 14.99, stock: 50, category: 'Gear', sell_price: 14.99, stock_quantity: 50 },
+  { id: 8, name: 'Hand Wraps', price: 9.99, stock: 2, category: 'Gear', sell_price: 9.99, stock_quantity: 2 },
+  { id: 9, name: 'Gym Towel', price: 19.99, stock: 40, category: 'Apparel', sell_price: 19.99, stock_quantity: 40 },
+  { id: 10, name: 'Day Pass', price: 25.00, stock: 999, category: 'Passes', sell_price: 25.00, stock_quantity: 999 },
+  { id: 11, name: 'PT Session', price: 65.00, stock: 999, category: 'Passes', sell_price: 65.00, stock_quantity: 999 },
+  { id: 12, name: '10-Class Pass', price: 199.00, stock: 999, category: 'Passes', sell_price: 199.00, stock_quantity: 999 },
 ];
 
 export default function PointOfSale() {
   const [cart, setCart] = useState([]);
   const [paid, setPaid] = useState(false);
+
+  const { data: apiProducts } = useQuery({
+    queryKey: ['pos-products'],
+    queryFn: async () => {
+      const data = await api.get('/api/stock/products');
+      return Array.isArray(data) ? data : data?.data || [];
+    },
+    staleTime: 30000,
+  });
+
+  const PRODUCTS = apiProducts && apiProducts.length > 0
+    ? apiProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.sell_price || p.price || 0,
+        stock: p.stock_quantity || p.stock || 0,
+        category: p.category || 'Gear',
+      }))
+    : DEFAULT_PRODUCTS;
+
+  const posSale = useMutation({
+    mutationFn: (saleItems) => api.post('/api/stock/pos-sale', {
+      items: saleItems.map(i => ({
+        product_id: i.id,
+        quantity: i.qty,
+        unit_price: i.price,
+      })),
+      payment_method: 'cash',
+    }),
+  });
 
   const addToCart = (product) => {
     setCart(prev => {
@@ -45,8 +77,12 @@ export default function PointOfSale() {
 
   const handleCharge = () => {
     if (cart.length === 0) return;
-    setPaid(true);
-    setTimeout(() => { setCart([]); setPaid(false); }, 2000);
+    posSale.mutate(cart, {
+      onSuccess: () => {
+        setPaid(true);
+        setTimeout(() => { setCart([]); setPaid(false); }, 2000);
+      },
+    });
   };
 
   const isLowStock = (stock) => stock <= 5 && stock > 0;

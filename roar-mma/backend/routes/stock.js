@@ -1,9 +1,32 @@
 // Stock management routes
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const stockData = require('../data/stock');
 
 const router = express.Router();
+
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'products');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `product_${req.params.id}_${Date.now()}${ext}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+    if (allowed.test(path.extname(file.originalname))) cb(null, true);
+    else cb(new Error('Only image files (jpg, jpeg, png, gif, webp) are allowed'));
+  },
+});
 
 // Products
 router.get('/products', authenticateToken, requirePermission('stock:read'), (req, res) => {
@@ -63,6 +86,23 @@ router.put('/products/:id', authenticateToken, requirePermission('stock:write'),
     console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
+});
+
+// Product photo upload
+router.put('/products/:id/photo', authenticateToken, requirePermission('stock:write'), (req, res) => {
+  upload.single('photo')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No photo file provided' });
+    try {
+      const url = `/uploads/products/${req.file.filename}`;
+      const updated = stockData.updateProduct(req.params.id, { image_url: url });
+      if (!updated) return res.status(404).json({ error: 'Product not found' });
+      res.json({ image_url: url, product: updated });
+    } catch (error) {
+      console.error('Error uploading product photo:', error);
+      res.status(500).json({ error: 'Failed to upload photo' });
+    }
+  });
 });
 
 // Product-specific stock adjustment
@@ -132,7 +172,7 @@ router.post('/pos-sale', authenticateToken, requirePermission('stock:write'), (r
         product_id: item.product_id, quantity: item.quantity, unit_price: item.unit_price,
         total_price: item.unit_price * item.quantity, payment_method, member_id: member_id || null, sold_by: req.user.id,
       });
-      const product = db.prepare('SELECT name FROM stock_items WHERE id = ?').get(item.product_id);
+      const product = db.prepare('SELECT name FROM products WHERE id = ?').get(item.product_id);
       total += item.unit_price * item.quantity;
       receiptItems.push({ ...sale, product_name: product?.name || 'Unknown' });
     }
@@ -140,7 +180,12 @@ router.post('/pos-sale', authenticateToken, requirePermission('stock:write'), (r
     const discountAmt = total * discountPct / 100;
     const finalTotal = total - discountAmt;
     const change = Math.max(0, (parseFloat(tendered) || finalTotal) - finalTotal);
-    res.json({ sale_id: Date.now(), items: receiptItems, subtotal: total, discount: discountPct > 0 ? { pct: discountPct, amount: discountAmt } : null, total: finalTotal, tendered: parseFloat(tendered) || finalTotal, change, sold_by: req.user.first_name || req.user.id, sold_at: new Date().toISOString() });
+    // Store as transaction record
+    const transactionId = `POS-${Date.now()}`;
+    db.prepare(`INSERT INTO transactions (member_id, amount, type, status, payment_method, description, processed_at, created_at)
+      VALUES (?, ?, 'product', 'completed', ?, ?, datetime('now'), datetime('now'))`)
+      .run(member_id || null, finalTotal, payment_method, `POS sale - ${items.length} items`);
+    res.json({ sale_id: transactionId, items: receiptItems, subtotal: total, discount: discountPct > 0 ? { pct: discountPct, amount: discountAmt } : null, total: finalTotal, tendered: parseFloat(tendered) || finalTotal, change, sold_by: req.user.first_name || req.user.id, sold_at: new Date().toISOString() });
   } catch (error) {
     console.error('Error processing POS sale:', error);
     res.status(500).json({ error: 'Failed to process sale' });

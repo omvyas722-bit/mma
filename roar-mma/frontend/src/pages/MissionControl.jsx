@@ -83,6 +83,64 @@ function AgentCard({ agent, onToggle, onRunNow, running }) {
   );
 }
 
+function NlSchedulerForm() {
+  const { success, error: showError } = useNotifications();
+  const queryClient = useQueryClient();
+  const [query, setQuery] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setSubmitting(true);
+    setResult(null);
+    try {
+      const res = await api.post('/api/agents/nl-schedule', { query: query.trim() });
+      setResult(res);
+      success('Schedule created!');
+      setQuery('');
+      queryClient.invalidateQueries({ queryKey: ['mission-control-overview'] });
+    } catch (err) {
+      showError(err?.response?.data?.error || 'Failed to create schedule');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <form onSubmit={handleSubmit} className="flex gap-3">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder='e.g. "Every Monday at 7am, have ORACLE send me membership count"'
+          className="input flex-1 text-sm"
+          disabled={submitting}
+        />
+        <button type="submit"
+          disabled={submitting || !query.trim()}
+          className="px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+        >
+          {submitting ? 'Scheduling...' : 'Schedule'}
+        </button>
+      </form>
+      {result && (
+        <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+          <p className="text-green-800 font-medium">Schedule created!</p>
+          <p className="text-green-700 text-xs mt-1">
+            Frequency: <span className="font-medium">{result.parsed?.frequency}</span>
+            {result.parsed?.day && <> · Day: <span className="font-medium">{result.parsed.day}</span></>}
+            {result.parsed?.time && <> · Time: <span className="font-medium">{result.parsed.time}</span></>}
+            {result.parsed?.agentName && <> · Agent: <span className="font-medium">{result.parsed.agentName}</span></>}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MissionControl() {
   const queryClient = useQueryClient();
   const { success, error: showError } = useNotifications();
@@ -292,6 +350,17 @@ export default function MissionControl() {
               </Link>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Natural Language Scheduler */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 mb-6">
+        <div className="px-5 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Natural Language Scheduler</h2>
+        </div>
+        <div className="p-5">
+          <p className="text-sm text-gray-500 mb-3">Describe a recurring task in plain English. Example: <em>"Every Monday at 7am, have ORACLE send me membership count"</em></p>
+          <NlSchedulerForm />
         </div>
       </div>
 

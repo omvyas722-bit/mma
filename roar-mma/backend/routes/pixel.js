@@ -118,7 +118,32 @@ router.get('/analytics', authenticateToken, requirePermission('reports:read'), (
       GROUP BY DATE(created_at), event_type ORDER BY date
     `).all(since);
 
-    res.json({ events, byCampaign, daily });
+    const today = new Date().toISOString().split('T')[0];
+    const todayCount = db.prepare(`
+      SELECT COUNT(*) as count FROM pixel_events WHERE DATE(created_at) = ?
+    `).get(today)?.count || 0;
+    const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekCount = db.prepare(`
+      SELECT COUNT(*) as count FROM pixel_events WHERE created_at >= ?
+    `).get(weekStart.toISOString().split('T')[0])?.count || 0;
+    const monthStart = new Date(); monthStart.setDate(1);
+    const monthCount = db.prepare(`
+      SELECT COUNT(*) as count FROM pixel_events WHERE created_at >= ?
+    `).get(monthStart.toISOString().split('T')[0])?.count || 0;
+
+    const topPages = db.prepare(`
+      SELECT page_url, COUNT(*) as count FROM pixel_events
+      WHERE created_at >= ? AND page_url != ''
+      GROUP BY page_url ORDER BY count DESC LIMIT 10
+    `).all(since);
+
+    const topReferrers = db.prepare(`
+      SELECT COALESCE(NULLIF(page_url, ''), '(direct)') as referrer, COUNT(*) as count FROM pixel_events
+      WHERE created_at >= ?
+      GROUP BY referrer ORDER BY count DESC LIMIT 10
+    `).all(since);
+
+    res.json({ events, byCampaign, daily, totals: { today: todayCount, week: weekCount, month: monthCount, total: events.reduce((s, e) => s + e.count, 0) }, topPages, topReferrers });
   } catch (err) {
     console.error('[PIXEL] Analytics error:', err.message);
     res.status(500).json({ error: 'Failed to fetch analytics' });

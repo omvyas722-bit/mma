@@ -8,11 +8,54 @@ const router = express.Router();
 // Belt levels
 router.get('/belts', authenticateToken, requirePermission('grading:read'), (req, res) => {
   try {
-    const belts = beltGradingData.getAllBeltLevels();
+    const discipline = req.query.discipline || null;
+    const belts = beltGradingData.getAllBeltLevels(discipline);
     res.json(belts);
   } catch (error) {
     console.error('Error fetching belt levels:', error);
     res.status(500).json({ error: 'Failed to fetch belt levels' });
+  }
+});
+
+router.get('/belts/registry', authenticateToken, requirePermission('grading:read'), (req, res) => {
+  try {
+    const registry = beltGradingData.getBeltRegistry();
+    res.json({ registry });
+  } catch (error) {
+    console.error('Error fetching belt registry:', error);
+    res.status(500).json({ error: 'Failed to fetch belt registry' });
+  }
+});
+
+router.post('/belts', authenticateToken, requirePermission('grading:write'), (req, res) => {
+  try {
+    const belt = beltGradingData.createBeltLevel(req.body);
+    res.status(201).json(belt);
+  } catch (error) {
+    console.error('Error creating belt level:', error);
+    res.status(500).json({ error: 'Failed to create belt level' });
+  }
+});
+
+router.put('/belts/:id', authenticateToken, requirePermission('grading:write'), (req, res) => {
+  try {
+    const belt = beltGradingData.updateBeltLevel(parseInt(req.params.id, 10), req.body);
+    if (!belt) return res.status(404).json({ error: 'Belt level not found' });
+    res.json(belt);
+  } catch (error) {
+    console.error('Error updating belt level:', error);
+    res.status(500).json({ error: 'Failed to update belt level' });
+  }
+});
+
+router.delete('/belts/:id', authenticateToken, requirePermission('grading:write'), (req, res) => {
+  try {
+    const ok = beltGradingData.deleteBeltLevel(parseInt(req.params.id, 10));
+    if (!ok) return res.status(404).json({ error: 'Belt level not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting belt level:', error);
+    res.status(500).json({ error: 'Failed to delete belt level' });
   }
 });
 
@@ -122,6 +165,17 @@ router.post('/members/:memberId/techniques', authenticateToken, requirePermissio
   }
 });
 
+// Fighter leaderboard
+router.get('/fighters/leaderboard', authenticateToken, requirePermission('grading:read'), (req, res) => {
+  try {
+    const leaderboard = beltGradingData.getFighterLeaderboard();
+    res.json(leaderboard);
+  } catch (error) {
+    console.error('Error fetching fighter leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch fighter leaderboard' });
+  }
+});
+
 // Grading sessions
 router.get('/sessions', authenticateToken, requirePermission('grading:read'), (req, res) => {
   try {
@@ -175,6 +229,16 @@ router.delete('/sessions/:id', authenticateToken, requirePermission('grading:wri
   } catch (error) {
     console.error('Error deleting grading session:', error);
     res.status(500).json({ error: 'Failed to delete grading session' });
+  }
+});
+
+router.get('/sessions/:sessionId/participants', authenticateToken, requirePermission('grading:read'), (req, res) => {
+  try {
+    const participants = beltGradingData.getSessionParticipants(parseInt(req.params.sessionId, 10));
+    res.json({ participants });
+  } catch (error) {
+    console.error('Error fetching participants:', error);
+    res.status(500).json({ error: 'Failed to fetch participants' });
   }
 });
 

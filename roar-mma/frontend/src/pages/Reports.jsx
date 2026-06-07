@@ -2,8 +2,18 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
+import '../styles/print.css';
+import { format, parseISO, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
+import {
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
+  CartesianGrid
+} from 'recharts';
 
 const REPORT_TABS = ['membership', 'revenue', 'attendance', 'leads', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'eod_history', 'staff_compliance'];
+
+const PIE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+const FUNNEL_COLORS = ['#3B82F6', '#60A5FA', '#22C55E', '#16A34A', '#15803D'];
 
 export default function Reports() {
   const [reportType, setReportType] = useState('membership');
@@ -52,8 +62,12 @@ export default function Reports() {
     staleTime: 600000,
   });
 
+  const handlePrintPDF = () => {
+    window.print();
+  };
+
   return (
-    <div>
+    <div className="report-print">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Reports</h1>
 
       {/* Weekly Digest section */}
@@ -155,9 +169,14 @@ export default function Reports() {
               Generate Report
             </button>
             {report && !isError && !['eod_history', 'staff_performance', 'pt_revenue', 'grading_stats', 'retention', 'social_media', 'staff_compliance'].includes(reportType) && (
-              <button type="button" onClick={() => exportCSV(report, reportType)} className="btn btn-outline w-full">
-                Export CSV
-              </button>
+              <>
+                <button type="button" onClick={() => exportCSV(report, reportType)} className="btn btn-outline w-full">
+                  Export CSV
+                </button>
+                <button type="button" onClick={handlePrintPDF} className="btn btn-outline w-full">
+                  PDF
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -263,6 +282,33 @@ function MembershipReport({ data }) {
         </div>
       </div>
 
+      {/* Plan distribution pie chart */}
+      {byPlan.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Plan Distribution</h3>
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={byPlan}
+                  dataKey="count"
+                  nameKey="plan"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label={({ plan, count }) => `${plan?.replace('_', ' ') || 'No plan'}: ${count}`}
+                >
+                  {byPlan.map((_, idx) => (
+                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Trial conversions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-2">Trial Conversions</h3>
@@ -280,6 +326,43 @@ function RevenueReport({ data }) {
   const maxTypeTotal = Math.max(...byType.map(r => r.total || 0), 1);
   const topMembers = data?.top_members || [];
   const maxMemberTotal = Math.max(...topMembers.map(r => r.total_spent || 0), 1);
+  const byDate = data?.by_date || [];
+
+  // Aggregate by_date into weekly buckets
+  const weeklyData = (() => {
+    if (byDate.length === 0) return [];
+    const dates = byDate.map(d => parseISO(d.date));
+    const start = dates[0];
+    const end = dates[dates.length - 1];
+    const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+    return weeks.map(weekStart => {
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const items = byDate.filter(d => {
+        const dt = parseISO(d.date);
+        return dt >= weekStart && dt <= weekEnd;
+      });
+      const total = items.reduce((s, d) => s + (d.total || 0), 0);
+      return { week: format(weekStart, 'MMM d'), total: Math.round(total) };
+    });
+  })();
+
+  // Aggregate by_date into monthly buckets for MRR
+  const mrrData = (() => {
+    if (byDate.length === 0) return [];
+    const dates = byDate.map(d => parseISO(d.date));
+    const start = dates[0];
+    const end = dates[dates.length - 1];
+    const months = eachMonthOfInterval({ start, end });
+    return months.map(monthStart => {
+      const items = byDate.filter(d => {
+        const dt = parseISO(d.date);
+        return dt.getMonth() === monthStart.getMonth() && dt.getFullYear() === monthStart.getFullYear();
+      });
+      const total = items.reduce((s, d) => s + (d.total || 0), 0);
+      return { month: format(monthStart, 'MMM yyyy'), revenue: Math.round(total) };
+    });
+  })();
 
   return (
     <div className="space-y-6">
@@ -292,12 +375,12 @@ function RevenueReport({ data }) {
       </div>
 
       {/* Revenue trend chart */}
-      {data?.daily_revenue?.length > 0 && (
+      {byDate.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Daily Revenue Trend</h3>
           <div className="flex items-end gap-1 h-32">
-            {data.daily_revenue.slice(-30).map((d, i) => {
-              const max = Math.max(...data.daily_revenue.slice(-30).map(x => x.total || 0), 1);
+            {byDate.slice(-30).map((d, i) => {
+              const max = Math.max(...byDate.slice(-30).map(x => x.total || 0), 1);
               return (
                 <div key={i} className="flex-1 flex flex-col items-center group relative">
                   <div className="w-full bg-green-500 rounded-t hover:bg-green-600 transition-colors min-h-[2px]"
@@ -308,6 +391,44 @@ function RevenueReport({ data }) {
             })}
           </div>
           <p className="text-xs text-gray-400 mt-2 text-center">Last 30 days</p>
+        </div>
+      )}
+
+      {/* Weekly revenue trend area chart */}
+      {weeklyData.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Weekly Revenue Trend</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart data={weeklyData}>
+              <defs>
+                <linearGradient id="weeklyRevGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="week" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+              <Tooltip formatter={(v) => [`$${v}`, 'Revenue']} />
+              <Area type="monotone" dataKey="total" stroke="#3B82F6" fill="url(#weeklyRevGrad)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* MRR trend line chart */}
+      {mrrData.length > 1 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Monthly Recurring Revenue (MRR) Trend</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={mrrData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+              <Tooltip formatter={(v) => [`$${v}`, 'MRR']} />
+              <Line type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       )}
 
@@ -363,6 +484,19 @@ function AttendanceReport({ data }) {
   const attendanceRate = totalBookings > 0
     ? ((attended / totalBookings) * 100).toFixed(1)
     : 0;
+  const byClassType = data?.by_class_type || [];
+
+  const heatColor = (rate) => {
+    if (rate >= 75) return 'bg-green-100 text-green-800';
+    if (rate >= 50) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  const heatBg = (rate) => {
+    if (rate >= 75) return 'bg-green-500';
+    if (rate >= 50) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
 
   return (
     <div className="space-y-6">
@@ -374,6 +508,60 @@ function AttendanceReport({ data }) {
         <StatCard label="Cancelled" value={data?.summary?.cancelled || 0} color="gray" />
         <StatCard label="Attendance Rate" value={`${attendanceRate}%`} color="blue" />
       </div>
+
+      {/* Class Fill Heatmap - Day of Week Matrix */}
+      {(() => {
+        const byDay = data?.by_day_of_week || [];
+        if (byDay.length === 0 && byClassType.length === 0) return null;
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const classTypes = [...new Set(byDay.map(d => d.class_type))];
+        const maxBookings = Math.max(...byDay.map(d => d.bookings), 1);
+        const heatIntensity = (bookings) => {
+          const pct = bookings / maxBookings;
+          if (pct === 0) return 'bg-gray-50';
+          if (pct < 0.25) return 'bg-blue-100';
+          if (pct < 0.5) return 'bg-blue-200';
+          if (pct < 0.75) return 'bg-blue-300';
+          return 'bg-blue-500';
+        };
+        const lookup = {};
+        byDay.forEach(d => { lookup[`${d.class_type}_${d.day_num}`] = d; });
+        return (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">Class Fill Heatmap — by Day of Week</h3>
+            <p className="text-xs text-gray-400 mb-3">Cell color intensity = relative attendance volume (darker = more booked)</p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase">Class Type</th>
+                    {days.map(d => <th key={d} className="text-center py-2 px-2 text-xs font-medium text-gray-500 uppercase">{d}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {classTypes.map(ct => (
+                    <tr key={ct} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-3 uppercase text-sm font-medium">{ct}</td>
+                      {days.map((_, dayNum) => {
+                        const cell = lookup[`${ct}_${dayNum}`];
+                        const val = cell ? cell.attended : 0;
+                        const total = cell ? cell.bookings : 0;
+                        const pct = total > 0 ? ((val / total) * 100).toFixed(0) : 0;
+                        return (
+                          <td key={dayNum} className={`text-center py-2 px-2 text-xs ${heatIntensity(val)}`}
+                            title={`${ct} on ${days[dayNum]}: ${val} attended / ${total} booked (${pct}%)`}>
+                            {val > 0 ? `${val}` : '-'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* By class type */}
@@ -389,7 +577,7 @@ function AttendanceReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {(data?.by_class_type || []).map((row) => {
+              {byClassType.map((row) => {
                 const rate = row.bookings > 0 ? ((row.attended / row.bookings) * 100).toFixed(1) : 0;
                 return (
                   <tr key={row.class_type} className="border-b">
@@ -433,6 +621,16 @@ function AttendanceReport({ data }) {
 
 function LeadsReport({ data }) {
   if (!data) return null;
+
+  const funnel = data?.conversion_funnel || {};
+  const stages = [
+    { key: 'new', label: 'New' },
+    { key: 'contacted', label: 'Contacted' },
+    { key: 'trial_booked', label: 'Trial Booked' },
+    { key: 'trial_completed', label: 'Trial Completed' },
+    { key: 'converted', label: 'Converted' },
+  ];
+  const maxVal = funnel.new || 1;
 
   return (
     <div className="space-y-6">
@@ -489,16 +687,41 @@ function LeadsReport({ data }) {
       </div>
 
       {/* Conversion funnel */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Conversion Funnel</h3>
-        <div className="space-y-2">
-          <FunnelBar label="New Leads" value={data?.conversion_funnel?.new || 0} max={data?.conversion_funnel?.new || 0} />
-          <FunnelBar label="Contacted" value={data?.conversion_funnel?.contacted || 0} max={data?.conversion_funnel?.new || 0} />
-          <FunnelBar label="Trial Booked" value={data?.conversion_funnel?.trial_booked || 0} max={data?.conversion_funnel?.new || 0} />
-          <FunnelBar label="Trial Completed" value={data?.conversion_funnel?.trial_completed || 0} max={data?.conversion_funnel?.new || 0} />
-          <FunnelBar label="Converted" value={data?.conversion_funnel?.converted || 0} max={data?.conversion_funnel?.new || 0} />
+      {maxVal > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Conversion Funnel</h3>
+          <div className="space-y-3">
+            {stages.map((stage, idx) => {
+              const val = funnel[stage.key] || 0;
+              const widthPct = maxVal > 0 ? (val / maxVal) * 100 : 0;
+              const prevVal = idx > 0 ? (funnel[stages[idx - 1].key] || 0) : maxVal;
+              const dropoff = prevVal > 0 ? ((1 - val / prevVal) * 100).toFixed(1) : 0;
+              return (
+                <div key={stage.key} className="flex items-center gap-4">
+                  <div className="w-28 text-right text-sm font-medium text-gray-600 shrink-0">{stage.label}</div>
+                  <div className="flex-1 flex justify-center">
+                    <div className="relative h-8 rounded flex items-center" style={{
+                      width: `${Math.max(widthPct, 4)}%`,
+                      backgroundColor: FUNNEL_COLORS[idx % FUNNEL_COLORS.length],
+                      transition: 'width 0.3s ease',
+                    }}>
+                      <span className="text-white text-xs font-semibold px-2 w-full text-center truncate">
+                        {val}
+                        {idx > 0 && (
+                          <span className="ml-1 opacity-70">(-{dropoff}%)</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-28 text-xs text-gray-400 shrink-0">
+                    {idx > 0 ? `${widthPct.toFixed(0)}% of new` : '100%'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -760,27 +983,6 @@ function StaffComplianceReport({ data }) {
             </table>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function FunnelBar({ label, value, max }) {
-  const percentage = max > 0 ? (value / max) * 100 : 0;
-
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span>{label}</span>
-        <span className="font-medium">{value}</span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-6">
-        <div
-          className="bg-red-600 h-6 rounded-full flex items-center justify-end pr-2 text-white text-xs font-medium"
-          style={{ width: `${percentage}%` }}
-        >
-          {percentage > 10 && `${percentage.toFixed(0)}%`}
-        </div>
       </div>
     </div>
   );

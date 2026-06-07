@@ -1,15 +1,51 @@
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../../lib/api';
 
-const MEMBERSHIP_TIERS = ['Basic', 'Standard', 'Premium', 'Corporate', 'Day Pass'];
-const LOCATIONS = ['Perth CBD', 'Fremantle', 'Joondalup', 'Rockingham', 'Midland'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function AccessControl() {
-  const [rules, setRules] = useState([
-    { id: 1, tier: 'Premium', from: '00:00', to: '23:59', locations: ['Perth CBD', 'Fremantle', 'Joondalup'], active: true },
-    { id: 2, tier: 'Standard', from: '06:00', to: '22:00', locations: ['Perth CBD'], active: true },
-    { id: 3, tier: 'Day Pass', from: '08:00', to: '20:00', locations: ['Perth CBD', 'Fremantle'], active: true },
-  ]);
+  const queryClient = useQueryClient();
+
+  const { data: options } = useQuery({
+    queryKey: ['settings-options'],
+    queryFn: () => api.get('/api/settings/options'),
+    staleTime: 300000,
+  });
+
+  const MEMBERSHIP_TIERS = options?.plans?.map(p =>
+    p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  ) || ['Basic', 'Standard', 'Premium', 'Corporate', 'Day Pass'];
+
+  const LOCATIONS = options?.locations?.map(l =>
+    l.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  ) || ['Perth CBD', 'Fremantle', 'Joondalup', 'Rockingham', 'Midland'];
+
+  const { data: rules = [] } = useQuery({
+    queryKey: ['access-rules'],
+    queryFn: async () => {
+      try {
+        const data = await api.get('/api/settings');
+        return data?.accessRules || [
+          { id: 1, tier: 'Premium', from: '00:00', to: '23:59', locations: ['Perth CBD', 'Fremantle', 'Joondalup'], active: true },
+          { id: 2, tier: 'Standard', from: '06:00', to: '22:00', locations: ['Perth CBD'], active: true },
+          { id: 3, tier: 'Day Pass', from: '08:00', to: '20:00', locations: ['Perth CBD', 'Fremantle'], active: true },
+        ];
+      } catch {
+        return [
+          { id: 1, tier: 'Premium', from: '00:00', to: '23:59', locations: ['Perth CBD', 'Fremantle', 'Joondalup'], active: true },
+          { id: 2, tier: 'Standard', from: '06:00', to: '22:00', locations: ['Perth CBD'], active: true },
+          { id: 3, tier: 'Day Pass', from: '08:00', to: '20:00', locations: ['Perth CBD', 'Fremantle'], active: true },
+        ];
+      }
+    },
+    staleTime: 60000,
+  });
+
+  const saveRules = useMutation({
+    mutationFn: (newRules) => api.put('/api/settings', { accessRules: newRules }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-rules'] }),
+  });
 
   const [form, setForm] = useState({
     tier: MEMBERSHIP_TIERS[0],
@@ -31,13 +67,15 @@ export default function AccessControl() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (form.locations.length === 0) return;
-    setRules([...rules, { ...form, id: Date.now(), active: true }]);
+    const updated = [...rules, { ...form, id: Date.now(), active: true }];
+    saveRules.mutate(updated);
     setForm({ tier: MEMBERSHIP_TIERS[0], from: '06:00', to: '22:00', locations: [] });
     setShowForm(false);
   };
 
   const toggleRule = (id) => {
-    setRules(rules.map(r => r.id === id ? { ...r, active: !r.active } : r));
+    const updated = rules.map(r => r.id === id ? { ...r, active: !r.active } : r);
+    saveRules.mutate(updated);
   };
 
   return (

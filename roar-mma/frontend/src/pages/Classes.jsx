@@ -166,7 +166,7 @@ export default function Classes() {
               splitView ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
             }`}
           >
-            {splitView ? 'Single View' : 'All Locations'}
+            {splitView ? 'Single View' : 'Side by Side'}
           </button>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input text-sm" aria-label="Filter by type">
             <option value="">All Types</option><option value="bjj">BJJ</option><option value="muay_thai">Muay Thai</option><option value="mma">MMA</option><option value="boxing">Boxing</option><option value="fitness">Fitness</option><option value="kids">Kids</option>
@@ -187,7 +187,7 @@ export default function Classes() {
             : DAYS.map(day => <SkeletonDay key={day} />)}
         </div>
       ) : splitView ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {splitLocations.map(loc => (
             <div key={loc.id} className="bg-white rounded-lg shadow overflow-hidden">
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 sticky top-0 z-10">
@@ -268,7 +268,8 @@ function SkeletonDay() {
 
 function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate }) {
   const fillPct = instance.capacity ? Math.min(100, (instance.booked_count / instance.capacity) * 100) : 0;
-  const fillColor = instance.status === 'cancelled' ? 'bg-gray-300' : fillPct >= 90 ? 'bg-red-500' : fillPct >= 80 ? 'bg-yellow-500' : fillPct >= 50 ? 'bg-blue-500' : 'bg-green-500';
+  const fillColor = instance.status === 'cancelled' ? 'bg-gray-300' : fillPct >= 90 ? 'bg-red-500' : fillPct >= 80 ? 'bg-orange-500' : fillPct >= 50 ? 'bg-amber-500' : 'bg-gray-400';
+  const cardBorder = instance.status === 'cancelled' ? 'border-gray-200' : fillPct >= 90 ? 'border-red-300 bg-red-50' : fillPct >= 80 ? 'border-orange-300 bg-orange-50' : fillPct >= 50 ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-100';
   return (
     <ContextMenu items={[
       { label: 'View Details', icon: '🔍', onClick: onClick },
@@ -280,7 +281,7 @@ function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate
       { separator: true },
       { label: 'Delete Class', icon: '🗑️', destructive: true, onClick: onDelete },
     ]}>
-      <div onClick={onClick} className={`border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer relative group ${instance.status === 'cancelled' ? 'opacity-60 bg-gray-50' : 'border-gray-200'}`}
+      <div onClick={onClick} className={`border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer relative group ${instance.status === 'cancelled' ? 'opacity-60 bg-gray-50 border-gray-200' : cardBorder}`}
         role="button" tabIndex={0} aria-label={`${instance.class_name}, ${instance.start_time}`}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}>
         <div className="flex items-start justify-between mb-1">
@@ -288,7 +289,7 @@ function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate
           <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${TYPE_COLORS[instance.class_type] || 'bg-gray-100 text-gray-600'}`}>{instance.class_type?.toUpperCase() || 'CLASS'}</span>
         </div>
         {instance.coach_name && <p className="text-xs text-gray-600 mb-1.5">{instance.coach_name}</p>}
-        {instance.min_belt && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 mr-1">Min {instance.min_belt}</span>}
+        {instance.min_belt && <span className="text-[10px] px-1.5 py-0.5 rounded mr-1" style={{backgroundColor: instance.belt_color || '#e0e7ff', color: instance.belt_color ? '#fff' : '#3730a3'}}>Min {instance.min_belt}</span>}
         {instance.fighter_only === 1 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Fighters Only</span>}
         <div className="flex items-center gap-2 mt-1">
           <div className="flex-1 bg-gray-200 rounded-full h-1.5" role="progressbar" aria-valuenow={instance.booked_count} aria-valuemin={0} aria-valuemax={instance.capacity}>
@@ -307,6 +308,17 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
   const drawerRef = useRef(null);
   useEscapeKey(onClose);
   useFocusTrap(drawerRef, true);
+  const { success, error } = useNotifications();
+  const queryClient = useQueryClient();
+  const [showCapacityOverride, setShowCapacityOverride] = useState(false);
+  const [overrideCapacity, setOverrideCapacity] = useState(instance.capacity || '');
+  const [overrideReason, setOverrideReason] = useState('');
+
+  const overrideCapacityMut = useMutation({
+    mutationFn: (data) => api.put(`/api/classes/instances/${instance.id}`, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['class-instances'] }); queryClient.invalidateQueries({ queryKey: ['class-roster'] }); setShowCapacityOverride(false); success('Capacity updated'); },
+    onError: () => error('Failed to update capacity'),
+  });
 
   const { data: roster } = useQuery({
     queryKey: ['class-roster', instance.id],
@@ -368,6 +380,7 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
                 <div key={b.id} className="px-3 py-2 flex items-center justify-between">
                   <span className="text-sm text-gray-900">{b.member_name}</span>
                   <div className="flex items-center gap-1">
+                    {b.is_makeup && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 rounded">[M]</span>}
                     {b.status === 'attended' && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 rounded">✓</span>}
                     {b.waitlist > 0 && <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 rounded">WL #{b.waitlist_position}</span>}
                     {b.is_trial && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 rounded">Trial</span>}
@@ -390,6 +403,27 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
               </div>
             </section>
           )}
+
+          {/* Capacity Override */}
+          <section className="border-t pt-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Capacity</h3>
+            <p className="text-sm text-gray-600 mb-2">Current: <strong>{instance.capacity || 'N/A'}</strong> · Booked: <strong>{instance.booked_count || 0}</strong></p>
+            {!showCapacityOverride ? (
+              <button type="button" onClick={() => { setOverrideCapacity(instance.capacity || ''); setShowCapacityOverride(true); }}
+                className="btn-outline text-xs">Override Capacity</button>
+            ) : (
+              <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <label className="text-xs font-medium text-gray-700">New Capacity</label>
+                <input type="number" min="1" value={overrideCapacity} onChange={e => setOverrideCapacity(e.target.value)} className="input text-sm w-full" />
+                <input type="text" placeholder="Reason for override" value={overrideReason} onChange={e => setOverrideReason(e.target.value)} className="input text-sm w-full" />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => overrideCapacityMut.mutate({ capacity: parseInt(overrideCapacity, 10), reason: overrideReason })}
+                    disabled={!overrideCapacity || overrideCapacityMut.isPending} className="bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-yellow-700 disabled:opacity-40">Save</button>
+                  <button type="button" onClick={() => setShowCapacityOverride(false)} className="btn-outline text-xs">Cancel</button>
+                </div>
+              </div>
+            )}
+          </section>
 
           {instance.status !== 'cancelled' && (
             <section className="border-t pt-4">

@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
+import { communicationsApi } from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
 
 export default function Communications() {
   const [activeTab, setActiveTab] = useState('history');
   const [showCompose, setShowCompose] = useState(false);
+  const [deliveryBatchId, setDeliveryBatchId] = useState(null);
 
   const { data: history = [], isLoading: histLoading, isError: histError, refetch: refetchHist } = useQuery({
     queryKey: ['scheduled-messages'],
-    queryFn: async () => { const r = await api.get('/api/scheduled-messages'); return r.data?.scheduled_messages || []; },
+    queryFn: async () => { const r = await api.get('/api/scheduled-messages'); return r.data?.scheduled_messages || r || []; },
     retry: 2,
     staleTime: 10000,
   });
@@ -23,7 +25,7 @@ export default function Communications() {
 
       <div className="bg-white rounded-lg shadow mb-6">
         <nav className="flex border-b border-gray-200 overflow-x-auto" role="tablist">
-          {['history', 'templates', 'scheduled', 'automated', 'approval'].map(tab => (
+          {['history', 'conversations', 'templates', 'scheduled', 'automated', 'approval'].map(tab => (
             <button key={tab} role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-3 text-sm font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}>
               {tab === 'approval' ? 'Pending Approval' : tab}
@@ -33,12 +35,13 @@ export default function Communications() {
       </div>
 
       {showCompose && <ComposeModal onClose={() => setShowCompose(false)} />}
+      {deliveryBatchId && <DeliveryDetailModal batchId={deliveryBatchId} onClose={() => setDeliveryBatchId(null)} />}
 
       {activeTab === 'history' && (
         <CardList items={history} loading={histLoading} error={histError} onRetry={refetchHist}
           emptyMsg="No messages sent yet"
           renderItem={(msg) => (
-            <div key={msg.id} className="p-4 hover:bg-gray-50">
+            <div key={msg.id} onClick={() => setDeliveryBatchId(msg.id)} className="p-4 hover:bg-gray-50 cursor-pointer">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -56,6 +59,7 @@ export default function Communications() {
           )} />
       )}
 
+      {activeTab === 'conversations' && <ConversationsPanel />}
       {activeTab === 'templates' && <TemplatesPanel />}
       {activeTab === 'scheduled' && <ScheduledPanel />}
       {activeTab === 'automated' && <AutomatedMessagesPanel />}
@@ -79,6 +83,8 @@ function ComposeModal({ onClose }) {
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const fileInputRef = useRef(null);
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const ACCEPTED_VARS = ['first_name', 'last_name', 'member_id', 'plan_name', 'amount', 'date', 'time', 'location', 'instructor'];
@@ -106,13 +112,37 @@ function ComposeModal({ onClose }) {
     setMemberSearch('');
   }
 
+  function handleFiles(e) {
+    const files = Array.from(e.target.files || []);
+    const remaining = 5 - attachedFiles.length;
+    const toAdd = files.slice(0, remaining);
+    const totalSize = attachedFiles.reduce((s, f) => s + f.size, 0) + toAdd.reduce((s, f) => s + f.size, 0);
+    if (totalSize > 10 * 1024 * 1024) { error('Total file size exceeds 10MB'); return; }
+    setAttachedFiles(prev => [...prev, ...toAdd]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function removeFile(index) { setAttachedFiles(prev => prev.filter((_, i) => i !== index)); }
+
   const send = useMutation({
-    mutationFn: () => api.post('/api/scheduled-messages', {
-      message_type: form.type,
-      ...(recipientMode === 'group' ? { recipient_group: form.recipients } : { member_ids: selectedMembers.map(m => m.id) }),
-      subject: form.subject, body: form.body,
-      scheduled_for: form.schedule || new Date().toISOString(),
-    }),
+    mutationFn: () => {
+      if (attachedFiles.length > 0) {
+        const fd = new FormData();
+        fd.append('message_type', form.type);
+        if (recipientMode === 'group') { fd.append('recipient_group', form.recipients); } else { selectedMembers.forEach(m => fd.append('member_ids', m.id)); }
+        fd.append('subject', form.subject);
+        fd.append('body', form.body);
+        fd.append('scheduled_for', form.schedule || new Date().toISOString());
+        attachedFiles.forEach(f => fd.append('files', f));
+        return api.upload('/api/scheduled-messages', fd);
+      }
+      return api.post('/api/scheduled-messages', {
+        message_type: form.type,
+        ...(recipientMode === 'group' ? { recipient_group: form.recipients } : { member_ids: selectedMembers.map(m => m.id) }),
+        subject: form.subject, body: form.body,
+        scheduled_for: form.schedule || new Date().toISOString(),
+      });
+    },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['scheduled-messages'] }); success('Message queued'); onClose(); },
     onError: (err) => error(err?.response?.data?.error || 'Failed to send'),
   });
@@ -202,6 +232,28 @@ function ComposeModal({ onClose }) {
             </label>
             {form.schedule && <input type="datetime-local" value={form.schedule} onChange={e => u('schedule', e.target.value)} className="input text-sm mt-1 w-full" />}
           </div>
+          {(form.type === 'email' || form.type === 'both') && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Attachments <span className="text-gray-400">(PDF, DOC, DOCX, images · max 5 files, 10MB total)</span></label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center cursor-pointer hover:border-red-400" onClick={() => fileInputRef.current?.click()}>
+                <p className="text-xs text-gray-500">Click to attach files</p>
+                <input type="file" ref={fileInputRef} multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" onChange={handleFiles} className="hidden" />
+              </div>
+              {attachedFiles.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {attachedFiles.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between bg-gray-50 rounded px-2 py-1 text-xs">
+                      <span className="truncate text-gray-700">{f.name}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-gray-400">{(f.size / 1024).toFixed(1)}KB</span>
+                        <button type="button" onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700">&times;</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="btn-outline text-sm">Cancel</button>
@@ -420,6 +472,185 @@ function ApprovalPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---- 2-Way SMS Conversations Panel ----
+function ConversationsPanel() {
+  const [selectedPhone, setSelectedPhone] = useState(null);
+  const { data: raw, isLoading } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => communicationsApi.getConversations().then(r => r.conversations || []),
+    refetchInterval: 15000,
+    staleTime: 5000,
+  });
+
+  if (selectedPhone) return <ConversationThread phone={selectedPhone} onBack={() => setSelectedPhone(null)} />;
+
+  if (isLoading) return <div className="bg-white rounded-lg shadow p-4 space-y-3 animate-pulse">{[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded"></div>)}</div>;
+  if (!raw || raw.length === 0) return <div className="bg-white rounded-lg shadow text-center py-12"><p className="text-gray-500">No conversations yet</p></div>;
+
+  return (
+    <div className="bg-white rounded-lg shadow divide-y divide-gray-200">
+      {raw.map(c => (
+        <div key={c.phone} onClick={() => setSelectedPhone(c.phone)} className="p-4 hover:bg-gray-50 cursor-pointer">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-medium text-gray-900 truncate">{c.member_name || c.lead_name || c.phone}</span>
+              <span className="text-xs text-gray-400">{c.phone}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-gray-400">{c.last_message_at ? new Date(c.last_message_at + 'Z').toLocaleDateString() : ''}</span>
+              {c.unread_count > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{c.unread_count}</span>}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 truncate">{c.last_reply || c.last_message}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---- Conversation Thread (detail view) ----
+function ConversationThread({ phone, onBack }) {
+  const { success, error } = useNotifications();
+  const [replyText, setReplyText] = useState('');
+  const bottomRef = useRef(null);
+
+  const { data: raw, isLoading, refetch } = useQuery({
+    queryKey: ['conversation', phone],
+    queryFn: () => communicationsApi.getConversation(phone).then(r => r.messages || []),
+    refetchInterval: 10000,
+    staleTime: 3000,
+  });
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [raw]);
+
+  const sendReply = useMutation({
+    mutationFn: () => communicationsApi.sendReply(phone, { body: replyText }),
+    onSuccess: () => { setReplyText(''); refetch(); success('Reply sent'); },
+    onError: () => error('Failed to send reply'),
+  });
+
+  const senderName = raw && raw.length > 0 ? (raw[0].member_name || raw[0].lead_name || phone) : phone;
+
+  return (
+    <div className="bg-white rounded-lg shadow flex flex-col" style={{ maxHeight: '70vh' }}>
+      <div className="p-3 border-b flex items-center gap-3 shrink-0">
+        <button onClick={onBack} className="text-sm text-blue-600 hover:underline">&larr; Back</button>
+        <span className="text-sm font-semibold text-gray-900">{senderName}</span>
+        <span className="text-xs text-gray-400">{phone}</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[300px]">
+        {isLoading ? <div className="text-center py-8 text-gray-400 text-sm">Loading...</div> :
+        !raw || raw.length === 0 ? <div className="text-center py-8 text-gray-400 text-sm">No messages in this conversation</div> :
+        raw.map((msg, i) => {
+          const isSent = msg.status === 'sent' && !msg.response_received;
+          const isReply = msg.response_received === 1 || !!msg.response_text;
+          return (
+            <div key={msg.id || i} className={`flex ${isReply ? 'justify-start' : 'justify-end'}`}>
+              <div className={`max-w-[75%] px-3 py-2 rounded-lg text-sm ${isReply ? 'bg-gray-100 text-gray-800' : 'bg-green-600 text-white'}`}>
+                <p className="whitespace-pre-wrap">{msg.response_text || msg.body}</p>
+                <p className={`text-[10px] mt-1 ${isReply ? 'text-gray-400' : 'text-green-100'}`}>
+                  {msg.created_at ? new Date(msg.created_at + 'Z').toLocaleString() : ''}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      <form onSubmit={(e) => { e.preventDefault(); if (replyText.trim() && !sendReply.isPending) sendReply.mutate(); }} className="p-3 border-t flex gap-2 shrink-0">
+        <input type="text" value={replyText} onChange={e => setReplyText(e.target.value)} className="input text-sm flex-1" placeholder="Type your reply..." disabled={sendReply.isPending} />
+        <button type="submit" disabled={!replyText.trim() || sendReply.isPending} className="btn-primary text-sm">{sendReply.isPending ? 'Sending...' : 'Send'}</button>
+      </form>
+    </div>
+  );
+}
+
+// ---- Delivery Detail Modal (batch status dashboard) ----
+function DeliveryDetailModal({ batchId, onClose }) {
+  const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
+
+  const { data: raw, isLoading } = useQuery({
+    queryKey: ['deliveries', batchId],
+    queryFn: () => communicationsApi.getDeliveries(batchId),
+    staleTime: 5000,
+  });
+
+  const deliveries = raw?.deliveries || [];
+  const summary = raw?.summary || { total: 0, deliveredCount: 0, failedCount: 0, successRate: 0, statusCounts: {} };
+
+  const retry = useMutation({
+    mutationFn: (deliveryId) => communicationsApi.retryDelivery(deliveryId),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['deliveries', batchId] }); success('Retry sent'); },
+    onError: () => error('Retry failed'),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delivery-title">
+        <div className="flex items-center justify-between mb-4 shrink-0">
+          <h2 id="delivery-title" className="text-lg font-semibold">Delivery Details</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+
+        {isLoading ? (
+          <div className="p-4 space-y-3 animate-pulse">{[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded"></div>)}</div>
+        ) : (
+          <>
+            {summary.total > 0 && (
+              <div className="grid grid-cols-4 gap-3 mb-4 shrink-0">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
+                  <p className="text-xs text-gray-500">Total</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-700">{summary.deliveredCount}</p>
+                  <p className="text-xs text-green-600">Delivered</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-red-700">{summary.failedCount}</p>
+                  <p className="text-xs text-red-600">Failed</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{summary.successRate}%</p>
+                  <p className="text-xs text-blue-600">Success</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto min-h-[200px]">
+              {deliveries.length === 0 ? (
+                <p className="text-center py-8 text-gray-400 text-sm">No delivery records</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b text-left text-xs text-gray-500"><th className="pb-2 font-medium">Recipient</th><th className="pb-2 font-medium">Channel</th><th className="pb-2 font-medium">Status</th><th className="pb-2 font-medium">Detail</th><th className="pb-2 font-medium"></th></tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {deliveries.map(d => (
+                      <tr key={d.id} className="hover:bg-gray-50">
+                        <td className="py-2 pr-2 text-gray-700">{d.recipient}</td>
+                        <td className="py-2 pr-2"><span className={`text-xs px-1.5 py-0.5 rounded font-medium ${d.channel === 'sms' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{d.channel?.toUpperCase()}</span></td>
+                        <td className="py-2 pr-2"><StatusBadge status={d.status} /></td>
+                        <td className="py-2 pr-2 text-xs text-gray-400 max-w-[160px] truncate">{d.status_detail || '—'}</td>
+                        <td className="py-2">
+                          {(d.status === 'failed' || d.status === 'bounced') && (
+                            <button onClick={() => retry.mutate(d.id)} disabled={retry.isPending} className="text-xs text-blue-600 hover:underline disabled:opacity-40">Retry</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

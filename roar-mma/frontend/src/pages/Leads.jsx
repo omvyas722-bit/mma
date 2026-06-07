@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useLocation } from '../contexts/LocationContext';
 import AddLeadModal from '../components/Leads/AddLeadModal';
 import TrialTrackingModal from '../components/Leads/TrialTrackingModal';
 import CSVImportModal from '../components/Leads/CSVImportModal';
@@ -23,6 +24,7 @@ function getScorePriority(score) {
 export default function Leads() {
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
+  const { selectedLocation } = useLocation();
   const [tab, setTab] = useState('pipeline');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -36,12 +38,13 @@ export default function Leads() {
   const [dragState, setDragState] = useState(null);
 
   const { data: leadsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['leads', { search, stage: stageFilter, source: sourceFilter }],
+    queryKey: ['leads', { search, stage: stageFilter, source: sourceFilter, location: selectedLocation }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.append('query', search);
       if (stageFilter) params.append('stage', stageFilter);
       if (sourceFilter) params.append('source', sourceFilter);
+      if (selectedLocation && selectedLocation !== 'all') params.append('location', selectedLocation);
       const r = await api.get(`/api/leads?${params}`);
       return r.data;
     },
@@ -78,10 +81,14 @@ export default function Leads() {
 
   const grouped = STAGES.reduce((acc, s) => { acc[s] = leads.filter(l => l.stage === s); return acc; }, {});
 
-  const isOverdue = (lead) => {
-    if (lead.stage === 'converted' || lead.stage === 'trial_completed') return false;
-    if (!lead.last_contact_date) return true;
-    return Math.floor((Date.now() - new Date(lead.last_contact_date).getTime()) / 86400000) >= 3;
+  const getLeadStatus = (lead) => {
+    if (lead.stage === 'converted' || lead.stage === 'trial_completed') return null;
+    if (!lead.last_contact_date) return 'overdue';
+    const days = Math.floor((Date.now() - new Date(lead.last_contact_date).getTime()) / 86400000);
+    if (days >= 7) return 'cold';
+    if (days >= 3) return 'overdue';
+    if (days < 1) return 'recent';
+    return null;
   };
 
   const handleDrop = (e, targetStage) => {
@@ -116,7 +123,7 @@ export default function Leads() {
       <ConfirmDialog isOpen={!!deletingLead} onClose={() => setDeletingLead(null)} onConfirm={() => deleteLead.mutate(deletingLead.id)}
         title="Delete Lead" message={`Delete ${deletingLead?.first_name} ${deletingLead?.last_name}?`} confirmText="Delete" type="danger" />
 
-      {tab === 'analytics' ? <LeadsAnalytics /> : (
+      {tab === 'analytics' ? <LeadsAnalytics location={selectedLocation} /> : (
         <>
           {/* Filters */}
           <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -163,7 +170,7 @@ export default function Leads() {
                     {(grouped[stage] || []).length === 0 ? (
                       <p className="text-xs text-gray-400 text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">No leads in this stage</p>
                     ) : (grouped[stage] || []).map(lead => (
-                      <LeadCard key={lead.id} lead={lead} overdue={isOverdue(lead)}
+                      <LeadCard key={lead.id} lead={lead} status={getLeadStatus(lead)}
                         onClick={() => setDetailLead(lead)} onDelete={() => setDeletingLead(lead)}
                         onTrack={() => { setTrackingLead(lead); }} onConvert={() => convertLead.mutate(lead.id)} />
                     ))}
@@ -190,9 +197,11 @@ export default function Leads() {
   );
 }
 
-function LeadCard({ lead, onClick, onDelete, onTrack, onConvert, overdue }) {
+function LeadCard({ lead, onClick, onDelete, onTrack, onConvert, status }) {
   const score = lead.score || 0;
   const priority = getScorePriority(score);
+
+  const statusBorders = { overdue: 'ring-2 ring-red-400', cold: 'ring-2 ring-gray-300', recent: 'ring-2 ring-green-300' };
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('leadId', String(lead.id));
@@ -203,18 +212,23 @@ function LeadCard({ lead, onClick, onDelete, onTrack, onConvert, overdue }) {
     <div
       draggable
       onDragStart={handleDragStart}
-      className={`bg-white rounded-lg shadow-sm border-l-4 ${SCORE_COLORS[priority] || 'border-gray-300'} p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${overdue ? 'ring-2 ring-red-300' : ''}`}
+      className={`bg-white rounded-lg shadow-sm border-l-4 ${SCORE_COLORS[priority] || 'border-gray-300'} p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${statusBorders[status] || ''}`}
       onClick={onClick}
       role="button" tabIndex={0} aria-label={`${lead.first_name} ${lead.last_name}, score ${score}`}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
     >
       <div className="flex items-start justify-between mb-1">
-        <span className="text-sm font-medium text-gray-900 truncate">{lead.first_name} {lead.last_name}</span>
+        <span className="text-sm font-medium text-gray-900 truncate">
+          {score > 80 && <span className="mr-1" title="Hot lead">🔥</span>}
+          {status === 'recent' && <span className="mr-1" title="Recently active">⚡</span>}
+          {lead.first_name} {lead.last_name}
+        </span>
         <span className="text-[10px] font-mono text-gray-400" aria-label={`Score ${score}`}>{score}</span>
       </div>
       {lead.email && <p className="text-xs text-gray-500 truncate">{lead.email}</p>}
       {lead.phone && <p className="text-xs text-gray-500">{lead.phone}</p>}
       {lead.source && <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded mt-1 ${SOURCE_COLORS[lead.source] || ''}`}>{lead.source.replace(/_/g, ' ')}</span>}
+      {score > 80 && <span className="inline-block text-[10px] px-1.5 py-0.5 rounded mt-1 bg-red-100 text-red-700 font-medium">Hot</span>}
       {lead.interests && <p className="text-[10px] text-gray-400 mt-1 line-clamp-2">{lead.interests}</p>}
       {lead.assigned_staff_name && <p className="text-[10px] text-gray-400 mt-1">👤 {lead.assigned_staff_name}</p>}
       <TimeAgo date={lead.created_at} />
@@ -233,17 +247,25 @@ function TimeAgo({ date }) {
   return <p className="text-[10px] text-gray-400 mt-1">{label}</p>;
 }
 
-function LeadsAnalytics() {
+function LeadsAnalytics({ location }) {
   const { data: stats, isLoading, isError } = useQuery({
-    queryKey: ['lead-stats'],
-    queryFn: async () => { const r = await api.get('/api/leads/stats'); return r.data; },
+    queryKey: ['lead-stats', location],
+    queryFn: async () => {
+      const params = location && location !== 'all' ? `?location=${location}` : '';
+      const r = await api.get(`/api/leads/stats${params}`);
+      return r.data;
+    },
     retry: 2,
     staleTime: 30000,
   });
 
   const { data: winback } = useQuery({
-    queryKey: ['lead-winback'],
-    queryFn: async () => { const r = await api.get('/api/leads/winback'); return r.data?.leads || []; },
+    queryKey: ['lead-winback', location],
+    queryFn: async () => {
+      const params = location && location !== 'all' ? `?location=${location}` : '';
+      const r = await api.get(`/api/leads/winback${params}`);
+      return r.data?.leads || [];
+    },
     retry: 2,
     staleTime: 30000,
   });
@@ -391,8 +413,8 @@ function SkeletonColumn({ count }) {
 function EditModal({ isOpen, onClose, lead }) {
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', source: '', location: '', interests: '', notes: '' });
-  useEffect(() => { if (lead) setForm({ first_name: lead.first_name || '', last_name: lead.last_name || '', email: lead.email || '', phone: lead.phone || '', source: lead.source || '', location: lead.location || '', interests: lead.interests || '', notes: lead.notes || '' }); }, [lead]);
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', source: '', location: '', interests: '', notes: '', utm_source: '', utm_medium: '', utm_campaign: '' });
+  useEffect(() => { if (lead) setForm({ first_name: lead.first_name || '', last_name: lead.last_name || '', email: lead.email || '', phone: lead.phone || '', source: lead.source || '', location: lead.location || '', interests: lead.interests || '', notes: lead.notes || '', utm_source: lead.utm_source || '', utm_medium: lead.utm_medium || '', utm_campaign: lead.utm_campaign || '' }); }, [lead]);
 
   if (!isOpen) return null;
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -414,6 +436,14 @@ function EditModal({ isOpen, onClose, lead }) {
           <select value={form.location} onChange={e => u('location', e.target.value)} className="input text-sm"><option value="">Location</option><option value="rockingham">Rockingham</option><option value="bibra_lake">Bibra Lake</option></select>
           <textarea placeholder="Interests" value={form.interests} onChange={e => u('interests', e.target.value)} className="input text-sm col-span-2" rows={2} />
           <textarea placeholder="Notes" value={form.notes} onChange={e => u('notes', e.target.value)} className="input text-sm col-span-2" rows={2} />
+          <details className="col-span-2 text-xs text-gray-500 cursor-pointer select-none">
+            <summary className="hover:text-gray-700">UTM Tracking</summary>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <input value={form.utm_source} onChange={e => u('utm_source', e.target.value)} className="input text-xs" placeholder="utm_source (e.g. google)" />
+              <input value={form.utm_medium} onChange={e => u('utm_medium', e.target.value)} className="input text-xs" placeholder="utm_medium (e.g. cpc)" />
+              <input value={form.utm_campaign} onChange={e => u('utm_campaign', e.target.value)} className="input text-xs" placeholder="utm_campaign (e.g. summer)" />
+            </div>
+          </details>
         </div>
         <div className="flex justify-end gap-2 mt-4"><button onClick={onClose} className="btn-outline text-sm">Cancel</button><button onClick={handleSubmit} className="btn-primary text-sm">Save</button></div>
       </div>

@@ -2,10 +2,13 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
+import { membersApi } from '../lib/api';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useLocation } from '../contexts/LocationContext';
 import { formatDate } from '../lib/formatters';
 import AddMemberModal from '../components/Members/AddMemberModal';
 import EditMemberModal from '../components/Members/EditMemberModal';
+import MemberCSVImportModal from '../components/Members/MemberCSVImportModal';
 import { ConfirmDialog } from '../components/Modal';
 
 
@@ -52,7 +55,12 @@ export default function Members() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
+  const { selectedLocation } = useLocation();
   const { filters, inputValue, setQuery, setFilter } = useMemberFilters();
+
+  useEffect(() => {
+    setFilter('location', selectedLocation === 'all' ? '' : selectedLocation);
+  }, [selectedLocation, setFilter]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
@@ -62,6 +70,9 @@ export default function Members() {
   const [changingPlanMember, setChangingPlanMember] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [ctxMenu, setCtxMenu] = useState(null);
+  const [showBulkMessage, setShowBulkMessage] = useState(false);
+  const [showBulkStatus, setShowBulkStatus] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -111,6 +122,18 @@ export default function Members() {
     onError: () => error('Failed to cancel member'),
   });
 
+  const bulkMessage = useMutation({
+    mutationFn: ({ ids, message, channel }) => membersApi.bulkMessage(ids, message, channel),
+    onSuccess: (data) => { invalidate(); success(`${data.queued} messages queued`); setShowBulkMessage(false); },
+    onError: () => error('Failed to queue messages'),
+  });
+
+  const bulkStatus = useMutation({
+    mutationFn: ({ ids, status }) => membersApi.bulkStatus(ids, status),
+    onSuccess: (data) => { invalidate(); success(`${data.updated} members updated`); setShowBulkStatus(false); },
+    onError: () => error('Failed to update status'),
+  });
+
   const changePlan = useMutation({
     mutationFn: ({ id, ...d }) => api.put(`/api/members/${id}`, d),
     onSuccess: () => { invalidate(); success('Plan updated'); setChangingPlanMember(null); },
@@ -127,17 +150,21 @@ export default function Members() {
         <h1 className="text-2xl font-bold text-gray-900">Members</h1>
         <div className="flex gap-2">
           <button type="button" onClick={() => exportCSV(members)} disabled={members.length === 0} className="btn-outline text-sm">Export</button>
+          <button type="button" onClick={() => setShowImportModal(true)} className="btn-outline text-sm">Import CSV</button>
           <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Member</button>
         </div>
       </div>
 
       <AddMemberModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
       <EditMemberModal isOpen={!!editingMember} onClose={() => setEditingMember(null)} member={editingMember} />
+      <MemberCSVImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} />
       <ConfirmDialog isOpen={!!deletingMember} onClose={() => setDeletingMember(null)} onConfirm={() => deleteMember.mutate(deletingMember.id)}
         title="Delete Member" message={`Delete ${deletingMember?.first_name} ${deletingMember?.last_name}?`} confirmText="Delete" type="danger" />
       {pausingMember && <PauseModal member={pausingMember} onClose={() => setPausingMember(null)} onConfirm={(d) => pauseMember.mutate({ id: pausingMember.id, data: d })} />}
       {cancellingMember && <CancelModal member={cancellingMember} onClose={() => setCancellingMember(null)} onConfirm={(d) => cancelMember.mutate({ id: cancellingMember.id, ...d })} />}
       {changingPlanMember && <ChangePlanModal member={changingPlanMember} onClose={() => setChangingPlanMember(null)} onConfirm={(d) => changePlan.mutate({ id: changingPlanMember.id, ...d })} />}
+      {showBulkMessage && <BulkMessageModal selectedCount={selected.size} onClose={() => setShowBulkMessage(false)} onConfirm={(message, channel) => bulkMessage.mutate({ ids: [...selected], message, channel })} />}
+      {showBulkStatus && <BulkStatusModal selectedCount={selected.size} onClose={() => setShowBulkStatus(false)} onConfirm={(status) => bulkStatus.mutate({ ids: [...selected], status })} />}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -170,7 +197,8 @@ export default function Members() {
           <span className="text-sm text-blue-800 font-medium">{selected.size} selected</span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => exportCSV(members.filter(m => selected.has(m.id)))} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Export Selected</button>
-            <button type="button" onClick={() => { if (confirm(`Send message to ${selected.size} members?`)) { success('Bulk messaging coming soon'); } }} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Message</button>
+            <button type="button" onClick={() => setShowBulkMessage(true)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Message</button>
+            <button type="button" onClick={() => setShowBulkStatus(true)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">Bulk Status</button>
             <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setSelected(new Set())}>Clear</button>
           </div>
         </div>
@@ -189,8 +217,8 @@ export default function Members() {
             <div className="text-center py-16">
               <p className="text-3xl mb-3">📭</p>
               <p className="text-sm text-gray-500 mb-1">No members found</p>
-              {(filters.query || filters.status || filters.plan || filters.location) ? (
-                <button type="button" onClick={() => { setFilter('query', ''); setFilter('status', ''); setFilter('plan', ''); setFilter('location', ''); }} className="text-sm text-red-600 hover:underline">Clear filters</button>
+              {(filters.query || filters.status || filters.plan) ? (
+                <button type="button" onClick={() => { setFilter('query', ''); setFilter('status', ''); setFilter('plan', ''); }} className="text-sm text-red-600 hover:underline">Clear filters</button>
               ) : (
                 <p className="text-xs text-gray-400">Add your first member to get started</p>
               )}
@@ -435,6 +463,65 @@ function ChangePlanModal({ member, onClose, onConfirm }) {
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="btn-outline text-sm">Cancel</button>
           <button type="button" disabled={!newPlan || newPlan === member.plan} onClick={() => onConfirm({ plan: newPlan })} className="btn-primary text-sm">Change Plan</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BulkMessageModal({ selectedCount, onClose, onConfirm }) {
+  const [message, setMessage] = useState('');
+  const [channel, setChannel] = useState('email');
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="bulk-msg-title">
+        <h2 id="bulk-msg-title" className="text-lg font-semibold text-gray-900 mb-4">Bulk Message</h2>
+        <p className="text-sm text-gray-500 mb-4">{selectedCount} member{selectedCount > 1 ? 's' : ''} selected</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Channel</label>
+            <select value={channel} onChange={(e) => setChannel(e.target.value)} className="input text-sm w-full">
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Message</label>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} className="input text-sm w-full" placeholder="Type your message..." />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button type="button" onClick={onClose} className="btn-outline text-sm">Cancel</button>
+          <button type="button" disabled={!message.trim()} onClick={() => onConfirm(message.trim(), channel)} className="btn-primary text-sm">Send</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BulkStatusModal({ selectedCount, onClose, onConfirm }) {
+  const [status, setStatus] = useState('active');
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="bulk-status-title">
+        <h2 id="bulk-status-title" className="text-lg font-semibold text-gray-900 mb-4">Bulk Status Change</h2>
+        <p className="text-sm text-gray-500 mb-4">{selectedCount} member{selectedCount > 1 ? 's' : ''} selected</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">New Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="input text-sm w-full">
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          {status === 'cancelled' && (
+            <p className="text-sm text-red-600">All {selectedCount} selected members will be cancelled.</p>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button type="button" onClick={onClose} className="btn-outline text-sm">Cancel</button>
+          <button type="button" onClick={() => onConfirm(status)} className="btn-primary text-sm">Update</button>
         </div>
       </div>
     </div>

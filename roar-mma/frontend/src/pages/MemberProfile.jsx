@@ -7,6 +7,7 @@ import EditMemberModal from '../components/Members/EditMemberModal';
 import { ConfirmDialog } from '../components/Modal';
 import { PageLoader } from '../components/Shared/Spinner';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import StudentCoachingPanel from '../components/Coaching/StudentCoachingPanel';
 import DocumentsPanel from '../components/Members/DocumentsPanel';
 
@@ -18,6 +19,7 @@ export default function MemberProfile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
+  const { user: currentUser } = useAuth();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -112,7 +114,7 @@ export default function MemberProfile() {
   });
 
   const cancelMember = useMutation({
-    mutationFn: async () => { await api.post(`/api/members/${id}/cancel`); },
+    mutationFn: async (data) => { await api.post(`/api/members/${id}/cancel`, data || {}); },
     onSuccess: () => { queryClient.invalidateQueries(['member', id]); success('Membership cancelled'); setShowCancelDialog(false); },
     onError: (err) => { error(err.response?.data?.error || 'Failed to cancel'); }
   });
@@ -139,6 +141,12 @@ export default function MemberProfile() {
     mutationFn: async (data) => { await api.post(`/api/members/${id}/competitions`, data); },
     onSuccess: () => { refetchComps(); setShowAddComp(false); success('Competition logged'); },
     onError: (err) => { error('Failed to add competition'); }
+  });
+
+  const toggleFighter = useMutation({
+    mutationFn: async (isFighter) => { await api.put(`/api/members/${id}`, { is_fighter: isFighter }); },
+    onSuccess: () => { queryClient.invalidateQueries(['member', id]); queryClient.invalidateQueries(['member-comps', id]); success('Fighter status updated'); },
+    onError: (err) => { error(err.response?.data?.error || 'Failed to update'); }
   });
 
   const linkChild = useMutation({
@@ -190,7 +198,17 @@ export default function MemberProfile() {
             <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 capitalize">{member.membership_type || 'adult'}</span>
             <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 capitalize">{member.plan || 'No plan'}</span>
             {member.location && <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">{member.location.replace('_', ' ')}</span>}
+            {member.emergency_contact_name && member.emergency_contact_phone ? (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700" title="Emergency contact">🚑 {member.emergency_contact_name} – {member.emergency_contact_phone}</span>
+            ) : <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-400">No emergency contact on file</span>}
             {isFighter && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-bold">FIGHTER ★</span>}
+            {!!currentUser && ['owner', 'gm'].includes(currentUser.role) && (
+              <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" title="Toggle fighter status">
+                <span className="text-gray-500">⚔️ Fighter</span>
+                <input type="checkbox" checked={isFighter} onChange={(e) => toggleFighter.mutate(e.target.checked)} className="sr-only peer" />
+                <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600 relative"></div>
+              </label>
+            )}
             {member.parent_id && <a href={`/members/${member.parent_id}`} className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 hover:bg-green-200">Family (Parent: #{member.parent_id})</a>}
             <span className={`px-2 py-0.5 text-xs rounded-full ${member.waiver_signed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{member.waiver_signed ? '✓ Waiver Signed' : '⚠ No Waiver'}</span>
             {disciplines.map(d => (
@@ -327,6 +345,26 @@ export default function MemberProfile() {
               <div><h3 className="text-sm font-medium text-gray-700 mb-1">Training Goals</h3><p className="text-gray-600">{member.goals || 'Not specified'}</p></div>
             </div>
           </div>
+
+          {isFighter && competitions.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Fighter Info</h2>
+              <div className="flex gap-4 mb-4">
+                <div className="bg-green-50 rounded-lg p-3 text-center flex-1"><p className="text-xl font-bold text-green-700">{competitions.filter(c => c.result === 'win').length}</p><p className="text-[10px] text-green-600">Wins</p></div>
+                <div className="bg-red-50 rounded-lg p-3 text-center flex-1"><p className="text-xl font-bold text-red-700">{competitions.filter(c => c.result === 'loss').length}</p><p className="text-[10px] text-red-600">Losses</p></div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center flex-1"><p className="text-xl font-bold text-gray-700">{competitions.filter(c => c.result === 'draw' || c.result === 'nc').length}</p><p className="text-[10px] text-gray-500">Draws/NC</p></div>
+              </div>
+              <div className="space-y-2">
+                {competitions.length > 0 && competitions[0].weight_class && (
+                  <InfoRow label="Weight Class" value={competitions[0].weight_class} />
+                )}
+                <InfoRow label="Total Fights" value={competitions.length} />
+                {competitions.filter(c => c.result === 'win').length > 0 && (
+                  <InfoRow label="Win Rate" value={`${Math.round((competitions.filter(c => c.result === 'win').length / competitions.length) * 100)}%`} />
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Referral Vouchers</h2>
@@ -558,7 +596,7 @@ export default function MemberProfile() {
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
-                    <tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Event</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Opponent</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Discipline</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Result</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Method</th></tr>
+                    <tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Event</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Opponent</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Discipline</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Weight</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Result</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Method</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Rd</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Time</th></tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {competitions.map(c => (
@@ -567,8 +605,11 @@ export default function MemberProfile() {
                         <td className="px-4 py-2 text-sm font-medium">{c.event_name}</td>
                         <td className="px-4 py-2 text-sm">{c.opponent_name || '—'}</td>
                         <td className="px-4 py-2 text-sm capitalize">{c.discipline}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{c.weight_class || '—'}</td>
                         <td className="px-4 py-2"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.result === 'win' ? 'bg-green-100 text-green-700' : c.result === 'loss' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>{c.result.toUpperCase()}</span></td>
                         <td className="px-4 py-2 text-sm capitalize">{c.method || '—'}</td>
+                        <td className="px-4 py-2 text-sm text-center">{c.round || '—'}</td>
+                        <td className="px-4 py-2 text-sm text-center">{c.time || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -593,7 +634,7 @@ export default function MemberProfile() {
 
       <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} member={member} />
       <ConfirmDialog isOpen={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} onConfirm={() => deleteMember.mutate()} title="Delete Member" message={`Delete ${member.first_name} ${member.last_name}? This archives their account.`} confirmText="Archive" type="danger" />
-      <ConfirmDialog isOpen={showCancelDialog} onClose={() => setShowCancelDialog(false)} onConfirm={() => cancelMember.mutate()} title="Cancel Membership" message={`Cancel ${member.first_name}'s membership? They can rejoin anytime.`} confirmText="Cancel Membership" type="danger" />
+      <CancelDialog isOpen={showCancelDialog} onClose={() => setShowCancelDialog(false)} onConfirm={(reason, winback) => cancelMember.mutate({ cancellation_reason: reason, winback_eligible: winback })} memberName={member.first_name} />
       <PauseDialog isOpen={showPauseDialog} onClose={() => setShowPauseDialog(false)} onConfirm={pauseMember.mutate} />
       <ChangePlanDialog isOpen={showChangePlan} onClose={() => setShowChangePlan(false)} onConfirm={changePlan.mutate} currentPlan={member.plan} plans={planOptions} />
       <AddNoteDialog isOpen={showAddNote} onClose={() => setShowAddNote(false)} onConfirm={addNote.mutate} />
@@ -713,7 +754,37 @@ function AddCompetitionDialog({ isOpen, onClose, onConfirm }) {
           <div><label className="block text-sm font-medium text-gray-700">Weight Class</label><input value={data.weight_class} onChange={e => set('weight_class', e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
           <div><label className="block text-sm font-medium text-gray-700">Round</label><input type="number" min="1" value={data.round} onChange={e => set('round', e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="block text-sm font-medium text-gray-700">Time</label><input value={data.time} onChange={e => set('time', e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. 2:35" /></div>
+        </div>
         <button type="button" onClick={() => { if (data.event_name && data.event_date) onConfirm(data); }} className="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium">Log Competition</button>
+      </div>
+    </Modal>
+  );
+}
+
+function CancelDialog({ isOpen, onClose, onConfirm, memberName }) {
+  const [reason, setReason] = useState('');
+  const [winback, setWinback] = useState(true);
+  const CANCEL_REASONS = ['Moving', 'Too expensive', 'Injury', 'Switched gym', 'Life changes', 'Dissatisfied', 'No reason given', 'Other'];
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Cancel Membership">
+      <div className="space-y-3">
+        <p className="text-sm text-gray-600">Cancel {memberName}'s membership? They can rejoin anytime.</p>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Cancellation</label>
+          <select value={reason} onChange={e => setReason(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+            <option value="">Select a reason...</option>
+            {CANCEL_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={winback} onChange={e => setWinback(e.target.checked)} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+          Eligible for win-back campaign
+        </label>
+        <button type="button" onClick={() => { if (reason) onConfirm(reason, winback); }} disabled={!reason}
+          className="w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-40">Confirm Cancellation</button>
       </div>
     </Modal>
   );

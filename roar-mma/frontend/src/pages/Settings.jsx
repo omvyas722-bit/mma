@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { PageLoader } from '../components/Shared/Spinner';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 
 function ToggleSwitch({ checked, onChange, id }) {
   return (
@@ -125,6 +126,21 @@ export default function Settings() {
             onClick={() => setActiveTab('grading')}
             label="Grading"
           />
+          <TabButton
+            active={activeTab === 'api-keys'}
+            onClick={() => setActiveTab('api-keys')}
+            label="API Keys"
+          />
+          <TabButton
+            active={activeTab === 'webhooks'}
+            onClick={() => setActiveTab('webhooks')}
+            label="Webhooks"
+          />
+          <TabButton
+            active={activeTab === 'roles'}
+            onClick={() => setActiveTab('roles')}
+            label="Roles"
+          />
         </nav>
       </div>
 
@@ -166,6 +182,9 @@ export default function Settings() {
             onChange={(field, value) => handleChange('grading', field, value)}
           />
         )}
+        {activeTab === 'api-keys' && <ApiKeysSettings />}
+        {activeTab === 'webhooks' && <WebhooksSettings />}
+        {activeTab === 'roles' && <RolePermissionsSettings data={formData.roles || {}} onChange={(field, value) => handleChange('roles', field, value)} />}
       </div>
     </div>
   );
@@ -516,12 +535,14 @@ function NotificationsSettings({ data, onChange }) {
 
 function GradingSettings({ data, onChange }) {
   const [discipline, setDiscipline] = useState('bjj');
+  const { success, error } = useNotifications();
+  const queryClient = useQueryClient();
   const disciplines = [
     { id: 'bjj', label: 'BJJ' },
     { id: 'muay_thai', label: 'Muay Thai' },
     { id: 'mma', label: 'MMA' },
     { id: 'boxing', label: 'Boxing' },
-    { id: 'kids', label: 'Kids' },
+    { id: 'kids_bjj', label: 'Kids BJJ' },
   ];
   const d = data[discipline] || {};
 
@@ -529,17 +550,108 @@ function GradingSettings({ data, onChange }) {
     onChange(discipline, { ...d, [field]: value });
   };
 
+  const { data: beltLevels = [], refetch: refetchBelts } = useQuery({
+    queryKey: ['settings-belt-levels', discipline],
+    queryFn: async () => { const r = await api.get(`/api/grading/belts?discipline=${discipline}`); return Array.isArray(r) ? r : r.belts || r; },
+    staleTime: 30000,
+  });
+
+  const [editBelt, setEditBelt] = useState(null);
+  const [showAddBelt, setShowAddBelt] = useState(false);
+  const [beltForm, setBeltForm] = useState({ name: '', rank_order: 1, min_classes_attended: 0, min_time_months: 0, stripe_count: 4, color_code: '' });
+
+  const saveBelt = useMutation({
+    mutationFn: (beltData) => {
+      if (beltData.id) return api.put(`/api/grading/belts/${beltData.id}`, beltData);
+      return api.post('/api/grading/belts', { ...beltData, discipline });
+    },
+    onSuccess: () => { refetchBelts(); setEditBelt(null); setShowAddBelt(false); success('Belt level saved'); },
+    onError: () => error('Failed to save belt level'),
+  });
+
+  const deleteBelt = useMutation({
+    mutationFn: (id) => api.delete(`/api/grading/belts/${id}`),
+    onSuccess: () => { refetchBelts(); success('Belt level deleted'); },
+    onError: () => error('Failed to delete belt level'),
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Grading Configuration</h2>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 flex-wrap">
         {disciplines.map(dsc => (
           <button key={dsc.id} type="button" onClick={() => setDiscipline(dsc.id)}
             className={`text-xs px-3 py-1.5 rounded-full ${discipline === dsc.id ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{dsc.label}</button>
         ))}
+      </div>
+
+      {/* Belt Levels Table */}
+      <div className="border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-medium text-gray-900">{discipline.replace(/_/g, ' ')} Belt Levels</h3>
+          <button type="button" onClick={() => { setShowAddBelt(true); setBeltForm({ name: '', rank_order: (beltLevels.length + 1) * 100, min_classes_attended: 0, min_time_months: 0, stripe_count: 4, color_code: '' }); }} className="btn-primary text-xs">+ Add Belt</button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 py-2">Belt</th>
+                <th className="px-3 py-2">Rank Order</th>
+                <th className="px-3 py-2">Stripes</th>
+                <th className="px-3 py-2">Min Classes</th>
+                <th className="px-3 py-2">Min Months</th>
+                <th className="px-3 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {beltLevels.map(b => (
+                <tr key={b.id}>
+                  {editBelt === b.id ? (
+                    <>
+                      <td className="px-3 py-2"><input value={beltForm.name} onChange={e => setBeltForm(f => ({ ...f, name: e.target.value }))} className="input text-xs w-24" /></td>
+                      <td className="px-3 py-2"><input type="number" value={beltForm.rank_order} onChange={e => setBeltForm(f => ({ ...f, rank_order: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-16" /></td>
+                      <td className="px-3 py-2"><input type="number" min="0" max="4" value={beltForm.stripe_count} onChange={e => setBeltForm(f => ({ ...f, stripe_count: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-16" /></td>
+                      <td className="px-3 py-2"><input type="number" min="0" value={beltForm.min_classes_attended} onChange={e => setBeltForm(f => ({ ...f, min_classes_attended: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-20" /></td>
+                      <td className="px-3 py-2"><input type="number" min="0" value={beltForm.min_time_months} onChange={e => setBeltForm(f => ({ ...f, min_time_months: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-16" /></td>
+                      <td className="px-3 py-2 flex gap-1">
+                        <button onClick={() => saveBelt.mutate({ ...beltForm, id: b.id })} className="text-xs text-green-600 hover:underline">Save</button>
+                        <button onClick={() => setEditBelt(null)} className="text-xs text-gray-500 hover:underline">Cancel</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-3 py-2 font-medium text-gray-900">{b.name}</td>
+                      <td className="px-3 py-2 text-gray-500">{b.rank_order}</td>
+                      <td className="px-3 py-2 text-gray-500">{b.stripe_count}</td>
+                      <td className="px-3 py-2 text-gray-700">{b.min_classes_attended}</td>
+                      <td className="px-3 py-2 text-gray-700">{b.min_time_months}</td>
+                      <td className="px-3 py-2 flex gap-2">
+                        <button onClick={() => { setEditBelt(b.id); setBeltForm({ name: b.name, rank_order: b.rank_order, stripe_count: b.stripe_count, min_classes_attended: b.min_classes_attended, min_time_months: b.min_time_months, color_code: b.color_code || '' }); }} className="text-xs text-blue-600 hover:underline">Edit</button>
+                        <button onClick={() => { if (confirm('Delete this belt level?')) deleteBelt.mutate(b.id); }} className="text-xs text-red-600 hover:underline">Delete</button>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+              {showAddBelt && (
+                <tr>
+                  <td className="px-3 py-2"><input value={beltForm.name} onChange={e => setBeltForm(f => ({ ...f, name: e.target.value }))} className="input text-xs w-24" placeholder="Belt name" /></td>
+                  <td className="px-3 py-2"><input type="number" value={beltForm.rank_order} onChange={e => setBeltForm(f => ({ ...f, rank_order: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-16" /></td>
+                  <td className="px-3 py-2"><input type="number" min="0" max="4" value={beltForm.stripe_count} onChange={e => setBeltForm(f => ({ ...f, stripe_count: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-16" /></td>
+                  <td className="px-3 py-2"><input type="number" min="0" value={beltForm.min_classes_attended} onChange={e => setBeltForm(f => ({ ...f, min_classes_attended: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-20" /></td>
+                  <td className="px-3 py-2"><input type="number" min="0" value={beltForm.min_time_months} onChange={e => setBeltForm(f => ({ ...f, min_time_months: parseInt(e.target.value, 10) || 0 }))} className="input text-xs w-16" /></td>
+                  <td className="px-3 py-2 flex gap-1">
+                    <button onClick={() => saveBelt.mutate(beltForm)} className="text-xs text-green-600 hover:underline">Add</button>
+                    <button onClick={() => setShowAddBelt(false)} className="text-xs text-gray-500 hover:underline">Cancel</button>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -602,20 +714,69 @@ function GradingSettings({ data, onChange }) {
           </div>
         </div>
       </div>
-
-      <div className="border-t border-gray-200 pt-4">
-        <p className="text-xs text-gray-400">Belt rank progression is managed via the database. These settings control grading session defaults per discipline.</p>
-      </div>
     </div>
   );
 }
 
 function IntegrationsSettings({ data, onChange }) {
+  const [metaForm, setMetaForm] = useState({ app_id: data?.meta_app_id || '', app_secret: '', access_token: data?.meta_access_token || '', page_id: data?.meta_page_id || '', connected: data?.meta_connected || false });
+  const metaU = (k, v) => setMetaForm(f => ({ ...f, [k]: v }));
+
+  const saveMeta = () => {
+    onChange('meta_app_id', metaForm.app_id);
+    onChange('meta_access_token', metaForm.access_token);
+    onChange('meta_page_id', metaForm.page_id);
+    onChange('meta_connected', metaForm.connected);
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-900">Integrations</h2>
 
       <div className="space-y-4">
+        {/* Social Media / Meta */}
+        <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+          <h3 className="font-medium text-gray-900">Social Media — Meta API</h3>
+          <p className="text-sm text-gray-500">Connect Instagram Business and Facebook Page for auto-publishing.</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Enable Meta API Connection</p>
+                <p className="text-xs text-gray-400">Toggle to activate manual token-based connection</p>
+              </div>
+              <ToggleSwitch checked={metaForm.connected} onChange={(v) => { metaU('connected', v); setTimeout(saveMeta, 0); }} />
+            </div>
+            {metaForm.connected && (
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Meta App ID</label>
+                  <input type="text" value={metaForm.app_id} onChange={e => metaU('app_id', e.target.value)} className="input text-sm w-full" placeholder="From Meta Developer Console" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Meta App Secret</label>
+                  <input type="password" value={metaForm.app_secret} onChange={e => metaU('app_secret', e.target.value)} className="input text-sm w-full" placeholder="Leave blank to keep existing" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Access Token</label>
+                  <input type="text" value={metaForm.access_token} onChange={e => metaU('access_token', e.target.value)} className="input text-sm w-full font-mono text-xs" placeholder="Paste Meta long-lived access token" />
+                  <p className="text-xs text-gray-400 mt-1">Get from <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Graph API Explorer</a></p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Facebook Page ID</label>
+                  <input type="text" value={metaForm.page_id} onChange={e => metaU('page_id', e.target.value)} className="input text-sm w-full" placeholder="Numeric page ID" />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={saveMeta} className="btn-primary text-xs">Save Meta Settings</button>
+                  <button onClick={() => { metaU('connected', false); metaU('access_token', ''); metaU('app_id', ''); metaU('app_secret', ''); metaU('page_id', ''); saveMeta(); }} className="btn-outline text-xs text-red-600">Disconnect & Clear</button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <p className="text-xs text-gray-400">After saving, go to <span className="font-medium">Social Media → Platforms</span> to verify connection.</p>
+          </div>
+        </div>
+
         <div className="border border-gray-200 rounded-lg p-4">
           <h3 className="font-medium text-gray-900 mb-4">Stripe Payment Gateway</h3>
           <div>
@@ -665,27 +826,260 @@ function IntegrationsSettings({ data, onChange }) {
   );
 }
 
-function SecuritySection() {
+function ApiKeysSettings() {
   const { success, error } = useNotifications();
-  const [apiKey, setApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [code, setCode] = useState('');
-  const [qrUrl, setQrUrl] = useState('');
-  const [secret, setSecret] = useState('');
-  const [currentPass, setCurrentPass] = useState('');
-  const [newPass, setNewPass] = useState('');
+  const queryClient = useQueryClient();
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [keyName, setKeyName] = useState('');
+  const [newKey, setNewKey] = useState('');
+
+  const { data: keyInfo, isLoading } = useQuery({
+    queryKey: ['api-key-info'],
+    queryFn: async () => { const r = await api.get('/api/auth/api-key'); return r.data.key; },
+  });
 
   const genKey = useMutation({
-    mutationFn: () => api.post('/api/auth/generate-api-key', { name: 'API Key' }),
-    onSuccess: (res) => { setApiKey(res.data.api_key); setShowApiKey(true); success('API key generated - save it now!'); },
+    mutationFn: (name) => api.post('/api/auth/generate-api-key', { name }),
+    onSuccess: (res) => { setNewKey(res.data.api_key); setShowGenerate(false); setKeyName(''); success('API key generated - save it now!'); queryClient.invalidateQueries(['api-key-info']); },
     onError: (err) => error(err?.response?.data?.error || 'Failed'),
   });
 
   const revokeKey = useMutation({
     mutationFn: () => api.delete('/api/auth/revoke-api-key'),
-    onSuccess: () => { setApiKey(''); setShowApiKey(false); success('API key revoked'); },
+    onSuccess: () => { success('API key revoked'); queryClient.invalidateQueries(['api-key-info']); },
     onError: (err) => error(err?.response?.data?.error || 'Failed'),
   });
+
+  const handleRevoke = () => {
+    if (confirm('Revoke this API key? Any integrations using it will stop working.')) revokeKey.mutate();
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-gray-900">API Keys</h2>
+      <p className="text-sm text-gray-500">Manage API keys for external integrations.</p>
+
+      {newKey && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+          <p className="text-sm font-medium text-yellow-800">New API Key Generated</p>
+          <p className="text-xs font-mono break-all text-yellow-700 mt-1 bg-yellow-100 p-2 rounded">{newKey}</p>
+          <p className="text-xs text-red-600 mt-1">⚠ Save this key - it will not be shown again.</p>
+          <button onClick={() => setNewKey('')} className="text-xs text-yellow-700 underline mt-1">Dismiss</button>
+        </div>
+      )}
+
+      {keyInfo ? (
+        <div className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">{keyInfo.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">····{keyInfo.last4} · Created {keyInfo.created_at ? new Date(keyInfo.created_at).toLocaleDateString() : '—'}</p>
+          </div>
+          <button onClick={handleRevoke} disabled={revokeKey.isPending} className="btn-outline text-xs text-red-600">{revokeKey.isPending ? 'Revoking...' : 'Revoke'}</button>
+        </div>
+      ) : isLoading ? (
+        <div className="text-sm text-gray-400">Loading...</div>
+      ) : (
+        <p className="text-sm text-gray-400">No API keys configured.</p>
+      )}
+
+      {showGenerate ? (
+        <div className="border border-gray-200 rounded-lg p-4 space-y-3 max-w-sm">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Key Description</label>
+            <input type="text" value={keyName} onChange={e => setKeyName(e.target.value)} className="input" placeholder="e.g. Lightspeed Integration" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => genKey.mutate(keyName || 'API Key')} disabled={genKey.isPending} className="btn-primary text-sm">{genKey.isPending ? 'Generating...' : 'Generate Key'}</button>
+            <button onClick={() => setShowGenerate(false)} className="btn-outline text-sm">Cancel</button>
+          </div>
+        </div>
+      ) : !keyInfo ? (
+        <button onClick={() => setShowGenerate(true)} className="btn-primary text-sm">Generate New Key</button>
+      ) : null}
+    </div>
+  );
+}
+
+function WebhooksSettings() {
+  const [copiedIdx, setCopiedIdx] = useState(null);
+
+  const { data: webhooks, isLoading } = useQuery({
+    queryKey: ['webhook-status'],
+    queryFn: async () => { const r = await api.get('/api/webhooks/status'); return r.data; },
+  });
+
+  const testSync = useMutation({
+    mutationFn: () => api.post('/api/webhooks/lightspeed/sync', { daysBack: 7 }),
+    onSuccess: () => success('Sync triggered'),
+    onError: (err) => error(err?.response?.data?.error || 'Sync failed'),
+  });
+
+  const copyUrl = (url, idx) => {
+    navigator.clipboard.writeText(url);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
+  const items = webhooks ? [
+    { name: 'Lightspeed', url: webhooks.lightspeed?.url, enabled: webhooks.lightspeed?.enabled, lastDelivery: webhooks.lightspeed?.last_delivery, testable: true },
+    { name: 'Stripe', url: webhooks.stripe?.url, enabled: webhooks.stripe?.enabled, lastDelivery: webhooks.stripe?.last_delivery, testable: false },
+  ] : [];
+
+  if (isLoading) return <div className="text-sm text-gray-400">Loading...</div>;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-gray-900">Webhooks</h2>
+      <p className="text-sm text-gray-500">Endpoints for external services to push data into ROAR MMA.</p>
+
+      {items.map((item, i) => (
+        <div key={item.name} className="border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-medium text-gray-900">{item.name}</h3>
+              <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${item.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{item.enabled ? 'Enabled' : 'Not configured'}</span>
+            </div>
+          </div>
+          {item.url && (
+            <div className="flex items-center gap-2 mb-2">
+              <code className="text-xs bg-gray-50 border rounded px-2 py-1 font-mono flex-1 truncate">{item.url}</code>
+              <button onClick={() => copyUrl(item.url, i)} className="text-xs text-blue-600 hover:underline whitespace-nowrap">{copiedIdx === i ? 'Copied!' : 'Copy URL'}</button>
+            </div>
+          )}
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            {item.lastDelivery && <span>Last delivery: {new Date(item.lastDelivery).toLocaleString()}</span>}
+            {item.testable && (
+              <button onClick={() => testSync.mutate()} disabled={testSync.isPending} className="text-blue-600 hover:underline">{testSync.isPending ? 'Syncing...' : 'Test Webhook'}</button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const ROLES = ['owner', 'gm', 'front_desk', 'coach', 'sales', 'social'];
+const ROLE_LABELS = { owner: 'Owner', gm: 'General Manager', front_desk: 'Front Desk / Admin', coach: 'Coach', sales: 'Sales', social: 'Social Media Manager' };
+const PERMISSION_GROUPS = {
+  members: ['members:read', 'members:create', 'members:update', 'members:delete'],
+  classes: ['classes:read', 'classes:create', 'classes:update', 'classes:delete'],
+  leads: ['leads:read', 'leads:create', 'leads:update', 'leads:delete'],
+  billing: ['transactions:read', 'transactions:create'],
+  staff: ['staff:read', 'staff:create', 'staff:update'],
+  reports: ['reports:read', 'reports:write'],
+  settings: ['settings:read', 'settings:write'],
+  ai: ['ai:read', 'ai:manage'],
+};
+const PERMISSION_LABELS = {
+  'members:read': 'View members', 'members:create': 'Create members', 'members:update': 'Edit members', 'members:delete': 'Delete members',
+  'classes:read': 'View timetable', 'classes:create': 'Create classes', 'classes:update': 'Edit classes', 'classes:delete': 'Delete classes',
+  'leads:read': 'View leads', 'leads:create': 'Create leads', 'leads:update': 'Edit leads', 'leads:delete': 'Delete leads',
+  'transactions:read': 'View transactions', 'transactions:create': 'Create transactions',
+  'staff:read': 'View staff', 'staff:create': 'Create staff', 'staff:update': 'Edit staff',
+  'reports:read': 'View reports', 'reports:write': 'Edit / Export reports',
+  'settings:read': 'View settings', 'settings:write': 'Edit settings',
+  'ai:read': 'View AI system', 'ai:manage': 'Manage AI agents',
+};
+
+const DEFAULT_ROLE_PERMISSIONS = {
+  owner: ['*'],
+  gm: ['members:read', 'members:create', 'members:update', 'members:delete', 'classes:read', 'classes:create', 'classes:update', 'classes:delete', 'leads:read', 'leads:create', 'leads:update', 'leads:delete', 'reports:read', 'reports:write', 'staff:read', 'staff:create', 'staff:update', 'transactions:read', 'transactions:create', 'settings:read', 'settings:write', 'ai:read', 'ai:manage'],
+  front_desk: ['members:read', 'members:create', 'classes:read', 'leads:read', 'leads:create', 'reports:read', 'transactions:read', 'transactions:create'],
+  coach: ['classes:read', 'members:read', 'leads:read'],
+  sales: ['leads:read', 'leads:create', 'leads:update', 'leads:delete', 'members:read', 'reports:read'],
+  social: ['reports:read'],
+};
+
+function RolePermissionsSettings({ data, onChange }) {
+  const [rolePerms, setRolePerms] = useState(() => {
+    if (data && Object.keys(data).length > 0) return data;
+    const init = {};
+    ROLES.forEach(r => { init[r] = [...(DEFAULT_ROLE_PERMISSIONS[r] || [])]; });
+    return init;
+  });
+
+  const hasPermission = (role, perm) => rolePerms[role]?.includes('*') || rolePerms[role]?.includes(perm);
+
+  const togglePermission = (role, perm) => {
+    const perms = rolePerms[role] || [];
+    if (perm === '*') {
+      setRolePerms(p => ({ ...p, [role]: p[role]?.includes('*') ? [] : ['*'] }));
+    } else if (perms.includes('*')) {
+      const allPerms = Object.values(PERMISSION_GROUPS).flat();
+      const newPerms = allPerms.filter(p => p !== perm);
+      setRolePerms(p => ({ ...p, [role]: newPerms }));
+    } else if (perms.includes(perm)) {
+      setRolePerms(p => ({ ...p, [role]: perms.filter(x => x !== perm) }));
+    } else {
+      setRolePerms(p => ({ ...p, [role]: [...perms, perm] }));
+    }
+    onChange('permissions', { ...rolePerms, [role]: perms.includes(perm) ? perms.filter(x => x !== perm) : perms.includes('*') ? Object.values(PERMISSION_GROUPS).flat().filter(x => x !== perm) : [...perms, perm] });
+  };
+
+  const [expandedRole, setExpandedRole] = useState(null);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Roles & Permissions</h2>
+        <p className="text-xs text-gray-400">Changes saved with Settings</p>
+      </div>
+      <div className="space-y-4">
+        {ROLES.map(role => {
+          const isExpanded = expandedRole === role;
+          const perms = rolePerms[role] || [];
+          const isWildcard = perms.includes('*');
+          return (
+            <div key={role} className="border border-gray-200 rounded-lg overflow-hidden">
+              <button type="button" onClick={() => setExpandedRole(isExpanded ? null : role)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-900">{ROLE_LABELS[role]}</span>
+                  {isWildcard && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">All permissions</span>}
+                </div>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {isExpanded && (
+                <div className="border-t border-gray-200 px-4 py-3 space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Full Access (wildcard)</p>
+                      <p className="text-xs text-gray-500">Grants all current and future permissions</p>
+                    </div>
+                    <ToggleSwitch checked={isWildcard} onChange={(v) => { setRolePerms(p => ({ ...p, [role]: v ? ['*'] : Object.values(PERMISSION_GROUPS).flat() })); onChange('permissions', { ...rolePerms, [role]: v ? ['*'] : Object.values(PERMISSION_GROUPS).flat() }); }} />
+                  </div>
+                  {!isWildcard && Object.entries(PERMISSION_GROUPS).map(([group, perms]) => (
+                    <div key={group}>
+                      <p className="text-xs font-medium text-gray-500 uppercase mb-2 capitalize">{group}</p>
+                      <div className="space-y-2">
+                        {perms.map(perm => (
+                          <div key={perm} className="flex items-center justify-between pl-4">
+                            <label htmlFor={`${role}-${perm}`} className="text-sm text-gray-700 cursor-pointer">{PERMISSION_LABELS[perm]}</label>
+                            <ToggleSwitch id={`${role}-${perm}`} checked={hasPermission(role, perm)} onChange={() => togglePermission(role, perm)} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SecuritySection() {
+  const { success, error } = useNotifications();
+  const { user } = useAuth();
+  const [code, setCode] = useState('');
+  const [qrUrl, setQrUrl] = useState('');
+  const [secret, setSecret] = useState('');
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [twofaEnabled, setTwofaEnabled] = useState(user?.two_factor_enabled === 1);
 
   const setup2fa = useMutation({
     mutationFn: () => api.post('/api/auth/setup-2fa'),
@@ -695,13 +1089,13 @@ function SecuritySection() {
 
   const verify2fa = useMutation({
     mutationFn: () => api.post('/api/auth/verify-2fa', { code }),
-    onSuccess: () => { success('2FA enabled'); setCode(''); setQrUrl(''); },
+    onSuccess: () => { success('2FA enabled'); setCode(''); setQrUrl(''); setTwofaEnabled(true); },
     onError: (err) => error(err?.response?.data?.error || 'Invalid code'),
   });
 
   const disable2fa = useMutation({
     mutationFn: () => api.post('/api/auth/disable-2fa'),
-    onSuccess: () => success('2FA disabled'),
+    onSuccess: () => { success('2FA disabled'); setTwofaEnabled(false); },
     onError: (err) => error(err?.response?.data?.error || 'Failed'),
   });
 
@@ -714,22 +1108,13 @@ function SecuritySection() {
   return (
     <div className="space-y-4 mt-2">
       <div className="border-t pt-3">
-        <h4 className="text-sm font-medium text-gray-700 mb-2">API Key</h4>
-        {showApiKey && apiKey ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-2">
-            <p className="text-xs font-mono break-all text-yellow-800">{apiKey}</p>
-            <p className="text-xs text-yellow-600 mt-1">⚠ Save this key - it won't be shown again.</p>
-          </div>
-        ) : null}
-        <div className="flex gap-2">
-          <button onClick={genKey.mutate} disabled={genKey.isPending} className="btn-primary text-xs">Generate New Key</button>
-          <button onClick={revokeKey.mutate} disabled={revokeKey.isPending} className="btn-outline text-xs text-red-600">Revoke Key</button>
-        </div>
-      </div>
-
-      <div className="border-t pt-3">
         <h4 className="text-sm font-medium text-gray-700 mb-2">Two-Factor Authentication</h4>
-        {qrUrl ? (
+        {twofaEnabled && !qrUrl ? (
+          <div className="flex items-center gap-3 mb-2">
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">✓ Enabled</span>
+            <button onClick={() => { if (confirm('Disable two-factor authentication?')) disable2fa.mutate(); }} disabled={disable2fa.isPending} className="btn-outline text-xs text-red-600">Disable 2FA</button>
+          </div>
+        ) : qrUrl ? (
           <div className="space-y-2 mb-2">
             <p className="text-xs text-gray-500">Scan this URL in your authenticator app (e.g., Google Authenticator):</p>
             <div className="bg-gray-50 border rounded p-2 text-xs font-mono break-all text-gray-600">{qrUrl}</div>
@@ -740,9 +1125,9 @@ function SecuritySection() {
             </div>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div>
+            <p className="text-xs text-gray-500 mb-2">Add an extra layer of security to your account.</p>
             <button onClick={setup2fa.mutate} disabled={setup2fa.isPending} className="btn-primary text-xs">Set Up 2FA</button>
-            <button onClick={disable2fa.mutate} disabled={disable2fa.isPending} className="btn-outline text-xs text-red-600">Disable 2FA</button>
           </div>
         )}
       </div>

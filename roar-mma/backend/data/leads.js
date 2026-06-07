@@ -5,7 +5,7 @@ function getAllLeads(filters = {}) {
   const db = getDatabase();
 
   const selectColumns = `
-      l.id, l.first_name, l.last_name, l.email, l.phone, l.source, l.referrer_member_id, l.stage, l.interest_level, l.location, l.interests, l.assigned_to, l.converted_member_id, l.lost_reason, l.notes, l.trial_date, l.trial_notes, l.trial_experience_rating, l.trial_interest_level, l.trial_class_type, l.trial_coach_id, l.follow_up_status, l.next_follow_up_date, l.last_contact_date, l.follow_up_count, l.created_at, l.updated_at,
+      l.id, l.first_name, l.last_name, l.email, l.phone, l.source, l.referrer_member_id, l.stage, l.interest_level, l.location, l.interests, l.assigned_to, l.converted_member_id, l.lost_reason, l.notes, l.trial_date, l.trial_notes, l.trial_experience_rating, l.trial_interest_level, l.trial_class_type, l.trial_coach_id, l.follow_up_status, l.next_follow_up_date, l.last_contact_date, l.follow_up_count, l.score, l.score_updated_at, l.score_factors, l.utm_source, l.utm_medium, l.utm_campaign, l.created_at, l.updated_at,
       s.name as assigned_to_name,
       m.first_name || ' ' || m.last_name as referrer_name
   `;
@@ -66,7 +66,7 @@ function getLeadById(id) {
   const db = getDatabase();
   return db.prepare(`
     SELECT
-      l.id, l.first_name, l.last_name, l.email, l.phone, l.source, l.referrer_member_id, l.stage, l.interest_level, l.location, l.interests, l.assigned_to, l.converted_member_id, l.lost_reason, l.notes, l.trial_date, l.trial_notes, l.trial_experience_rating, l.trial_interest_level, l.trial_class_type, l.trial_coach_id, l.follow_up_status, l.next_follow_up_date, l.last_contact_date, l.follow_up_count, l.created_at, l.updated_at,
+      l.id, l.first_name, l.last_name, l.email, l.phone, l.source, l.referrer_member_id, l.stage, l.interest_level, l.location, l.interests, l.assigned_to, l.converted_member_id, l.lost_reason, l.notes, l.trial_date, l.trial_notes, l.trial_experience_rating, l.trial_interest_level, l.trial_class_type, l.trial_coach_id, l.follow_up_status, l.next_follow_up_date, l.last_contact_date, l.follow_up_count, l.score, l.score_updated_at, l.score_factors, l.utm_source, l.utm_medium, l.utm_campaign, l.created_at, l.updated_at,
       s.name as assigned_to_name,
       m.first_name || ' ' || m.last_name as referrer_name
     FROM leads l
@@ -82,8 +82,9 @@ function createLead(leadData) {
   const stmt = db.prepare(`
     INSERT INTO leads (
       first_name, last_name, email, phone, source,
-      referrer_member_id, stage, location, interests, notes, assigned_to
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      referrer_member_id, stage, location, interests, notes, assigned_to,
+      utm_source, utm_medium, utm_campaign
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -97,7 +98,10 @@ function createLead(leadData) {
     leadData.location || null,
     leadData.interests || null,
     leadData.notes || null,
-    leadData.assigned_to || null
+    leadData.assigned_to || null,
+    leadData.utm_source || null,
+    leadData.utm_medium || null,
+    leadData.utm_campaign || null
   );
 
   return getLeadById(result.lastInsertRowid);
@@ -112,7 +116,9 @@ function updateLead(id, updates) {
     'notes', 'assigned_to', 'converted_member_id', 'lost_reason',
     'trial_date', 'trial_notes', 'trial_experience_rating', 'trial_interest_level',
     'trial_class_type', 'trial_coach_id', 'follow_up_status', 'next_follow_up_date',
-    'last_contact_date', 'follow_up_count'
+    'last_contact_date', 'follow_up_count',
+    'utm_source', 'utm_medium', 'utm_campaign',
+    'score', 'score_updated_at', 'score_factors'
   ];
 
   const fields = [];

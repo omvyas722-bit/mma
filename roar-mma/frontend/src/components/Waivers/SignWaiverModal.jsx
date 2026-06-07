@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import api from '../../lib/api';
 
-export default function SignWaiverModal({ template, onClose, onSigned }) {
-  const [memberId, setMemberId] = useState('');
+export default function SignWaiverModal({ template, onClose, onSigned, preselectedMemberId, isMinor, memberName }) {
+  const [memberId, setMemberId] = useState(preselectedMemberId || '');
+  const [guardianName, setGuardianName] = useState('');
+  const [guardianRelation, setGuardianRelation] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const canvasRef = useRef(null);
@@ -73,11 +75,16 @@ export default function SignWaiverModal({ template, onClose, onSigned }) {
     if (!memberId || !hasSignature) return;
     const canvas = canvasRef.current;
     const signatureData = canvas.toDataURL('image/png');
-    signMutation.mutate({
+    const payload = {
       member_id: parseInt(memberId, 10),
       template_id: template?.id,
       signature_data: signatureData,
-    });
+    };
+    if (isMinor || guardianName) {
+      payload.guardian_name = guardianName;
+      payload.guardian_relation = guardianRelation;
+    }
+    signMutation.mutate(payload);
   }
 
   return (
@@ -90,11 +97,39 @@ export default function SignWaiverModal({ template, onClose, onSigned }) {
           <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">{template.body_text}</pre>
         </div>
 
-        {/* Member ID input */}
+        {/* Member info */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Member ID</label>
-          <input type="number" value={memberId} onChange={(e) => setMemberId(e.target.value)} className="input w-48" placeholder="Enter member ID" required aria-label="Member ID" />
+          {memberName ? (
+            <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700">Signing for: <strong>{memberName}</strong></div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Member ID</label>
+              <input type="number" value={memberId} onChange={(e) => setMemberId(e.target.value)} className="input w-48" placeholder="Enter member ID" required aria-label="Member ID" />
+            </div>
+          )}
         </div>
+
+        {/* Guardian info for minors */}
+        {(isMinor || guardianName || guardianRelation) && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg space-y-3">
+            <p className="text-sm font-medium text-yellow-800">Parent/Guardian Consent Required</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian Name</label>
+              <input type="text" value={guardianName} onChange={(e) => setGuardianName(e.target.value)} className="input w-full" placeholder="Full name" aria-label="Parent name" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+              <select value={guardianRelation} onChange={(e) => setGuardianRelation(e.target.value)} className="input w-full" aria-label="Relationship">
+                <option value="">Select...</option>
+                <option value="mother">Mother</option>
+                <option value="father">Father</option>
+                <option value="guardian">Legal Guardian</option>
+                <option value="grandparent">Grandparent</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {/* Signature canvas */}
         <div className="mb-4">

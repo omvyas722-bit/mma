@@ -3,21 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { useLocation } from '../contexts/LocationContext';
 
-function useDashboard() {
+function useDashboard(location) {
   return useQuery({
-    queryKey: ['dashboard'],
-    queryFn: async () => { const r = await api.get('/api/dashboard'); return r.data; },
+    queryKey: ['dashboard', location],
+    queryFn: async () => {
+      const params = location && location !== 'all' ? `?location=${location}` : '';
+      const r = await api.get(`/api/dashboard${params}`);
+      return r.data;
+    },
     refetchInterval: 30000,
     retry: 2,
     staleTime: 10000,
   });
 }
 
-function useDashboardAnalytics() {
+function useDashboardAnalytics(location) {
   return useQuery({
-    queryKey: ['dashboard-analytics'],
-    queryFn: async () => { const r = await api.get('/api/analytics/dashboard'); return r.data; },
+    queryKey: ['dashboard-analytics', location],
+    queryFn: async () => {
+      const params = location && location !== 'all' ? `?location=${location}` : '';
+      const r = await api.get(`/api/analytics/dashboard${params}`);
+      return r.data;
+    },
     refetchInterval: 300000,
     retry: 1,
     staleTime: 60000,
@@ -34,10 +43,14 @@ function useAiStatus() {
   });
 }
 
-function useSparklines() {
+function useSparklines(location) {
   return useQuery({
-    queryKey: ['dashboard-sparklines'],
-    queryFn: async () => { const r = await api.get('/api/dashboard/sparklines'); return r.data?.sparklines || []; },
+    queryKey: ['dashboard-sparklines', location],
+    queryFn: async () => {
+      const params = location && location !== 'all' ? `?location=${location}` : '';
+      const r = await api.get(`/api/dashboard/sparklines${params}`);
+      return r.data?.sparklines || [];
+    },
     refetchInterval: 60000,
     staleTime: 30000,
   });
@@ -45,10 +58,11 @@ function useSparklines() {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { data: d, isLoading, isError, error: dashError, refetch } = useDashboard();
-  const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
+  const { selectedLocation } = useLocation();
+  const { data: d, isLoading, isError, error: dashError, refetch } = useDashboard(selectedLocation);
+  const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics(selectedLocation);
   const { data: aiStatus } = useAiStatus();
-  const { data: sparklines = [] } = useSparklines();
+  const { data: sparklines = [] } = useSparklines(selectedLocation);
   useWebSocket();
 
   const getSparkline = (key) => { const s = sparklines.find(sp => sp.metric_key === key); return s ? JSON.parse(s.data || '[]') : []; };
@@ -142,19 +156,21 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparkli
                 <div>
                   <h3 className="text-sm font-semibold text-red-800">Failed Payments</h3>
                   <p className="text-sm text-red-700 mt-1">{failedPayments.count} member{failedPayments.count !== 1 ? 's' : ''} · ${(failedPayments.total || 0).toFixed(2)} at risk</p>
+                  {failedPayments.members?.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {failedPayments.members.slice(0, 5).map(m => (
+                        <li key={m.id} className="text-xs text-red-600"><button onClick={() => navigate(`/members/${m.id}`)} className="underline hover:no-underline">{m.name}</button> — ${(m.amount || 0).toFixed(2)}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {data?.midas_chase && (
+                    <p className="text-[10px] text-indigo-600 mt-0.5">🤖 MIDAS chased {(() => {
+                      const diff = Date.now() - new Date(data.midas_chase.timestamp).getTime();
+                      const h = Math.floor(diff / 3600000);
+                      return `${h}h ago`;
+                    })()}</p>
+                  )}
                   <button type="button" onClick={() => navigate('/billing?status=failed')} className="mt-2 text-xs font-medium text-red-700 underline hover:no-underline">Resolve →</button>
-                </div>
-              </div>
-            </div>
-          )}
-          {data?.midas_chase && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <span className="text-lg mt-0.5" aria-hidden="true">🤖</span>
-                <div>
-                  <h3 className="text-sm font-semibold text-indigo-800">MIDAS Chase</h3>
-                  <p className="text-sm text-indigo-700 mt-1">{data.midas_chase.description}</p>
-                  <p className="text-[10px] text-indigo-500 mt-0.5">{new Date(data.midas_chase.timestamp).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -208,6 +224,9 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparkli
           <button type="button" onClick={() => navigate('/reports')} className="mt-3 text-xs text-red-600 hover:underline">Preview Full Report →</button>
         </div>
       </div>
+
+      {/* Pixel Tracking Stats */}
+      <PixelStatsCard />
 
       {/* Revenue Forecast */}
       <RevenueForecastCard />
@@ -364,7 +383,8 @@ function ActivityItem({ activity }) {
     return `${Math.floor(diff / 86400000)}d ago`;
   };
   const linkTo = activity.type === 'member_joined' && activity.entity_id ? `/members/${activity.entity_id}` :
-    activity.type === 'payment_completed' && activity.entity_id ? `/billing?member=${activity.entity_id}` : null;
+    activity.type === 'payment_completed' && activity.entity_id ? `/billing?member=${activity.entity_id}` :
+    activity.type === 'booking_created' && activity.entity_id ? `/classes?instance=${activity.entity_id}` : null;
   const content = (
     <li className="flex items-start gap-2 py-1.5 border-b border-gray-100 last:border-0">
       <span className="text-base mt-0.5" aria-hidden="true">
@@ -435,10 +455,67 @@ function LoadingState() {
   );
 }
 
-function RevenueForecastCard() {
+function PixelStatsCard() {
   const { data, isLoading } = useQuery({
-    queryKey: ['revenue-forecast'],
-    queryFn: () => api.get('/api/dashboard/revenue-forecast').then(r => r.data),
+    queryKey: ['pixel-analytics'],
+    queryFn: () => api.get('/api/pixel/analytics?days=30').then(r => r.data),
+    staleTime: 60000,
+  });
+  if (isLoading) return <div className="bg-white rounded-lg shadow p-5 animate-pulse mb-6"><div className="h-4 bg-gray-200 rounded w-32 mb-4"></div><div className="flex gap-4">{[1,2,3].map(i => <div key={i} className="h-10 bg-gray-100 rounded w-20"></div>)}</div></div>;
+  if (!data) return null;
+  const { totals, topPages, topReferrers } = data;
+  return (
+    <div className="bg-white rounded-lg shadow p-5 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-900">Pixel Tracking Stats</h2>
+        <span className="text-xs text-gray-400">Last 30 days</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div><p className="text-xs text-gray-500">Today</p><p className="text-lg font-bold text-gray-900">{totals?.today || 0}</p></div>
+        <div><p className="text-xs text-gray-500">This Week</p><p className="text-lg font-bold text-gray-900">{totals?.week || 0}</p></div>
+        <div><p className="text-xs text-gray-500">This Month</p><p className="text-lg font-bold text-gray-900">{totals?.month || 0}</p></div>
+        <div><p className="text-xs text-gray-500">Total (30d)</p><p className="text-lg font-bold text-gray-900">{totals?.total || 0}</p></div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {topPages?.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase mb-1">Top Pages</p>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {topPages.slice(0, 5).map((p, i) => (
+                <div key={i} className="flex justify-between text-xs text-gray-700">
+                  <span className="truncate mr-2">{p.page_url?.substring(0, 50) || '(direct)'}</span>
+                  <span className="font-medium shrink-0">{p.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {topReferrers?.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase mb-1">Top Referrers</p>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {topReferrers.slice(0, 5).map((r, i) => (
+                <div key={i} className="flex justify-between text-xs text-gray-700">
+                  <span className="truncate mr-2">{r.referrer?.substring(0, 50) || '(direct)'}</span>
+                  <span className="font-medium shrink-0">{r.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RevenueForecastCard() {
+  const { selectedLocation } = useLocation();
+  const { data, isLoading } = useQuery({
+    queryKey: ['revenue-forecast', selectedLocation],
+    queryFn: () => {
+      const params = selectedLocation && selectedLocation !== 'all' ? `?location=${selectedLocation}` : '';
+      return api.get(`/api/dashboard/revenue-forecast${params}`).then(r => r.data);
+    },
     staleTime: 60000,
   });
   if (isLoading) return <div className="bg-white rounded-lg shadow p-5 animate-pulse mb-6"><div className="h-4 bg-gray-200 rounded w-40 mb-4"></div><div className="flex gap-8">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded w-24"></div>)}</div></div>;

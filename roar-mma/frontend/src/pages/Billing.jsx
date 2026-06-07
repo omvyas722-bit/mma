@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { formatDate, formatCurrency } from '../lib/formatters';
 import { useNotifications } from '../contexts/NotificationContext';
+import StripeWrapper from '../components/Payments/StripeWrapper';
+import StripePaymentForm from '../components/Payments/StripePaymentForm';
 
 const LIMIT = 50;
 
@@ -15,6 +17,7 @@ export default function Billing() {
   const [searchQuery, setSearchQuery] = useState('');
   const [offset, setOffset] = useState(0);
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showStripeModal, setShowStripeModal] = useState(false);
   const [pendingWriteOffTx, setPendingWriteOffTx] = useState(null);
   const debounceRef = useRef(null);
 
@@ -58,6 +61,20 @@ export default function Billing() {
   });
   const midasChase = dashboardData?.midas_chase;
 
+  const { data: forecast } = useQuery({
+    queryKey: ['revenue-forecast'],
+    queryFn: async () => { const r = await api.get('/api/dashboard/revenue-forecast'); return r.data; },
+    retry: 1,
+    staleTime: 60000,
+  });
+
+  const mrr = stats?.mrr || 0;
+  const atRisk = stats?.failed_this_month?.total || 0;
+  const confirmed = mrr - atRisk;
+  const activeSubs = stats?.active_subscriptions || 0;
+  const churnPct = forecast?.churnRate || 0;
+  const neededForGrowth = (pct) => Math.ceil(activeSubs * pct / 100 + churnPct / 100 * activeSubs);
+
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['transactions'] });
     queryClient.invalidateQueries({ queryKey: ['transaction-stats'] });
@@ -76,6 +93,18 @@ export default function Billing() {
     },
     onSuccess: () => success('Bill emailed'),
     onError: () => error('Failed to email bill'),
+  });
+
+  const retryTx = useMutation({
+    mutationFn: (id) => api.post(`/api/transactions/${id}/retry`),
+    onSuccess: () => { invalidate(); success('Payment retry initiated'); },
+    onError: () => error('Failed to retry payment'),
+  });
+
+  const emailReceipt = useMutation({
+    mutationFn: (id) => api.post(`/api/transactions/${id}/email-receipt`),
+    onSuccess: () => success('Receipt emailed'),
+    onError: () => error('Failed to email receipt'),
   });
 
   const writeOffTx = useMutation({
@@ -109,10 +138,12 @@ export default function Billing() {
         <div className="flex gap-2">
           <button type="button" onClick={() => exportCSV(transactions)} disabled={transactions.length === 0} className="btn-outline text-sm">Export CSV</button>
           <button type="button" onClick={() => setShowRecordModal(true)} className="btn-primary text-sm">+ Record Payment</button>
+          <button type="button" onClick={() => setShowStripeModal(true)} className="btn-primary text-sm">Pay with Card</button>
         </div>
       </div>
 
       {showRecordModal && <ProcessPaymentModal onClose={() => setShowRecordModal(false)} />}
+      {showStripeModal && <StripePayModal onClose={() => setShowStripeModal(false)} />}
 
       {/* Stats */}
       {!statsError && stats && !statsLoading && (
@@ -138,28 +169,53 @@ export default function Billing() {
         </div>
       )}
 
-      {/* Revenue Forecast */}
+      {/* MRR Forecast */}
       {!statsError && stats && !statsLoading && (
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenue Forecast</h3>
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-xs text-gray-600 mb-1">
-                <span>Confirmed MRR</span><span>{formatCurrency(stats.mrr || 0)}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, ((stats.mrr || 0) - (stats.failed_this_month?.total || 0)) / (stats.mrr || 1) * 100)}%` }} />
-              </div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">MRR Forecast</h3>
+            <span className="text-xs text-gray-500">{new Date().toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="bg-purple-50 rounded p-2 text-center">
+              <p className="text-[10px] text-purple-600 font-medium">Current MRR</p>
+              <p className="text-lg font-bold text-purple-700">{formatCurrency(mrr)}</p>
             </div>
-            <div>
-              <div className="flex justify-between text-xs text-gray-600 mb-1">
-                <span>At Risk</span><span>{formatCurrency(stats.failed_this_month?.total || 0)}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="bg-red-400 h-2.5 rounded-full" style={{ width: `${Math.min(100, (stats.failed_this_month?.total || 0) / (stats.mrr || 1) * 100)}%` }} />
-              </div>
+            <div className="bg-green-50 rounded p-2 text-center">
+              <p className="text-[10px] text-green-600 font-medium">Confirmed</p>
+              <p className="text-lg font-bold text-green-700">{formatCurrency(confirmed)}</p>
+            </div>
+            <div className="bg-red-50 rounded p-2 text-center">
+              <p className="text-[10px] text-red-600 font-medium">At Risk</p>
+              <p className="text-lg font-bold text-red-700">{formatCurrency(atRisk)}</p>
             </div>
           </div>
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-3 flex overflow-hidden">
+            <div className="bg-green-500 h-3 transition-all" style={{ width: `${mrr > 0 ? (confirmed / mrr * 100) : 0}%` }} />
+            <div className="bg-red-400 h-3 transition-all" style={{ width: `${mrr > 0 ? (atRisk / mrr * 100) : 0}%` }} />
+          </div>
+          {forecast && (
+            <>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="text-xs text-gray-600">
+                  <span className="font-medium">Projected Month-End:</span>{' '}
+                  <span className="text-gray-900 font-semibold">{formatCurrency(forecast.monthlyProjection || forecast.projectedNextMonth || 0)}</span>
+                </div>
+                <div className="text-xs text-gray-600">
+                  <span className="font-medium">Churn Rate:</span>{' '}
+                  <span className="text-red-600 font-semibold">{forecast.churnRate != null ? `${forecast.churnRate}%` : '—'}</span>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded p-3">
+                <p className="text-xs font-medium text-gray-700 mb-2">New sign-ups needed for growth target:</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div><p className="text-[10px] text-gray-500">5% Growth</p><p className="text-sm font-bold text-gray-900">{neededForGrowth(5)}</p></div>
+                  <div><p className="text-[10px] text-gray-500">10% Growth</p><p className="text-sm font-bold text-gray-900">{neededForGrowth(10)}</p></div>
+                  <div><p className="text-[10px] text-gray-500">15% Growth</p><p className="text-sm font-bold text-gray-900">{neededForGrowth(15)}</p></div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -243,6 +299,8 @@ export default function Billing() {
                         <td className="px-4 py-3 whitespace-nowrap text-right">
                           {tx.status === 'failed' && (
                             <>
+                              <button onClick={() => retryTx.mutate(tx.id)} disabled={retryTx.isPending}
+                                className="text-xs text-blue-600 hover:underline mr-2">Retry</button>
                               <button onClick={() => setPendingWriteOffTx(tx)}
                                 className="text-xs text-gray-500 hover:underline mr-2">Write Off</button>
                             </>
@@ -251,11 +309,11 @@ export default function Billing() {
                             <>
                               <button onClick={() => { if (window.confirm('Refund this transaction?')) refundTx.mutate(tx.id); }}
                                 className="text-xs text-orange-600 hover:underline mr-2">Refund</button>
-                              {tx.member_email && (
-                                <button onClick={() => emailBill.mutate(tx)} disabled={emailBill.isPending}
-                                  className="text-xs text-blue-600 hover:underline">Email Bill</button>
-                              )}
                             </>
+                          )}
+                          {tx.member_email && (
+                            <button onClick={() => emailReceipt.mutate(tx.id)} disabled={emailReceipt.isPending}
+                              className="text-xs" title="Email receipt">📧</button>
                           )}
                         </td>
                       </tr>
@@ -408,6 +466,119 @@ function ProcessPaymentModal({ onClose }) {
           <button onClick={onClose} className="btn-outline text-sm">Cancel</button>
           <button onClick={createTx.mutate} disabled={!selectedMember || !amount || amountNum <= 0 || (paymentMethod === 'cash' && tenderedNum < amountNum)}
             className="btn-primary text-sm">{createTx.isPending ? 'Recording...' : 'Record Payment'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StripePayModal({ onClose }) {
+  const queryClient = useQueryClient();
+  const { error, success } = useNotifications();
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState([]);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [desc, setDesc] = useState('');
+  const [type, setType] = useState('membership');
+  const [step, setStep] = useState('form');
+
+  const searchMembers = async (q) => {
+    if (q.length < 2) { setMemberResults([]); return; }
+    try { const r = await api.get(`/api/members?query=${q}&limit=10`); setMemberResults(r.data.members || []); }
+    catch { setMemberResults([]); }
+  };
+
+  const amountNum = parseFloat(amount) || 0;
+
+  const handleSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['transaction-stats'] });
+    success('Payment processed successfully');
+    onClose();
+  };
+
+  const handleError = (msg) => error(msg);
+
+  if (step === 'payment') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="stripe-pay-title">
+          <div className="flex items-center justify-between mb-4">
+            <h2 id="stripe-pay-title" className="text-lg font-semibold">Card Payment</h2>
+            <button onClick={() => setStep('form')} className="text-xs text-gray-500 hover:underline">Change</button>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">{selectedMember.first_name} {selectedMember.last_name}</p>
+          <StripeWrapper>
+            <StripePaymentForm
+              amount={amountNum}
+              memberId={selectedMember.id}
+              description={desc}
+              type={type}
+              onSuccess={handleSuccess}
+              onError={handleError}
+            />
+          </StripeWrapper>
+          <button onClick={onClose} className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="stripe-form-title">
+        <h2 id="stripe-form-title" className="text-lg font-semibold mb-4">Process Card Payment</h2>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Member</label>
+            {selectedMember ? (
+              <div className="flex items-center justify-between bg-blue-50 p-2 rounded">
+                <span className="text-sm font-medium">{selectedMember.first_name} {selectedMember.last_name}</span>
+                <button onClick={() => setSelectedMember(null)} className="text-xs text-red-600 hover:underline">Change</button>
+              </div>
+            ) : (
+              <>
+                <input type="text" placeholder="Search members..." value={memberSearch}
+                  onChange={(e) => { setMemberSearch(e.target.value); searchMembers(e.target.value); }}
+                  className="input text-sm w-full" />
+                {memberResults.length > 0 && (
+                  <div className="border rounded mt-1 max-h-40 overflow-y-auto">
+                    {memberResults.map(m => (
+                      <div key={m.id} onClick={() => { setSelectedMember(m); setMemberSearch(''); setMemberResults([]); }}
+                        className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer">{m.first_name} {m.last_name} ({m.email})</div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Amount ($)</label>
+              <input type="number" step="0.01" min="0" value={amount}
+                onChange={(e) => setAmount(e.target.value)} className="input text-sm w-full" required />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+              <select value={type} onChange={(e) => setType(e.target.value)} className="input text-sm w-full">
+                <option value="membership">Membership</option>
+                <option value="hold_fee">Hold Fee</option>
+                <option value="pt_pack">PT Pack</option>
+                <option value="product">Product</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+            <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} className="input text-sm w-full" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="btn-outline text-sm">Cancel</button>
+          <button onClick={() => setStep('payment')} disabled={!selectedMember || !amount || amountNum <= 0}
+            className="btn-primary text-sm">Continue to Payment</button>
         </div>
       </div>
     </div>

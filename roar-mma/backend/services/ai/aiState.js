@@ -1,6 +1,7 @@
 const { getDatabase } = require('../../db/connection');
 
 const DEFAULT_AGENTS = [
+  { name: 'zeus', enabled: 1 },
   { name: 'scout', enabled: 1 },
   { name: 'healer', enabled: 1 },
   { name: 'pixel', enabled: 1 },
@@ -62,6 +63,25 @@ function ensureTables() {
         completed_at DATETIME,
         created_at DATETIME DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS scheduled_agent_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_name TEXT NOT NULL,
+        task_description TEXT NOT NULL,
+        frequency TEXT NOT NULL CHECK(frequency IN ('daily', 'weekly', 'monthly', 'hours')),
+        day_of_week TEXT,
+        day_of_month INTEGER,
+        time_of_day TEXT DEFAULT '09:00',
+        interval_hours INTEGER,
+        payload TEXT,
+        enabled INTEGER DEFAULT 1,
+        last_triggered_at DATETIME,
+        created_by INTEGER,
+        created_at DATETIME DEFAULT (datetime('now')),
+        updated_at DATETIME DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_scheduled_agent_enabled ON scheduled_agent_tasks(enabled);
     `);
   } catch (error) {
     console.error('[AI-STATE] Table initialization error:', error.message);

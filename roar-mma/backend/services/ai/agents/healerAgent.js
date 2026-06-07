@@ -85,10 +85,116 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     });
 
     if ((tasksCreated > 0) && broadcast) broadcast({ type: 'healer_agent_update', summary, tasksCreated });
+
+    await analyzeRejectionPatterns({ db: dbConn, aiState, broadcast, agentName });
   } catch (err) {
     console.error('[HEALER-AGENT] Error:', err.message);
     try { await aiState.logActivity({ agentName: 'healer', actionType: 'healer_error', details: { error: err.message }, summary: `Healer failed: ${err.message}` }); } catch (logErr) { console.error('[HEALER] Log error:', logErr.message); }
   }
 }
 
-module.exports = { handler };
+async function analyzeRejectionPatterns({ db, aiState, broadcast, agentName }) {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const recentRejections = db.prepare(`
+      SELECT action_type, COUNT(*) as count
+      FROM ai_activity_log
+      WHERE status = 'failed'
+        AND created_at >= datetime('now', '-7 days')
+        AND agent_name != 'healer'
+      GROUP BY action_type
+      HAVING count >= 3
+    `).all();
+
+    for (const rejection of recentRejections) {
+      const existingProposal = db.prepare(`
+        SELECT id FROM ai_activity_log
+        WHERE agent_name = 'healer'
+          AND action_type = 'healer_proposal'
+          AND details LIKE ?
+          AND created_at >= datetime('now', '-7 days')
+      `).get(`%"message_type":"${rejection.action_type}"%`);
+
+      if (existingProposal) continue;
+
+      const samples = db.prepare(`
+        SELECT summary, details FROM ai_activity_log
+        WHERE action_type = ? AND status = 'failed'
+          AND created_at >= datetime('now', '-7 days')
+        LIMIT 3
+      `).all(rejection.action_type);
+
+      const errorReasons = samples.map(s => {
+        try {
+          const d = typeof s.details === 'string' ? JSON.parse(s.details) : (s.details || {});
+          return d.error || s.summary || 'unknown';
+        } catch { return s.summary || 'unknown'; }
+      }).filter(Boolean);
+
+      const suggestion = `Modify prompt for ${rejection.action_type} to reduce failures. Recent errors: ${errorReasons.join('; ')}`;
+
+      const details = {
+        message_type: rejection.action_type,
+        failure_count: rejection.count,
+        samples: errorReasons,
+        suggestion,
+        status: 'pending'
+      };
+
+      db.prepare(`
+        INSERT INTO ai_activity_log (agent_name, action_type, summary, details, status)
+        VALUES (?, ?, ?, ?, ?)
+      `).run('healer', 'healer_proposal', suggestion, JSON.stringify(details), 'pending');
+
+      console.log(`[HEALER] Generated improvement proposal for ${rejection.action_type} (${rejection.count} failures)`);
+
+      if (broadcast) {
+        broadcast({ type: 'healer_proposal', data: { message_type: rejection.action_type, failure_count: rejection.count, suggestion } });
+      }
+    }
+
+    const approvedProposals = db.prepare(`
+      SELECT * FROM ai_activity_log
+      WHERE agent_name = 'healer'
+        AND action_type = 'healer_proposal'
+        AND status = 'approved'
+        AND created_at >= datetime('now', '-30 days')
+    `).all();
+
+    for (const proposal of approvedProposals) {
+      try {
+        const details = typeof proposal.details === 'string' ? JSON.parse(proposal.details) : (proposal.details || {});
+        const agentDb = details.message_type ? db.prepare("SELECT agent_name FROM ai_activity_log WHERE action_type = ? LIMIT 1").get(details.message_type) : null;
+
+        if (agentDb) {
+          const config = await aiState.getAgentConfig(agentDb.agent_name);
+          if (config) {
+            const existingPrompt = config.config_json?.prompt_override || '';
+            const newPrompt = existingPrompt
+              ? `${existingPrompt}\n\n[HEALER IMPROVEMENT] ${details.suggestion}`
+              : `[HEALER IMPROVEMENT] ${details.suggestion}`;
+
+            await aiState.updateAgentConfig(agentDb.agent_name, {
+              config_json: { ...(config.config_json || {}), prompt_override: newPrompt, healer_improved_at: new Date().toISOString() }
+            });
+
+            await aiState.logActivity({
+              agentName: 'healer',
+              actionType: 'improvement_applied',
+              summary: `Applied prompt improvement to ${agentDb.agent_name}: ${details.suggestion}`,
+              status: 'completed',
+              details: { agent: agentDb.agent_name, message_type: details.message_type, suggestion: details.suggestion }
+            });
+          }
+        }
+      } catch (applyErr) {
+        console.error('[HEALER] Failed to apply proposal:', applyErr.message);
+      }
+    }
+  } catch (err) {
+    console.error('[HEALER] Rejection analysis error:', err.message);
+  }
+}
+
+module.exports = { handler, analyzeRejectionPatterns };

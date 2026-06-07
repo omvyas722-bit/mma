@@ -66,6 +66,72 @@ const memberWaivers = {
   },
 };
 
+const pendingParentSignatures = {
+  create({ member_id, template_id, parent_email, token, expires_at }) {
+    const stmt = db().prepare(
+      'INSERT INTO pending_parent_signatures (member_id, template_id, parent_email, token, expires_at) VALUES (?, ?, ?, ?, ?)'
+    );
+    const result = stmt.run(member_id, template_id, parent_email, token, expires_at);
+    return db().prepare('SELECT * FROM pending_parent_signatures WHERE id = ?').get(result.lastInsertRowid);
+  },
+
+  getByToken(token) {
+    return db().prepare(`
+      SELECT pps.*, wt.name as template_name, wt.body_text,
+             m.first_name, m.last_name, m.date_of_birth
+      FROM pending_parent_signatures pps
+      JOIN waiver_templates wt ON wt.id = pps.template_id
+      JOIN members m ON m.id = pps.member_id
+      WHERE pps.token = ? AND pps.status = 'pending'
+    `).get(token);
+  },
+
+  sign(id, signature_data, parent_name, parent_relation) {
+    db().prepare(`
+      UPDATE pending_parent_signatures
+      SET signature_data = ?, parent_name = ?, parent_relation = ?,
+          status = 'signed', signed_at = datetime('now')
+      WHERE id = ?
+    `).run(signature_data, parent_name, parent_relation, id);
+    return db().prepare('SELECT * FROM pending_parent_signatures WHERE id = ?').get(id);
+  },
+
+  getPendingByMember(memberId) {
+    return db().prepare(`
+      SELECT pps.*, wt.name as template_name
+      FROM pending_parent_signatures pps
+      JOIN waiver_templates wt ON wt.id = pps.template_id
+      WHERE pps.member_id = ? AND pps.status = 'pending'
+      ORDER BY pps.created_at DESC
+    `).all(memberId);
+  },
+
+  getStats() {
+    const pending = db().prepare("SELECT COUNT(*) as count FROM pending_parent_signatures WHERE status = 'pending'").get().count;
+    const signed = db().prepare("SELECT COUNT(*) as count FROM pending_parent_signatures WHERE status = 'signed'").get().count;
+    return { pending, signed };
+  },
+};
+
+const waiverAnalytics = {
+  getStats() {
+    const total_signed = db().prepare('SELECT COUNT(*) as count FROM member_waivers').get().count;
+    const signed_this_month = db().prepare(`
+      SELECT COUNT(*) as count FROM member_waivers
+      WHERE signed_at >= date('now', 'start of month')
+    `).get().count;
+    const pending_parent = db().prepare("SELECT COUNT(*) as count FROM pending_parent_signatures WHERE status = 'pending'").get().count;
+    const templates = db().prepare(`
+      SELECT wt.id, wt.name, wt.active, COUNT(mw.id) as signed_count
+      FROM waiver_templates wt
+      LEFT JOIN member_waivers mw ON mw.template_id = wt.id
+      GROUP BY wt.id
+      ORDER BY signed_count DESC
+    `).all();
+    return { total_signed, signed_this_month, pending_parent, templates };
+  },
+};
+
 const memberDocuments = {
   getByMember(memberId) {
     return db().prepare('SELECT * FROM member_documents WHERE member_id = ? ORDER BY uploaded_at DESC').all(memberId);
@@ -87,4 +153,4 @@ const memberDocuments = {
   },
 };
 
-module.exports = { waiverTemplates, memberWaivers, memberDocuments };
+module.exports = { waiverTemplates, memberWaivers, memberDocuments, pendingParentSignatures, waiverAnalytics };

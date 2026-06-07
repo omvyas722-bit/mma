@@ -16,21 +16,46 @@ export default function Waivers() {
   const [editingId, setEditingId] = useState(null);
   const [memberSearch, setMemberSearch] = useState('');
   const [memberId, setMemberId] = useState(null);
+  const [parentEmailMember, setParentEmailMember] = useState(null);
+  const [parentEmail, setParentEmail] = useState('');
+  const [showSignForMinor, setShowSignForMinor] = useState(false);
+
+  const { data: analyticsData } = useQuery({
+    queryKey: ['waiver-analytics'],
+    queryFn: async () => { const r = await api.get('/api/waivers/analytics'); return r; },
+    enabled: tab === 'analytics',
+    staleTime: 30000,
+  });
 
   const { data: templatesData, isLoading: tplsLoading } = useQuery({
     queryKey: ['waiver-templates'],
-    queryFn: async () => { const r = await api.get('/api/waivers/templates'); return r.data; },
+    queryFn: async () => { const r = await api.get('/api/waivers/templates'); return r; },
     staleTime: 300000,
   });
   const templates = templatesData?.templates || [];
 
+  const { data: memberData } = useQuery({
+    queryKey: ['member-dob', memberId],
+    queryFn: async () => { const r = await api.get(`/api/members/${memberId}`); return r; },
+    enabled: !!memberId,
+    staleTime: 60000,
+  });
+
   const { data: memberWaiversData, isLoading: waiversLoading } = useQuery({
     queryKey: ['member-waivers', memberId],
-    queryFn: async () => { const r = await api.get(`/api/waivers/member/${memberId}`); return r.data; },
+    queryFn: async () => { const r = await api.get(`/api/waivers/member/${memberId}`); return r; },
     enabled: !!memberId,
     staleTime: 10000,
   });
   const memberWaiversList = memberWaiversData?.waivers || [];
+
+  const isUnder18 = memberData?.date_of_birth && new Date(memberData.date_of_birth) > new Date(Date.now() - 18 * 365 * 86400000);
+
+  const sendParentLink = useMutation({
+    mutationFn: (data) => api.post('/api/waivers/send-parent-link', data),
+    onSuccess: () => { success('Parent waiver link sent'); setParentEmailMember(null); setParentEmail(''); queryClient.invalidateQueries({ queryKey: ['waiver-analytics'] }); },
+    onError: (err) => error(err?.response?.data?.error || err?.error || 'Failed to send parent link'),
+  });
 
   const createTpl = useMutation({
     mutationFn: (d) => api.post('/api/waivers/templates', d),
@@ -102,11 +127,11 @@ export default function Waivers() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-gray-200" role="tablist">
-        {['templates', 'member-waivers'].map(t => (
+        {['templates', 'member-waivers', 'analytics'].map(t => (
           <button key={t} type="button" role="tab" aria-selected={tab === t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t ? 'border-red-600 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >{t === 'templates' ? 'Waiver Templates' : 'Member Waivers'}</button>
+          >{t === 'templates' ? 'Waiver Templates' : t === 'member-waivers' ? 'Member Waivers' : 'Analytics'}</button>
         ))}
       </div>
 
@@ -170,6 +195,18 @@ export default function Waivers() {
               <input type="text" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} className="input w-48" placeholder="Search by name or enter ID" aria-label="Search member" />
               <button type="button" onClick={() => setMemberId(parseInt(memberSearch, 10))} className="btn-primary text-sm" disabled={!memberSearch}>Search</button>
             </div>
+            {memberId && isUnder18 && (
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => { setParentEmailMember(memberData); setParentEmail(memberData?.email || ''); }}
+                  className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium">
+                  Email Waiver to Parent
+                </button>
+                <button type="button" onClick={() => setShowSignForMinor(true)}
+                  className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 font-medium">
+                  Sign Now (Parent Present)
+                </button>
+              </div>
+            )}
           </div>
           {memberId && (
             waiversLoading ? (
@@ -203,11 +240,84 @@ export default function Waivers() {
         </div>
       )}
 
+      {tab === 'analytics' && (
+        <div className="space-y-4">
+          {!analyticsData ? (
+            <div className="bg-white rounded-lg shadow p-8 text-center text-sm text-gray-500">Loading analytics...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg shadow p-5 text-center">
+                  <p className="text-3xl font-bold text-gray-900">{analyticsData.total_signed}</p>
+                  <p className="text-xs text-gray-500 mt-1">Total Signed</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5 text-center">
+                  <p className="text-3xl font-bold text-gray-900">{analyticsData.signed_this_month}</p>
+                  <p className="text-xs text-gray-500 mt-1">Signed This Month</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5 text-center">
+                  <p className="text-3xl font-bold text-gray-900">{analyticsData.pending_parent}</p>
+                  <p className="text-xs text-gray-500 mt-1">Pending Parent</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Template</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Signed Count</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {analyticsData.templates?.map(t => (
+                      <tr key={t.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-sm text-gray-900">{t.name}</td>
+                        <td className="px-4 py-2 text-sm text-gray-500">{t.signed_count}</td>
+                        <td className="px-4 py-2 text-sm">{t.active ? <span className="text-green-600 text-xs font-medium">Active</span> : <span className="text-gray-400 text-xs">Inactive</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {parentEmailMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setParentEmailMember(null); setParentEmail(''); }}>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Email Waiver to Parent</h3>
+            <p className="text-sm text-gray-500 mb-4">Send a waiver signing link to the parent/guardian of {parentEmailMember.first_name} {parentEmailMember.last_name}.</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Parent Email</label>
+            <input type="email" value={parentEmail} onChange={e => setParentEmail(e.target.value)} className="input w-full mb-4" placeholder="parent@example.com" />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => sendParentLink.mutate({ member_id: memberId, template_id: templates?.[0]?.id, parent_email: parentEmail })}
+                disabled={!parentEmail || sendParentLink.isPending || !templates?.[0]?.id}
+                className="btn-primary text-sm">{sendParentLink.isPending ? 'Sending...' : 'Send Link'}</button>
+              <button type="button" onClick={() => { setParentEmailMember(null); setParentEmail(''); }} className="btn-outline text-sm">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSignModal && signingTemplate && (
         <SignWaiverModal
           template={signingTemplate}
           onClose={() => { setShowSignModal(false); setSigningTemplate(null); }}
           onSigned={() => { setShowSignModal(false); setSigningTemplate(null); success('Waiver signed'); queryClient.invalidateQueries({ queryKey: ['member-waivers'] }); }}
+        />
+      )}
+
+      {showSignForMinor && memberData && templates?.[0] && (
+        <SignWaiverModal
+          template={templates[0]}
+          preselectedMemberId={memberId}
+          memberName={`${memberData.first_name} ${memberData.last_name}`}
+          isMinor={true}
+          onClose={() => setShowSignForMinor(false)}
+          onSigned={() => { setShowSignForMinor(false); success('Waiver signed for minor'); queryClient.invalidateQueries({ queryKey: ['member-waivers', memberId] }); queryClient.invalidateQueries({ queryKey: ['waiver-analytics'] }); }}
         />
       )}
     </div>

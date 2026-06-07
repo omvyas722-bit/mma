@@ -75,7 +75,7 @@ router.post('/login', loginLimiter, memoryLoginLimiter, async (req, res) => {
 // Get current user
 router.get('/me', authenticateToken, requirePasswordChange, (req, res) => {
   const db = getDatabase();
-  const user = db.prepare('SELECT id, name, email, role, phone, active FROM staff WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, name, email, role, phone, active, two_factor_enabled FROM staff WHERE id = ?').get(req.user.id);
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
@@ -240,6 +240,25 @@ router.post('/disable-2fa', authenticateToken, requirePermission('settings:write
     res.json({ message: '2FA disabled' });
   } catch (err) {
     console.error('[AUTH] Disable 2FA error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get current API key info (last 4 chars, name)
+router.get('/api-key', authenticateToken, requirePermission('settings:write'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const user = db.prepare('SELECT api_key, api_key_name, updated_at FROM staff WHERE id = ?').get(req.user.id);
+    if (!user?.api_key) return res.json({ key: null });
+    res.json({
+      key: {
+        last4: user.api_key.slice(-4),
+        name: user.api_key_name || 'API Key',
+        created_at: user.updated_at
+      }
+    });
+  } catch (err) {
+    console.error('[AUTH] Get API key error:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

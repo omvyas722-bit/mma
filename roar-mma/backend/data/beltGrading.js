@@ -2,8 +2,11 @@
 const { getDatabase } = require('../db/connection');
 
 // Belt levels
-function getAllBeltLevels() {
+function getAllBeltLevels(discipline) {
   const db = getDatabase();
+  if (discipline) {
+    return db.prepare('SELECT * FROM belt_levels WHERE discipline = ? ORDER BY rank_order').all(discipline);
+  }
   return db.prepare('SELECT * FROM belt_levels ORDER BY rank_order').all();
 }
 
@@ -333,6 +336,20 @@ function recordGradingResult(participantId, result, score, feedback, awardedStri
   return db.prepare('SELECT * FROM grading_participants WHERE id = ?').get(participantId);
 }
 
+function getSessionParticipants(sessionId) {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT gp.*, m.first_name, m.last_name,
+           bl.name AS current_belt, tbl.name AS testing_for_belt_name
+    FROM grading_participants gp
+    JOIN members m ON gp.member_id = m.id
+    LEFT JOIN belt_levels bl ON gp.current_belt_id = bl.id
+    LEFT JOIN belt_levels tbl ON gp.testing_for_belt_id = tbl.id
+    WHERE gp.grading_session_id = ?
+    ORDER BY m.last_name, m.first_name
+  `).all(sessionId);
+}
+
 function getGradingSessions(filters = {}) {
   const db = getDatabase();
 
@@ -410,6 +427,106 @@ function getMemberGradingHistory(memberId) {
   `).all(memberId);
 }
 
+// Belt registry — all members with current belt per discipline
+function getBeltRegistry() {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT
+      m.id AS member_id, m.first_name, m.last_name,
+      mbp.discipline,
+      bl.name AS current_belt, bl.id AS current_belt_id,
+      mbp.belt_awarded_date AS last_graded,
+      COALESCE(mbp.classes_attended_since_belt, 0) AS classes_since,
+      next_bl.min_classes_attended AS min_required,
+      next_bl.id AS next_belt_id,
+      next_bl.name AS next_belt_name,
+      CASE WHEN COALESCE(mbp.classes_attended_since_belt, 0) >= next_bl.min_classes_attended THEN 1 ELSE 0 END AS eligible
+    FROM member_belt_progress mbp
+    JOIN members m ON mbp.member_id = m.id
+    JOIN belt_levels bl ON mbp.current_belt_id = bl.id
+    LEFT JOIN belt_levels next_bl ON next_bl.rank_order = (
+      SELECT MIN(b2.rank_order) FROM belt_levels b2
+      WHERE b2.rank_order > bl.rank_order AND b2.discipline = mbp.discipline
+    )
+    WHERE mbp.is_current = 1 AND m.status = 'active'
+    ORDER BY m.last_name, m.first_name, mbp.discipline
+  `).all();
+}
+
+// CRUD for belt levels
+function createBeltLevel({ name, rank_order, discipline, stripe_count, color_code, min_time_months, min_classes_attended, description }) {
+  const db = getDatabase();
+  const result = db.prepare(`
+    INSERT INTO belt_levels (name, rank_order, discipline, stripe_count, color_code, min_time_months, min_classes_attended, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(name, rank_order, discipline, stripe_count || 0, color_code || null, min_time_months || 0, min_classes_attended || 0, description || null);
+  return db.prepare('SELECT * FROM belt_levels WHERE id = ?').get(result.lastInsertRowid);
+}
+
+function updateBeltLevel(id, data) {
+  const db = getDatabase();
+  const existing = db.prepare('SELECT * FROM belt_levels WHERE id = ?').get(id);
+  if (!existing) return null;
+  const fields = ['name', 'rank_order', 'discipline', 'stripe_count', 'color_code', 'min_time_months', 'min_classes_attended', 'description'];
+  const updates = [];
+  const values = [];
+  fields.forEach(f => {
+    if (data[f] !== undefined) {
+      updates.push(`${f} = ?`);
+      values.push(data[f]);
+    }
+  });
+  if (updates.length === 0) return existing;
+  values.push(id);
+  db.prepare(`UPDATE belt_levels SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  return db.prepare('SELECT * FROM belt_levels WHERE id = ?').get(id);
+}
+
+function deleteBeltLevel(id) {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM belt_levels WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+function getFighterLeaderboard() {
+  const db = getDatabase();
+
+  const fighters = db.prepare(`
+    SELECT
+      m.id, m.first_name, m.last_name, m.location,
+      COALESCE(fc.weight_class, '—') AS weight_class,
+      COALESCE(fc_wins.wins, 0) AS wins,
+      COALESCE(fc_losses.losses, 0) AS losses,
+      COALESCE(fc_draws.draws, 0) AS draws,
+      CASE WHEN (COALESCE(fc_wins.wins, 0) + COALESCE(fc_losses.losses, 0) + COALESCE(fc_draws.draws, 0)) > 0
+        THEN ROUND(CAST(COALESCE(fc_wins.wins, 0) AS REAL) /
+          (COALESCE(fc_wins.wins, 0) + COALESCE(fc_losses.losses, 0) + COALESCE(fc_draws.draws, 0)) * 100, 1)
+        ELSE 0
+      END AS win_rate,
+      fc_last.event_date AS last_fight_date
+    FROM members m
+    LEFT JOIN fighter_competitions fc ON fc.member_id = m.id AND fc.id = (
+      SELECT fcs.id FROM fighter_competitions fcs WHERE fcs.member_id = m.id ORDER BY fcs.event_date DESC LIMIT 1
+    )
+    LEFT JOIN (
+      SELECT member_id, COUNT(*) AS wins FROM fighter_competitions WHERE result = 'win' GROUP BY member_id
+    ) fc_wins ON fc_wins.member_id = m.id
+    LEFT JOIN (
+      SELECT member_id, COUNT(*) AS losses FROM fighter_competitions WHERE result = 'loss' GROUP BY member_id
+    ) fc_losses ON fc_losses.member_id = m.id
+    LEFT JOIN (
+      SELECT member_id, COUNT(*) AS draws FROM fighter_competitions WHERE result IN ('draw','nc') GROUP BY member_id
+    ) fc_draws ON fc_draws.member_id = m.id
+    LEFT JOIN (
+      SELECT member_id, MAX(event_date) AS event_date FROM fighter_competitions GROUP BY member_id
+    ) fc_last ON fc_last.member_id = m.id
+    WHERE m.is_fighter = 1 AND m.status = 'active'
+    ORDER BY win_rate DESC, wins DESC
+  `).all();
+
+  return fighters;
+}
+
 module.exports = {
   getAllBeltLevels,
   getBeltLevel,
@@ -427,5 +544,11 @@ module.exports = {
   addGradingParticipant,
   recordGradingResult,
   getGradingSessions,
-  getMemberGradingHistory
+  getSessionParticipants,
+  getMemberGradingHistory,
+  getBeltRegistry,
+  getFighterLeaderboard,
+  createBeltLevel,
+  updateBeltLevel,
+  deleteBeltLevel
 };

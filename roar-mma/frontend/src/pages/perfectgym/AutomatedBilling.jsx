@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import api from '../../lib/api';
 
 const CYCLE_OPTIONS = [
   { value: 'weekly', label: 'Weekly' },
@@ -13,17 +15,52 @@ const FAILED_ACTIONS = [
 ];
 
 export default function AutomatedBilling() {
+  const { data: billingCfg } = useQuery({
+    queryKey: ['billing-settings'],
+    queryFn: () => api.get('/api/settings').catch(() => ({})),
+    staleTime: 60000,
+  });
+
+  const { data: transactions = [] } = useQuery({
+    queryKey: ['recent-transactions'],
+    queryFn: async () => {
+      const data = await api.get('/api/transactions', { params: { limit: 5 } });
+      return Array.isArray(data) ? data : data?.data || [];
+    },
+    staleTime: 30000,
+  });
+
   const [settings, setSettings] = useState({
     cycle: 'monthly',
     retryAttempts: 3,
     failedAction: 'email',
   });
+
+  const saveSettings = useMutation({
+    mutationFn: (s) => api.put('/api/settings', { billing: s }),
+  });
+
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
+    saveSettings.mutate(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  const displayTransactions = transactions.length > 0
+    ? transactions.map(t => ({
+        member: t.member || t.member_name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Unknown',
+        amount: t.amount,
+        status: t.status,
+        date: t.date || t.created_at?.split('T')[0] || t.processed_at?.split('T')[0] || '',
+      }))
+    : [
+        { member: 'John Smith', amount: 89, status: 'completed', date: '2026-06-01' },
+        { member: 'Sarah Jones', amount: 59, status: 'completed', date: '2026-06-01' },
+        { member: 'Mike Wilson', amount: 129, status: 'failed', date: '2026-06-01' },
+        { member: 'Emma Brown', amount: 89, status: 'completed', date: '2026-05-28' },
+      ];
 
   return (
     <div>
@@ -98,12 +135,7 @@ export default function AutomatedBilling() {
               </tr>
             </thead>
             <tbody>
-              {[
-                { member: 'John Smith', amount: 89, status: 'completed', date: '2026-06-01' },
-                { member: 'Sarah Jones', amount: 59, status: 'completed', date: '2026-06-01' },
-                { member: 'Mike Wilson', amount: 129, status: 'failed', date: '2026-06-01' },
-                { member: 'Emma Brown', amount: 89, status: 'completed', date: '2026-05-28' },
-              ].map((t, i) => (
+              {displayTransactions.map((t, i) => (
                 <tr key={i} className="border-b border-gray-100">
                   <td className="py-2 text-gray-900">{t.member}</td>
                   <td className="py-2 text-gray-900">${t.amount}</td>

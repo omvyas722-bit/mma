@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../../lib/api';
 
 const TRIGGERS = [
   { value: 'member_joined', label: 'Member Joined' },
@@ -21,21 +23,56 @@ const MESSAGE_PREVIEWS = {
 };
 
 export default function MarketingAutomation() {
+  const queryClient = useQueryClient();
   const [trigger, setTrigger] = useState('member_joined');
   const [delay, setDelay] = useState(1);
   const [action, setAction] = useState('email');
-  const [workflows, setWorkflows] = useState([
-    { id: 1, trigger: 'member_joined', delay: 1, action: 'email', active: true },
-    { id: 2, trigger: 'inactive_7', delay: 1, action: 'sms', active: true },
-  ]);
+
+  const { data: workflows = [] } = useQuery({
+    queryKey: ['workflows-pg'],
+    queryFn: async () => {
+      const data = await api.get('/api/workflows');
+      if (Array.isArray(data)) return data;
+      if (data?.data) return Array.isArray(data.data) ? data.data : [];
+      return [];
+    },
+    staleTime: 30000,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: () => api.post('/api/workflows', {
+      name: `${TRIGGERS.find(t => t.value === trigger)?.label || trigger} → ${ACTIONS.find(a => a.value === action)?.label || action}`,
+      description: `Send ${action} after ${delay}d on ${trigger}`,
+      trigger_type: trigger,
+      trigger_config: { delay_days: delay },
+      action_type: action,
+      action_config: {},
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflows-pg'] }),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (id) => api.post(`/api/workflows/${id}/toggle`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflows-pg'] }),
+  });
 
   const addWorkflow = () => {
-    setWorkflows([...workflows, { id: Date.now(), trigger, delay, action, active: true }]);
+    addMutation.mutate();
   };
 
   const toggleWorkflow = (id) => {
-    setWorkflows(workflows.map(w => w.id === id ? { ...w, active: !w.active } : w));
+    toggleMutation.mutate(id);
   };
+
+  const safeWorkflows = Array.isArray(workflows) && workflows.length > 0
+    ? workflows.map(w => ({
+        id: w.id,
+        trigger: w.trigger_type || w.trigger || 'member_joined',
+        delay: w.trigger_config?.delay_days || w.delay || 1,
+        action: w.action_type || w.action || 'email',
+        active: w.enabled !== undefined ? !!w.enabled : w.active !== undefined ? w.active : true,
+      }))
+    : [];
 
   const triggerLabel = (val) => TRIGGERS.find(t => t.value === val)?.label || val;
   const actionLabel = (val) => ACTIONS.find(a => a.value === val)?.label || val;
@@ -87,11 +124,11 @@ export default function MarketingAutomation() {
 
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Active Workflows</h2>
-        {workflows.length === 0 ? (
+        {safeWorkflows.length === 0 && !addMutation.isPending ? (
           <p className="text-sm text-gray-500">No workflows configured yet.</p>
         ) : (
           <div className="space-y-3">
-            {workflows.map(w => (
+              {safeWorkflows.map(w => (
               <div key={w.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
                 <div className="flex items-center gap-4 text-sm">
                   <span className={`badge ${w.active ? 'badge-green' : 'badge-gray'}`}>
