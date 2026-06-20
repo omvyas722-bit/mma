@@ -52,6 +52,9 @@ function ensureMigrated(db) {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
+  // Skip migrations for in-memory test databases — tests manage their own schemas
+  if (DB_PATH === ':memory:') return;
+
   db.exec(`CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY, name TEXT NOT NULL,
     applied_at TEXT DEFAULT (datetime('now')), checksum TEXT,

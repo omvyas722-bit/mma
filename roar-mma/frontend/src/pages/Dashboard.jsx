@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useLocation } from '../contexts/LocationContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 function useDashboard(location) {
   return useQuery({
@@ -194,24 +195,7 @@ function DashboardContent({ data, analytics, analyticsLoading, aiStatus, sparkli
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">Monthly Membership Goal</h2>
-          <div className="flex items-end gap-3 mb-2">
-            <span className="text-3xl font-bold text-gray-900">{data?.goal_progress?.current || 0}</span>
-            <span className="text-sm text-gray-500 mb-1">/ {data?.goal_progress?.target || 30}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2" role="progressbar" aria-valuenow={data?.goal_progress?.current || 0} aria-valuemin={0} aria-valuemax={data?.goal_progress?.target || 30}>
-            <div className="bg-red-600 h-2.5 rounded-full transition-all" style={{ width: `${Math.min(100, ((data?.goal_progress?.current || 0) / (data?.goal_progress?.target || 30)) * 100)}%` }}></div>
-          </div>
-          {data?.goal_progress?.conversion_rate != null && (
-            <p className="text-xs text-gray-500">{data.goal_progress.conversion_rate}% trial→paid conversion</p>
-          )}
-          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center text-xs">
-            <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.trials ?? 0}</span><span className="text-gray-500">Trials</span></div>
-            <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.conversion_rate ?? 0}%</span><span className="text-gray-500">Conversion</span></div>
-            <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.referrals ?? 0}</span><span className="text-gray-500">Referrals</span></div>
-          </div>
-        </div>
+        <GoalTrackerCard data={data} />
 
         <div className="bg-white rounded-lg shadow p-5">
           <h2 className="text-sm font-semibold text-gray-900 mb-3">End-of-Day Preview</h2>
@@ -503,6 +487,62 @@ function PixelStatsCard() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function GoalTrackerCard({ data }) {
+  const { error: notifyError, success } = useNotifications();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+
+  const updateTarget = useMutation({
+    mutationFn: (target) => api.put('/api/dashboard/goal-target', { target }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['dashboard'] }); success('Goal target updated'); setEditing(false); },
+    onError: () => notifyError('Failed to update goal target'),
+  });
+
+  const current = data?.goal_progress?.current || 0;
+  const target = data?.goal_progress?.target || 30;
+  const pct = Math.min(100, Math.round((current / target) * 100));
+
+  return (
+    <div className="bg-white rounded-lg shadow p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-900">Monthly Membership Goal</h2>
+        {editing ? (
+          <div className="flex items-center gap-1">
+            <input type="number" min="1" value={editValue} onChange={e => setEditValue(e.target.value)}
+              className="input text-xs w-16 text-center" autoFocus />
+            <button type="button" onClick={() => updateTarget.mutate(parseInt(editValue, 10))}
+              className="text-xs text-green-600 hover:underline">Save</button>
+            <button type="button" onClick={() => setEditing(false)}
+              className="text-xs text-gray-500 hover:underline">Cancel</button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => { setEditValue(String(target)); setEditing(true); }}
+            className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer" title="Edit target">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+          </button>
+        )}
+      </div>
+      <div className="flex items-end gap-3 mb-2">
+        <span className="text-3xl font-bold text-gray-900">{current}</span>
+        <span className="text-sm text-gray-500 mb-1">/ {target}</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2" role="progressbar" aria-valuenow={current} aria-valuemin={0} aria-valuemax={target}>
+        <div className="bg-red-600 h-2.5 rounded-full transition-all" style={{ width: `${pct}%` }}></div>
+      </div>
+      {pct > 0 && <p className="text-xs text-gray-500 mb-1">{pct}% of monthly goal</p>}
+      {data?.goal_progress?.conversion_rate != null && (
+        <p className="text-xs text-gray-500">{data.goal_progress.conversion_rate}% trial→paid conversion</p>
+      )}
+      <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center text-xs">
+        <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.trials ?? 0}</span><span className="text-gray-500">Trials</span></div>
+        <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.conversion_rate ?? 0}%</span><span className="text-gray-500">Conversion</span></div>
+        <div><span className="block text-lg font-bold text-gray-900">{data?.goal_sub_metrics?.referrals ?? 0}</span><span className="text-gray-500">Referrals</span></div>
       </div>
     </div>
   );

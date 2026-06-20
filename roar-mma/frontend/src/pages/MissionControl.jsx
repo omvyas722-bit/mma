@@ -83,6 +83,63 @@ function AgentCard({ agent, onToggle, onRunNow, running }) {
   );
 }
 
+function ScheduledTasksList() {
+  const { success, error: showError } = useNotifications();
+  const queryClient = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['scheduled-tasks'],
+    queryFn: async () => { const r = await api.get('/api/agents/scheduled-tasks'); return r.data?.tasks || []; },
+    refetchInterval: 15000,
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: (id) => api.delete('/api/agents/scheduled-tasks/' + id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['scheduled-tasks'] }); success('Task deleted'); setConfirmDelete(null); },
+    onError: () => showError('Failed to delete task'),
+  });
+
+  const toggleTask = useMutation({
+    mutationFn: (id) => api.put('/api/agents/scheduled-tasks/' + id + '/toggle'),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['scheduled-tasks'] }); },
+    onError: () => showError('Failed to toggle task'),
+  });
+
+  if (isLoading) return <div className="h-16 bg-gray-50 rounded animate-pulse" />;
+  if (!data || data.length === 0) return <p className="text-sm text-gray-400 text-center py-4">No scheduled tasks yet - use the scheduler above to create one.</p>;
+
+  return (
+    <div className="space-y-2">
+      {data.map(task => (
+        <div key={task.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-gray-900 capitalize">{task.agent_name?.replace(/_/g, ' ')}</span>
+              <span className="text-xs text-gray-500">{task.frequency}{task.day_of_week !== null ? ' on ' + ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][task.day_of_week] : ''}{task.day_of_month ? ' day ' + task.day_of_month : ''}{task.time_of_day ? ' at ' + task.time_of_day : ''}{task.interval_hours ? ' every ' + task.interval_hours + 'h' : ''}</span>
+            </div>
+            <p className="text-sm text-gray-700 truncate mt-0.5">{task.task_description}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button type="button" onClick={() => toggleTask.mutate(task.id)}
+              className={'text-xs px-2 py-1 rounded-full ' + (task.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500')}>
+              {task.enabled ? 'On' : 'Off'}
+            </button>
+            {confirmDelete === task.id ? (
+              <div className="flex gap-1">
+                <button type="button" onClick={() => deleteTask.mutate(task.id)} className="text-xs text-red-600 hover:underline">Confirm</button>
+                <button type="button" onClick={() => setConfirmDelete(null)} className="text-xs text-gray-500 hover:underline">No</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setConfirmDelete(task.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function NlSchedulerForm() {
   const { success, error: showError } = useNotifications();
   const queryClient = useQueryClient();
@@ -361,6 +418,10 @@ export default function MissionControl() {
         <div className="p-5">
           <p className="text-sm text-gray-500 mb-3">Describe a recurring task in plain English. Example: <em>"Every Monday at 7am, have ORACLE send me membership count"</em></p>
           <NlSchedulerForm />
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Existing Scheduled Tasks</h3>
+            <ScheduledTasksList />
+          </div>
         </div>
       </div>
 

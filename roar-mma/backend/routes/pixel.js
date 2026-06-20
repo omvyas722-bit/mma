@@ -182,6 +182,38 @@ Return JSON: { caption (the post text), hashtags (comma-separated), best_time_to
   }
 });
 
+// List known pixel IDs
+router.get('/list', authenticateToken, requirePermission('reports:read'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const pixels = db.prepare(`
+      SELECT pixel_id, COUNT(*) as event_count, MAX(created_at) as last_event,
+        MIN(created_at) as first_event,
+        COUNT(DISTINCT DATE(created_at)) as active_days
+      FROM pixel_events GROUP BY pixel_id ORDER BY last_event DESC
+    `).all();
+    res.json(pixels);
+  } catch (err) {
+    console.error('[PIXEL] List error:', err.message);
+    res.status(500).json({ error: 'Failed to list pixels' });
+  }
+});
+
+// Create a new pixel ID
+router.post('/create', authenticateToken, requirePermission('reports:write'), (req, res) => {
+  try {
+    const { name } = req.body;
+    const { randomUUID } = require('crypto');
+    const pixelId = randomUUID();
+    const db = getDatabase();
+    db.prepare(`INSERT INTO pixel_config (id, name, created_by) VALUES (?, ?, ?)`).run(pixelId, name || 'Untitled Pixel', req.user?.userId || null);
+    res.json({ pixel_id: pixelId, name: name || 'Untitled Pixel' });
+  } catch (err) {
+    console.error('[PIXEL] Create error:', err.message);
+    res.status(500).json({ error: 'Failed to create pixel' });
+  }
+});
+
 // Get pixel code snippet (for embedding)
 router.get('/snippet/:pixelId', authenticateToken, requirePermission('reports:read'), (req, res) => {
   const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;

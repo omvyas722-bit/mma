@@ -337,4 +337,64 @@ router.post('/:id/check-in', authenticateToken, requirePermission('attendance:up
   }
 });
 
+// Update class template and propagate to all future instances
+router.put('/:id/propagate', authenticateToken, requirePermission('classes:update'), auditLog('propagate', 'class', { getMeta: (req) => ({ class_id: req.params.id, changes: JSON.stringify(req.body) }) }), (req, res) => {
+  try {
+    const classInfo = classesData.getClassById(req.params.id);
+    if (!classInfo) return res.status(404).json({ error: 'Class not found' });
+
+    const allowedFields = ['name', 'description', 'location', 'day_of_week', 'start_time', 'end_time', 'max_capacity', 'class_type', 'instructor_id', 'active', 'min_belt', 'fighter_only'];
+    const updateData = {};
+    if (req.body.capacity !== undefined && !allowedFields.includes('capacity')) updateData.max_capacity = req.body.capacity;
+    if (req.body.coach_id !== undefined && !allowedFields.includes('coach_id')) updateData.instructor_id = req.body.coach_id;
+    allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+
+    const oldClass = { ...classInfo };
+    const updatedClass = classesData.updateClass(req.params.id, updateData);
+
+    // Propagate to all future instances
+    const db = getDatabase();
+    const futureInstances = db.prepare("SELECT id FROM class_instances WHERE class_id = ? AND date >= date('now') AND status = 'scheduled'").all(req.params.id);
+    const propagateFields = ['start_time', 'end_time', 'coach_id'];
+    for (const inst of futureInstances) {
+      const instUpdate = {};
+      if (updateData.start_time) instUpdate.start_time = updateData.start_time;
+      if (updateData.end_time) instUpdate.end_time = updateData.end_time;
+      if (updateData.instructor_id) instUpdate.coach_id = updateData.instructor_id;
+      if (updateData.max_capacity) instUpdate.capacity = updateData.max_capacity;
+      if (Object.keys(instUpdate).length > 0) {
+        classesData.updateClassInstance(inst.id, instUpdate);
+      }
+    }
+
+    res.json({
+      template: updatedClass,
+      instances_updated: futureInstances.length,
+      diff: Object.keys(updateData).reduce((acc, k) => {
+        const oldVal = oldClass[k] ?? oldClass[k === 'instructor_id' ? 'coach_id' : k === 'max_capacity' ? 'capacity' : null];
+        if (oldVal !== undefined && oldVal != updateData[k]) {
+          acc[k] = { from: oldVal, to: updateData[k] };
+        }
+        return acc;
+      }, {})
+    });
+  } catch (error) {
+    console.error('Error propagating class changes:', error);
+    res.status(500).json({ error: 'Failed to propagate class changes' });
+  }
+});
+
+// Get all templates
+router.get('/templates', authenticateToken, requirePermission('classes:read'), (req, res) => {
+  try {
+    const filters = {};
+    if (req.query.location) filters.location = req.query.location;
+    if (req.query.class_type) filters.class_type = req.query.class_type;
+    const templates = getAllClasses(filters);
+    res.json({ templates });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
 module.exports = router;

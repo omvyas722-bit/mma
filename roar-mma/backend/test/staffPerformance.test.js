@@ -26,7 +26,18 @@ before(() => {
     CREATE TABLE IF NOT EXISTS staff_tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT, completed_by INTEGER,
       status TEXT, completed_at TEXT, task_type TEXT, title TEXT
-    )
+    );
+    CREATE TABLE IF NOT EXISTS class_instances (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, class_id INTEGER, coach_id INTEGER,
+      date TEXT, start_time TEXT, capacity INTEGER DEFAULT 20, status TEXT DEFAULT 'scheduled'
+    );
+    CREATE TABLE IF NOT EXISTS bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, member_id INTEGER,
+      class_instance_id INTEGER, status TEXT
+    );
+    CREATE TABLE IF NOT EXISTS classes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, class_type TEXT, location TEXT
+    );
   `);
   db.exec(`
     INSERT INTO staff (id, name, role, active) VALUES (1, 'Coach Bob', 'coach', 1), (2, 'Coach Sam', 'coach', 1);

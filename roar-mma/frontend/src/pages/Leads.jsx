@@ -36,6 +36,9 @@ export default function Leads() {
   const [stageFilter, setStageFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [dragState, setDragState] = useState(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState(new Set());
+  const [bulkStatusTarget, setBulkStatusTarget] = useState('');
 
   const { data: leadsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['leads', { search, stage: stageFilter, source: sourceFilter, location: selectedLocation }],
@@ -77,6 +80,18 @@ export default function Leads() {
     mutationFn: ({ id, reason }) => api.post(`/api/leads/${id}/lost`, { lost_reason: reason }),
     onSuccess: () => { invalidateLeads(); setDetailLead(null); success('Lead marked as lost'); },
     onError: () => error('Failed to mark lead lost'),
+  });
+
+  const bulkDeleteLeads = useMutation({
+    mutationFn: (ids) => api.post('/api/leads/bulk/delete', { ids, confirm: true }),
+    onSuccess: (data) => { invalidateLeads(); setBulkSelected(new Set()); setBulkMode(false); success(`${data.deleted} leads deleted`); },
+    onError: () => error('Failed to delete leads'),
+  });
+
+  const bulkUpdateLeads = useMutation({
+    mutationFn: ({ ids, data }) => api.post('/api/leads/bulk-update', { ids, data }),
+    onSuccess: (data) => { invalidateLeads(); setBulkSelected(new Set()); setBulkStatusTarget(''); success(`${data.updated} leads updated`); },
+    onError: () => error('Failed to update leads'),
   });
 
   const grouped = STAGES.reduce((acc, s) => { acc[s] = leads.filter(l => l.stage === s); return acc; }, {});
@@ -125,6 +140,30 @@ export default function Leads() {
 
       {tab === 'analytics' ? <LeadsAnalytics location={selectedLocation} /> : (
         <>
+          {/* Bulk mode toggle + actions */}
+          <div className="flex items-center justify-between mb-3">
+            {!bulkMode ? (
+              <button type="button" onClick={() => setBulkMode(true)} className="text-xs text-blue-600 border border-blue-200 px-3 py-1 rounded hover:bg-blue-50">Select Multiple</button>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-blue-800 font-medium">{bulkSelected.size} selected</span>
+                <button type="button" onClick={() => { exportCSV(leads.filter(l => bulkSelected.has(l.id))); setBulkSelected(new Set()); }} disabled={bulkSelected.size === 0}
+                  className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 disabled:opacity-40">Export</button>
+                <select value={bulkStatusTarget} onChange={e => setBulkStatusTarget(e.target.value)} className="input text-xs w-32" disabled={bulkSelected.size === 0}>
+                  <option value="">Change stage...</option>
+                  <option value="contacted">Contacted</option><option value="trial_booked">Trial Booked</option>
+                  <option value="trial_completed">Trial Done</option><option value="converted">Converted</option>
+                </select>
+                <button type="button" onClick={() => { if (bulkStatusTarget && bulkSelected.size > 0) bulkUpdateLeads.mutate({ ids: [...bulkSelected], data: { stage: bulkStatusTarget } }); }}
+                  disabled={!bulkStatusTarget || bulkSelected.size === 0 || bulkUpdateLeads.isPending}
+                  className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 disabled:opacity-40">{bulkUpdateLeads.isPending ? 'Updating...' : 'Apply'}</button>
+                <button type="button" onClick={() => { if (confirm(`Delete ${bulkSelected.size} leads?`)) bulkDeleteLeads.mutate([...bulkSelected]); }} disabled={bulkSelected.size === 0 || bulkDeleteLeads.isPending}
+                  className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 disabled:opacity-40">{bulkDeleteLeads.isPending ? 'Deleting...' : 'Delete'}</button>
+                <button type="button" onClick={() => { setBulkMode(false); setBulkSelected(new Set()); }} className="text-xs text-gray-600 hover:underline">Cancel</button>
+              </div>
+            )}
+          </div>
+
           {/* Filters */}
           <div className="bg-white rounded-lg shadow p-4 mb-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -171,8 +210,10 @@ export default function Leads() {
                       <p className="text-xs text-gray-400 text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">No leads in this stage</p>
                     ) : (grouped[stage] || []).map(lead => (
                       <LeadCard key={lead.id} lead={lead} status={getLeadStatus(lead)}
-                        onClick={() => setDetailLead(lead)} onDelete={() => setDeletingLead(lead)}
-                        onTrack={() => { setTrackingLead(lead); }} onConvert={() => convertLead.mutate(lead.id)} />
+                        onClick={() => { if (bulkMode) { const s = new Set(bulkSelected); s.has(lead.id) ? s.delete(lead.id) : s.add(lead.id); setBulkSelected(s); } else setDetailLead(lead); }}
+                        onDelete={() => setDeletingLead(lead)}
+                        onTrack={() => { setTrackingLead(lead); }} onConvert={() => convertLead.mutate(lead.id)}
+                        selected={bulkSelected.has(lead.id)} bulkMode={bulkMode} />
                     ))}
                   </div>
                   {stage === 'new' && (
@@ -197,28 +238,30 @@ export default function Leads() {
   );
 }
 
-function LeadCard({ lead, onClick, onDelete, onTrack, onConvert, status }) {
+function LeadCard({ lead, onClick, onDelete, onTrack, onConvert, status, selected, bulkMode }) {
   const score = lead.score || 0;
   const priority = getScorePriority(score);
 
   const statusBorders = { overdue: 'ring-2 ring-red-400', cold: 'ring-2 ring-gray-300', recent: 'ring-2 ring-green-300' };
 
   const handleDragStart = (e) => {
+    if (bulkMode) { e.preventDefault(); return; }
     e.dataTransfer.setData('leadId', String(lead.id));
     e.dataTransfer.effectAllowed = 'move';
   };
 
   return (
     <div
-      draggable
+      draggable={!bulkMode}
       onDragStart={handleDragStart}
-      className={`bg-white rounded-lg shadow-sm border-l-4 ${SCORE_COLORS[priority] || 'border-gray-300'} p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${statusBorders[status] || ''}`}
+      className={`bg-white rounded-lg shadow-sm border-l-4 ${selected ? 'border-blue-500 ring-2 ring-blue-300' : SCORE_COLORS[priority] || 'border-gray-300'} p-3 ${bulkMode ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} hover:shadow-md transition-shadow ${statusBorders[status] || ''}`}
       onClick={onClick}
       role="button" tabIndex={0} aria-label={`${lead.first_name} ${lead.last_name}, score ${score}`}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
     >
       <div className="flex items-start justify-between mb-1">
-        <span className="text-sm font-medium text-gray-900 truncate">
+        <span className="text-sm font-medium text-gray-900 truncate flex items-center gap-1.5">
+          {bulkMode && <input type="checkbox" checked={selected} onChange={() => {}} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" aria-label={`Select ${lead.first_name} ${lead.last_name}`} />}
           {score > 80 && <span className="mr-1" title="Hot lead">🔥</span>}
           {status === 'recent' && <span className="mr-1" title="Recently active">⚡</span>}
           {lead.first_name} {lead.last_name}
@@ -449,6 +492,18 @@ function EditModal({ isOpen, onClose, lead }) {
       </div>
     </div>
   );
+}
+
+function exportCSV(leads) {
+  if (!leads.length) return;
+  const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Source', 'Stage', 'Location', 'Created'];
+  const rows = leads.map(l => [l.first_name, l.last_name, l.email, l.phone, l.source, l.stage, l.location, l.created_at].map(v => `"${v || ''}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'leads.csv'; a.click();
+  URL.revokeObjectURL(url);
 }
 
 function LeadDetail({ lead, onClose, onEdit, onTrack, onConvert, onMarkLost, onDelete, onStageChange }) {

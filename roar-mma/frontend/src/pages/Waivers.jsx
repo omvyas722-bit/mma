@@ -49,6 +49,19 @@ export default function Waivers() {
   });
   const memberWaiversList = memberWaiversData?.waivers || [];
 
+  const { data: pendingParentData } = useQuery({
+    queryKey: ['pending-parent', memberId],
+    queryFn: async () => { const r = await api.get(`/api/waivers/member/${memberId}/pending-parent`); return r; },
+    enabled: !!memberId,
+    staleTime: 5000,
+  });
+
+  const resendPending = useMutation({
+    mutationFn: (data) => api.post(`/api/waivers/member/${memberId}/pending-parent/resend`, data),
+    onSuccess: () => { success('Parent waiver link resent'); queryClient.invalidateQueries({ queryKey: ['pending-parent', memberId] }); },
+    onError: (err) => error(err?.response?.data?.error || err?.error || 'Failed to resend'),
+  });
+
   const isUnder18 = memberData?.date_of_birth && new Date(memberData.date_of_birth) > new Date(Date.now() - 18 * 365 * 86400000);
 
   const sendParentLink = useMutation({
@@ -196,46 +209,87 @@ export default function Waivers() {
               <button type="button" onClick={() => setMemberId(parseInt(memberSearch, 10))} className="btn-primary text-sm" disabled={!memberSearch}>Search</button>
             </div>
             {memberId && isUnder18 && (
-              <div className="mt-3 flex gap-2">
-                <button type="button" onClick={() => { setParentEmailMember(memberData); setParentEmail(memberData?.email || ''); }}
-                  className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium">
-                  Email Waiver to Parent
-                </button>
-                <button type="button" onClick={() => setShowSignForMinor(true)}
-                  className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 font-medium">
-                  Sign Now (Parent Present)
-                </button>
+              <div className="mt-3 space-y-2">
+                {!waiversLoading && memberWaiversList.length === 0 && !pendingParentData?.active?.length && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
+                    <p className="text-sm font-medium text-yellow-800">Parent waiver required</p>
+                    <p className="text-xs text-yellow-600 mb-2">{memberData?.first_name} is under 18 and needs a parent/guardian waiver.</p>
+                    <button type="button" onClick={() => { setParentEmailMember(memberData); setParentEmail(memberData?.email || ''); }}
+                      className="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded hover:bg-yellow-600 font-medium">Send Waiver to Parent</button>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setParentEmailMember(memberData); setParentEmail(memberData?.email || ''); }}
+                    className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium">
+                    Email Waiver to Parent
+                  </button>
+                  <button type="button" onClick={() => setShowSignForMinor(true)}
+                    className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 font-medium">
+                    Sign Now (Parent Present)
+                  </button>
+                </div>
               </div>
             )}
           </div>
           {memberId && (
-            waiversLoading ? (
-              <p className="text-sm text-gray-500">Loading waivers...</p>
-            ) : memberWaiversList.length === 0 ? (
-              <p className="text-sm text-gray-500">No signed waivers for this member.</p>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Template</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Signed At</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {memberWaiversList.map(w => (
-                    <tr key={w.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => alert(w.body_text || 'Waiver content not available')}>
-                      <td className="px-4 py-2 text-sm text-gray-900">{w.template_name}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{new Date(w.signed_at).toLocaleString()}</td>
-                      <td className="px-4 py-2 text-sm">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); alert(w.body_text || 'Waiver content not available'); }} className="text-red-600 hover:underline mr-2">View</button>
-                        <button type="button" onClick={(e) => handleDownloadPdf(w, e)} className="btn-outline text-xs">Download PDF</button>
-                      </td>
+            <>
+              {/* Pending parent signature status */}
+              {pendingParentData && (pendingParentData.active?.length > 0 || pendingParentData.expired?.length > 0) && (
+                <div className="mb-4 space-y-2">
+                  {pendingParentData.active?.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800">Parent Waiver Pending</p>
+                        <p className="text-xs text-yellow-600">{pendingParentData.active.length} link{pendingParentData.active.length > 1 ? 's' : ''} sent — waiting for parent signature</p>
+                      </div>
+                      <button type="button" onClick={() => { setParentEmailMember(memberData); setParentEmail(memberData?.email || ''); }}
+                        className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded hover:bg-yellow-200 font-medium">Resend</button>
+                    </div>
+                  )}
+                  {pendingParentData.expired?.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-sm font-medium text-red-800">Parent Waiver Link Expired</p>
+                        <p className="text-xs text-red-600">{pendingParentData.expired.length} link{pendingParentData.expired.length > 1 ? 's' : ''} expired — send a new one</p>
+                      </div>
+                      <button type="button" onClick={() => resendPending.mutate({ parent_email: memberData?.email || '', template_id: templates?.[0]?.id })}
+                        disabled={resendPending.isPending}
+                        className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 font-medium">{resendPending.isPending ? 'Sending...' : 'Send New Link'}</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {waiversLoading ? (
+                <p className="text-sm text-gray-500">Loading waivers...</p>
+              ) : memberWaiversList.length === 0 ? (
+                <p className="text-sm text-gray-500">No signed waivers for this member.</p>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Template</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Signed At</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Guardian</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {memberWaiversList.map(w => (
+                      <tr key={w.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => alert(w.body_text || 'Waiver content not available')}>
+                        <td className="px-4 py-2 text-sm text-gray-900">{w.template_name}</td>
+                        <td className="px-4 py-2 text-sm text-gray-500">{new Date(w.signed_at).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-sm text-gray-500">{w.guardian_name ? `${w.guardian_name} (${w.guardian_relation || 'guardian'})` : '—'}</td>
+                        <td className="px-4 py-2 text-sm">
+                          <button type="button" onClick={(e) => { e.stopPropagation(); alert(w.body_text || 'Waiver content not available'); }} className="text-red-600 hover:underline mr-2">View</button>
+                          <button type="button" onClick={(e) => handleDownloadPdf(w, e)} className="btn-outline text-xs">Download PDF</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
           )}
         </div>
       )}

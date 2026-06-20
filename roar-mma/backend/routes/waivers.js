@@ -344,6 +344,62 @@ router.post('/parent-sign/:token', kioskLimiter, (req, res) => {
   }
 });
 
+// ── Get pending parent signatures for a member ──
+router.get('/member/:memberId/pending-parent', auth.authenticateToken, auth.requireRole('owner', 'gm', 'front_desk'), (req, res) => {
+  try {
+    const pending = pendingParentSignatures.getPendingByMember(parseInt(req.params.memberId, 10));
+    const expired = pending.filter(p => new Date(p.expires_at) < new Date());
+    const active = pending.filter(p => new Date(p.expires_at) >= new Date());
+    res.json({ active, expired, total: pending.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Resend expired parent waiver link ──
+router.post('/member/:memberId/pending-parent/resend', auth.authenticateToken, auditLog('resend_parent_link', 'waiver'), auth.requireRole('owner', 'gm', 'front_desk'), (req, res) => {
+  try {
+    const { parent_email, template_id } = req.body;
+    const memberId = parseInt(req.params.memberId, 10);
+    const db = getDatabase();
+    const member = db.prepare('SELECT id, first_name, last_name, email FROM members WHERE id = ?').get(memberId);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+
+    const tplId = template_id || db.prepare("SELECT id FROM waiver_templates WHERE active = 1 ORDER BY id DESC LIMIT 1").get()?.id;
+    if (!tplId) return res.status(400).json({ error: 'No active waiver template' });
+
+    const email = parent_email || member.email;
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 86400000).toISOString();
+
+    pendingParentSignatures.create({ member_id: memberId, template_id: tplId, parent_email: email, token, expires_at: expiresAt });
+
+    if (!messagingProviders._loaded) messagingProviders.loadSettings();
+
+    const link = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/parent-sign/${token}`;
+    const subject = `Please sign waiver for ${member.first_name} ${member.last_name} - ROAR MMA`;
+    const body = `
+      <div style="font-family:Arial;max-width:600px;margin:0 auto;padding:20px;">
+        <h2>Parent Waiver Signature Required</h2>
+        <p>Dear Parent/Guardian,</p>
+        <p><strong>${member.first_name} ${member.last_name}</strong> needs a parent or guardian to sign their waiver.</p>
+        <p>Please click the link below to review and sign the waiver:</p>
+        <p style="text-align:center;margin:30px 0;">
+          <a href="${link}" style="background:#dc2626;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;display:inline-block;">Sign Waiver Now</a>
+        </p>
+        <p>This link will expire in 7 days.</p>
+        <p>— ROAR MMA Team</p>
+      </div>
+    `;
+    messagingProviders.sendEmail(email, subject, body).catch(err => console.error('Failed to resend parent waiver email:', err));
+
+    res.status(201).json({ message: 'Parent waiver link resent' });
+  } catch (error) {
+    console.error('Resend parent link error:', error);
+    res.status(500).json({ error: 'Failed to resend parent waiver link' });
+  }
+});
+
 // ── Waiver Analytics (auth required) ──
 router.get('/analytics', auth.authenticateToken, auditLog('view', 'waiver'), auth.requireRole('owner', 'gm', 'front_desk'), (req, res) => {
   try {

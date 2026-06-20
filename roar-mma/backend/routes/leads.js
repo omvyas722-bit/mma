@@ -107,6 +107,33 @@ router.post('/bulk/delete', authenticateToken, requirePermission('leads:delete')
   }
 });
 
+// Bulk update leads
+router.post('/bulk-update', authenticateToken, requirePermission('leads:update'), (req, res) => {
+  try {
+    const { ids, data } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array required' });
+    if (!data || typeof data !== 'object') return res.status(400).json({ error: 'data object required' });
+    if (ids.length > 500) return res.status(400).json({ error: 'Maximum 500 leads per operation' });
+
+    const allowed = ['stage', 'source', 'location', 'interest_level', 'assigned_to', 'notes'];
+    const updateData = {};
+    allowed.forEach(f => { if (data[f] !== undefined) updateData[f] = data[f]; });
+    if (Object.keys(updateData).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+
+    const results = []; const errors = [];
+    for (const id of ids) {
+      try {
+        const lead = leadsData.getLeadById(id);
+        if (!lead) { errors.push({ id, error: 'Lead not found' }); continue; }
+        results.push(leadsData.updateLead(id, { ...updateData }));
+      } catch (err) { errors.push({ id, error: err.message }); }
+    }
+    res.json({ updated: results.length, errors, leads: results });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to bulk update leads' });
+  }
+});
+
 // Get single lead by ID
 router.get('/:id', authenticateToken, requirePermission('leads:read'), (req, res) => {
   try {
@@ -184,6 +211,13 @@ router.post('/', authenticateToken, requirePermission('leads:create'), auditLog(
       console.error('Failed to schedule instant response:', err);
       // Don't fail lead creation if scheduling fails
     }
+
+    // Notify staff of new lead
+    try {
+      const notifService = require('../services/notificationService');
+      notifService.broadcast('new_lead', `New lead: ${lead.first_name} ${lead.last_name}`,
+        `${lead.first_name} ${lead.last_name} - ${lead.source || 'unknown source'}`, '/leads');
+    } catch (e) {}
 
     res.status(201).json(lead);
   } catch (error) {

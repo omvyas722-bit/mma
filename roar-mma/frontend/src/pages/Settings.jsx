@@ -141,6 +141,11 @@ export default function Settings() {
             onClick={() => setActiveTab('roles')}
             label="Roles"
           />
+          <TabButton
+            active={activeTab === 'tracking'}
+            onClick={() => setActiveTab('tracking')}
+            label="Tracking"
+          />
         </nav>
       </div>
 
@@ -185,6 +190,7 @@ export default function Settings() {
         {activeTab === 'api-keys' && <ApiKeysSettings />}
         {activeTab === 'webhooks' && <WebhooksSettings />}
         {activeTab === 'roles' && <RolePermissionsSettings data={formData.roles || {}} onChange={(field, value) => handleChange('roles', field, value)} />}
+        {activeTab === 'tracking' && <PixelTrackingSettings />}
       </div>
     </div>
   );
@@ -1067,6 +1073,132 @@ function RolePermissionsSettings({ data, onChange }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function PixelTrackingSettings() {
+  const { success, error } = useNotifications();
+  const queryClient = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [pixelName, setPixelName] = useState('');
+  const [newPixelId, setNewPixelId] = useState('');
+  const [selectedPixel, setSelectedPixel] = useState(null);
+
+  const { data: pixels = [], isLoading } = useQuery({
+    queryKey: ['pixels'],
+    queryFn: async () => { const r = await api.get('/api/pixel/list'); return r.data; },
+    staleTime: 10000,
+  });
+
+  const createPixel = useMutation({
+    mutationFn: (name) => api.post('/api/pixel/create', { name }),
+    onSuccess: (res) => { setNewPixelId(res.data.pixel_id); setShowCreate(false); setPixelName(''); success('Pixel created'); queryClient.invalidateQueries({ queryKey: ['pixels'] }); },
+    onError: () => error('Failed to create pixel'),
+  });
+
+  const { data: snippetData } = useQuery({
+    queryKey: ['pixel-snippet', selectedPixel],
+    queryFn: async () => { const r = await api.get(`/api/pixel/snippet/${selectedPixel}`); return r.data; },
+    enabled: !!selectedPixel,
+  });
+
+  const { data: analytics, isLoading: alLoading } = useQuery({
+    queryKey: ['pixel-analytics', selectedPixel],
+    queryFn: async () => { const r = await api.get('/api/pixel/analytics', { params: { days: 30 } }); return r.data; },
+    enabled: !!selectedPixel,
+  });
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    success('Copied to clipboard');
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Tracking Pixels</h2>
+        <button type="button" onClick={() => setShowCreate(true)} className="btn-primary text-sm">+ New Pixel</button>
+      </div>
+      <p className="text-sm text-gray-500">Create and manage tracking pixels to monitor website traffic and campaign conversions.</p>
+
+      {newPixelId && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-yellow-800">New Pixel Created</p>
+          <p className="text-xs font-mono break-all text-yellow-700 mt-1 bg-yellow-100 p-2 rounded">{newPixelId}</p>
+          <p className="text-xs text-red-600 mt-1">⚠ Save this ID - it will not be shown again.</p>
+          <button onClick={() => setNewPixelId('')} className="text-xs text-yellow-700 underline mt-1">Dismiss</button>
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="border border-gray-200 rounded-lg p-4 space-y-3 max-w-sm">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Pixel Name</label>
+            <input type="text" value={pixelName} onChange={e => setPixelName(e.target.value)} className="input" placeholder="e.g. Landing Page Pixel" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => createPixel.mutate(pixelName || 'Untitled Pixel')} disabled={createPixel.isPending} className="btn-primary text-sm">{createPixel.isPending ? 'Creating...' : 'Create'}</button>
+            <button onClick={() => setShowCreate(false)} className="btn-outline text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Pixels list */}
+      {isLoading ? (
+        <div className="text-sm text-gray-400">Loading...</div>
+      ) : pixels.length === 0 ? (
+        <p className="text-sm text-gray-400">No tracking pixels yet. Create one to start tracking.</p>
+      ) : (
+        <div className="space-y-3">
+          {pixels.map(p => (
+            <div key={p.pixel_id} className={`border rounded-lg p-4 cursor-pointer transition-colors ${selectedPixel === p.pixel_id ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}
+              onClick={() => setSelectedPixel(selectedPixel === p.pixel_id ? null : p.pixel_id)}>
+              <div className="flex items-center justify-between mb-1">
+                <p className="font-medium text-gray-900 text-sm font-mono text-xs">ID: {p.pixel_id.slice(0, 8)}…{p.pixel_id.slice(-4)}</p>
+                <span className="text-xs text-gray-500">{p.event_count} events</span>
+              </div>
+              <div className="flex gap-3 text-xs text-gray-500">
+                <span>Active days: {p.active_days}</span>
+                {p.last_event && <span>Last: {new Date(p.last_event).toLocaleDateString()}</span>}
+              </div>
+              {selectedPixel === p.pixel_id && snippetData && (
+                <div className="mt-3 border-t pt-3 space-y-3">
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-700 mb-1">Embed Snippet</h4>
+                    <div className="relative">
+                      <pre className="bg-gray-900 text-green-400 text-xs p-3 rounded-lg overflow-x-auto max-h-32 font-mono">{snippetData.snippet}</pre>
+                      <button onClick={() => copyToClipboard(snippetData.snippet)} className="absolute top-1 right-1 bg-gray-700 text-white text-xs px-2 py-0.5 rounded hover:bg-gray-600">Copy</button>
+                    </div>
+                  </div>
+                  {analytics && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">Analytics (30 days)</h4>
+                      <div className="grid grid-cols-3 gap-2 mb-2">
+                        <div className="bg-blue-50 rounded p-2 text-center"><p className="text-lg font-bold text-blue-700">{analytics.totals?.today || 0}</p><p className="text-[10px] text-blue-600">Today</p></div>
+                        <div className="bg-green-50 rounded p-2 text-center"><p className="text-lg font-bold text-green-700">{analytics.totals?.week || 0}</p><p className="text-[10px] text-green-600">This Week</p></div>
+                        <div className="bg-purple-50 rounded p-2 text-center"><p className="text-lg font-bold text-purple-700">{analytics.totals?.month || 0}</p><p className="text-[10px] text-purple-600">This Month</p></div>
+                      </div>
+                      {analytics.events?.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead><tr className="bg-gray-50 text-left"><th className="px-2 py-1 text-gray-500">Event Type</th><th className="px-2 py-1 text-gray-500 text-right">Count</th><th className="px-2 py-1 text-gray-500 text-right">Value</th></tr></thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {analytics.events.map(e => (
+                                <tr key={e.event_type}><td className="px-2 py-1 text-gray-900">{e.event_type}</td><td className="px-2 py-1 text-right text-gray-700">{e.count}</td><td className="px-2 py-1 text-right text-gray-700">{parseFloat(e.total_value || 0).toFixed(2)}</td></tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

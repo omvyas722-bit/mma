@@ -25,6 +25,8 @@ before(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT, first_name TEXT NOT NULL, last_name TEXT NOT NULL,
       email TEXT, phone TEXT NOT NULL, source TEXT, stage TEXT DEFAULT 'new', interest_level TEXT,
       location TEXT, assigned_to INTEGER, referrer_member_id INTEGER, trial_interest_level TEXT, trial_experience_rating INTEGER,
+      utm_source TEXT, utm_medium TEXT, utm_campaign TEXT,
+      score INTEGER DEFAULT 0, score_updated_at DATETIME, score_factors TEXT,
       last_contact_date TEXT, created_at DATETIME DEFAULT (datetime('now')),
       updated_at DATETIME DEFAULT (datetime('now'))
     );

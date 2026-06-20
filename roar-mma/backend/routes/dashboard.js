@@ -102,6 +102,11 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
     `).get(today);
     const classFillPct = classFillRow?.fill_pct != null ? Math.round(classFillRow.fill_pct) : null;
 
+    // Goal progress
+    const newMembersThisMonth = db.prepare("SELECT COUNT(*) as c FROM members WHERE status = 'active' AND DATE(joined_date) >= ?").get(monthStartStr).c;
+    const goalTargetSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'monthly_goal_target'").get();
+    const goalTarget = goalTargetSetting ? parseInt(goalTargetSetting.value, 10) : 30;
+
     // Goal sub-metrics
     const trialsThisMonth = db.prepare("SELECT COUNT(*) as c FROM members WHERE status = 'trial'").get().c;
     const referralsThisMonth = db.prepare("SELECT COUNT(*) as c FROM members WHERE referred_by IS NOT NULL AND DATE(joined_date) >= ?").get(monthStartStr).c;
@@ -294,6 +299,10 @@ router.get('/', authenticateToken, requirePermission('dashboard:read'), (req, re
           delta: null
         }
       },
+      goal_progress: {
+        current: newMembersThisMonth,
+        target: goalTarget
+      },
       goal_sub_metrics: {
         trials: trialsThisMonth,
         conversion_rate: conversionRate,
@@ -466,6 +475,20 @@ router.get('/revenue-forecast', authenticateToken, requirePermission('dashboard:
   } catch (error) {
     console.error('Error forecasting revenue:', error);
     res.status(500).json({ error: 'Failed to forecast revenue' });
+  }
+});
+
+// Update goal target setting
+router.put('/goal-target', authenticateToken, requirePermission('settings:manage'), (req, res) => {
+  try {
+    const { target } = req.body;
+    if (!target || target < 1) return res.status(400).json({ error: 'Target must be a positive number' });
+    const db = getDatabase();
+    db.prepare("INSERT OR REPLACE INTO system_settings (key, value, description, updated_at) VALUES ('monthly_goal_target', ?, 'Monthly membership goal target', datetime('now'))").run(String(target));
+    res.json({ success: true, target: parseInt(target, 10) });
+  } catch (error) {
+    console.error('Error updating goal target:', error);
+    res.status(500).json({ error: 'Failed to update goal target' });
   }
 });
 

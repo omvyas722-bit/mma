@@ -227,13 +227,29 @@ function POSScreen() {
 }
 
 function ReceiptPreview({ receipt, onClose }) {
+  const queryClient = useQueryClient();
+  const { success, error } = useNotifications();
   const printRef = useRef(null);
-  const handlePrint = () => { const w = window.open('', '_blank'); w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;padding:20px;max-width:280px;margin:auto}table{width:100%;border-collapse:collapse}th,td{padding:4px 0;text-align:left}hr{border:none;border-top:1px dashed #000}.total{font-weight:bold;font-size:14px}.center{text-align:center}.right{text-align:right}</style></head><body>${printRef.current?.innerHTML}</body></html>`); w.document.close(); w.print(); };
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const handlePrint = () => { const w = window.open('', '_blank'); w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;padding:20px;max-width:280px;margin:auto}table{width:100%;border-collapse:collapse}th,td{padding:4px 0;text-align:left}hr{border:none;border-top:1px dashed #000}.total{font-weight:bold;font-size:14px}.center{text-align:center}</style></head><body>${printRef.current?.innerHTML}</body></html>`); w.document.close(); w.print(); };
+
+  const handleEmail = async () => {
+    if (!receipt.transaction_id || !receipt.member_email) { error('No email on file'); return; }
+    setSendingEmail(true);
+    try {
+      await api.post(`/api/transactions/${receipt.transaction_id}/email-receipt`);
+      success('Receipt emailed');
+    } catch (err) { error('Failed to email receipt'); }
+    finally { setSendingEmail(false); }
+  };
+
   if (!receipt) return null;
   return (
     <div className="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50 text-xs font-mono">
       <div ref={printRef}>
         <div className="text-center mb-3"><p className="font-bold text-sm">ROAR MMA</p><p className="text-gray-500">{new Date(receipt.sold_at).toLocaleString()}</p></div>
+        {receipt.member_name && <p className="text-center text-xs text-gray-600 mb-2">Member: {receipt.member_name}</p>}
         <hr className="border-dashed my-2" />
         <table className="w-full text-xs mb-2"><thead><tr className="text-gray-500"><th className="text-left">Item</th><th className="text-right">Qty</th><th className="text-right">Price</th></tr></thead>
           <tbody>{receipt.items?.map((item, i) => <tr key={i}><td>{item.product_name}</td><td className="text-right">{item.quantity}</td><td className="text-right">${(item.unit_price * item.quantity).toFixed(2)}</td></tr>)}</tbody>
@@ -249,7 +265,8 @@ function ReceiptPreview({ receipt, onClose }) {
         <p className="text-gray-400 text-center text-[10px] mt-1">Thank you for your support!</p>
       </div>
       <div className="flex gap-2 mt-3">
-        <button onClick={handlePrint} className="flex-1 bg-gray-800 text-white py-1.5 rounded text-xs hover:bg-gray-700">🖨 Print</button>
+        <button onClick={handlePrint} className="flex-1 bg-gray-800 text-white py-1.5 rounded text-xs hover:bg-gray-700">Print</button>
+        {receipt.member_email && <button onClick={handleEmail} disabled={sendingEmail} className="flex-1 bg-blue-600 text-white py-1.5 rounded text-xs hover:bg-blue-700 disabled:opacity-40">{sendingEmail ? 'Sending...' : 'Email Receipt'}</button>}
         <button onClick={onClose} className="flex-1 bg-gray-100 text-gray-600 py-1.5 rounded text-xs hover:bg-gray-200">Close</button>
       </div>
     </div>

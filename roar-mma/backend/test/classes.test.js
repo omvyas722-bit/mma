@@ -16,11 +16,11 @@ before(() => {
       name TEXT NOT NULL,
       description TEXT,
       class_type TEXT NOT NULL,
-      coach_id INTEGER,
+      instructor_id INTEGER,
       day_of_week INTEGER,
       start_time TIME NOT NULL,
-      duration_minutes INTEGER DEFAULT 60,
-      capacity INTEGER DEFAULT 20,
+      end_time TIME,
+      max_capacity INTEGER DEFAULT 20,
       location TEXT,
       active INTEGER DEFAULT 1,
       min_belt TEXT,
@@ -63,6 +63,27 @@ before(() => {
       booked_at DATETIME DEFAULT (datetime('now')),
       created_at DATETIME DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS belt_levels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      color TEXT,
+      color_code TEXT,
+      sort_order INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS makeup_classes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_id INTEGER NOT NULL,
+      original_date DATE NOT NULL,
+      original_class_id INTEGER,
+      granted_by INTEGER,
+      expires_at DATETIME,
+      used_at DATETIME,
+      used_for_class_id INTEGER,
+      class_instance_id INTEGER,
+      notes TEXT,
+      created_at DATETIME DEFAULT (datetime('now'))
+    );
+    INSERT INTO belt_levels (name, color, color_code) VALUES ('white', '#FFFFFF', '#FFFFFF');
     INSERT INTO staff (id, name, email, password_hash, role) VALUES (1, 'Coach A', 'coach@test.com', 'hash', 'coach');
   `);
 });
@@ -123,7 +144,7 @@ describe('Classes Data Layer', () => {
 
   describe('updateClass', () => {
     it('modifies fields', () => {
-      const updated = classes.updateClass(1, { capacity: 30 });
+      const updated = classes.updateClass(1, { max_capacity: 30 });
       assert.equal(updated.capacity, 30);
     });
 
@@ -261,12 +282,12 @@ describe('Classes Data Layer', () => {
   });
 
   describe('Coverage improvements', () => {
-    it('createClass defaults duration_minutes and capacity', () => {
+    it('createClass defaults end_time and capacity', () => {
       const cls = classes.createClass({
         name: 'Default Duration', location: 'rockingham', day_of_week: 2,
         start_time: '07:00', class_type: 'bjj', active: 1
       });
-      assert.equal(cls.duration_minutes, 60);
+      assert.equal(cls.end_time, null);
       assert.equal(cls.capacity, 20);
     });
 

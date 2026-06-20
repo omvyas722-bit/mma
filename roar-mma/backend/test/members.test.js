@@ -39,6 +39,12 @@ before(() => {
       health_score_factors TEXT,
       is_fighter INTEGER DEFAULT 0,
       membership_type TEXT DEFAULT 'adult',
+      parent_id INTEGER,
+      referred_by TEXT,
+      gender TEXT,
+      address TEXT,
+      suburb TEXT,
+      postcode TEXT,
       created_at DATETIME DEFAULT (datetime('now')),
       updated_at DATETIME DEFAULT (datetime('now'))
     );

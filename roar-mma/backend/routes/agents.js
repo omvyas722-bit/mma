@@ -420,4 +420,38 @@ function parseNlSchedule(text) {
   return null;
 }
 
+// Scheduled tasks management
+router.get('/scheduled-tasks', authenticateToken, requirePermission('agents:manage'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const tasks = db.prepare("SELECT * FROM scheduled_agent_tasks ORDER BY created_at DESC").all();
+    res.json({ tasks });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch scheduled tasks' });
+  }
+});
+
+router.delete('/scheduled-tasks/:id', authenticateToken, requirePermission('agents:manage'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const result = db.prepare("DELETE FROM scheduled_agent_tasks WHERE id = ?").run(req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Task not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete scheduled task' });
+  }
+});
+
+router.put('/scheduled-tasks/:id/toggle', authenticateToken, requirePermission('agents:manage'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const task = db.prepare("SELECT * FROM scheduled_agent_tasks WHERE id = ?").get(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    db.prepare("UPDATE scheduled_agent_tasks SET enabled = ?, updated_at = datetime('now') WHERE id = ?").run(task.enabled ? 0 : 1, req.params.id);
+    res.json({ success: true, enabled: !task.enabled });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to toggle scheduled task' });
+  }
+});
+
 module.exports = { router, registerTeamAgent, teamAgents };

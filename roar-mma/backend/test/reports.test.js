@@ -21,10 +21,10 @@ before(() => {
       amount REAL, status TEXT, created_at TEXT
     );
     CREATE TABLE IF NOT EXISTS classes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, class_type TEXT, location TEXT
+      id INTEGER PRIMARY KEY AUTOINCREMENT, class_type TEXT, location TEXT, capacity INTEGER DEFAULT 20
     );
     CREATE TABLE IF NOT EXISTS class_instances (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, class_id INTEGER, date TEXT,
+      id INTEGER PRIMARY KEY AUTOINCREMENT, class_id INTEGER, date TEXT, capacity INTEGER DEFAULT 20,
       FOREIGN KEY (class_id) REFERENCES classes(id)
     );
     CREATE TABLE IF NOT EXISTS bookings (

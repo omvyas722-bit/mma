@@ -63,6 +63,10 @@ before(() => {
       event_type TEXT, related_id INTEGER, metadata TEXT,
       created_at DATETIME DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS membership_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT
+    );
+    INSERT INTO membership_plans (id, type) VALUES (1, 'pt_package');
     INSERT INTO members (id, first_name, last_name, status) VALUES
       (1, 'John', 'Doe', 'active');
     INSERT INTO staff (id, name, role) VALUES

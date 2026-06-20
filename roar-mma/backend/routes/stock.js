@@ -181,11 +181,17 @@ router.post('/pos-sale', authenticateToken, requirePermission('stock:write'), (r
     const finalTotal = total - discountAmt;
     const change = Math.max(0, (parseFloat(tendered) || finalTotal) - finalTotal);
     // Store as transaction record
-    const transactionId = `POS-${Date.now()}`;
-    db.prepare(`INSERT INTO transactions (member_id, amount, type, status, payment_method, description, processed_at, created_at)
+    const txResult = db.prepare(`INSERT INTO transactions (member_id, amount, type, status, payment_method, description, processed_at, created_at)
       VALUES (?, ?, 'product', 'completed', ?, ?, datetime('now'), datetime('now'))`)
       .run(member_id || null, finalTotal, payment_method, `POS sale - ${items.length} items`);
-    res.json({ sale_id: transactionId, items: receiptItems, subtotal: total, discount: discountPct > 0 ? { pct: discountPct, amount: discountAmt } : null, total: finalTotal, tendered: parseFloat(tendered) || finalTotal, change, sold_by: req.user.first_name || req.user.id, sold_at: new Date().toISOString() });
+    const txId = txResult.lastInsertRowid;
+    let memberName = null;
+    let memberEmail = null;
+    if (member_id) {
+      const m = db.prepare('SELECT first_name, last_name, email FROM members WHERE id = ?').get(member_id);
+      if (m) { memberName = `${m.first_name} ${m.last_name}`; memberEmail = m.email; }
+    }
+    res.json({ transaction_id: txId, sale_id: `POS-${txId}`, items: receiptItems, subtotal: total, discount: discountPct > 0 ? { pct: discountPct, amount: discountAmt } : null, total: finalTotal, tendered: parseFloat(tendered) || finalTotal, change, sold_by: req.user.first_name || req.user.id, sold_at: new Date().toISOString(), member_name: memberName, member_email: memberEmail });
   } catch (error) {
     console.error('Error processing POS sale:', error);
     res.status(500).json({ error: 'Failed to process sale' });

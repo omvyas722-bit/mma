@@ -230,7 +230,8 @@ describe('handler', () => {
     };
     const dbMock = { prepare: () => ({ get: () => undefined }) };
     const aiResponse = {
-      choices: [{ message: { content: '{"skill_level":"Expert","fight_readiness":"fight_ready","recommended_weight_class":"welterweight","weight_advice":"cut","diet_recommendation":"Low carb","strengths":"Everything","weaknesses":"Nothing","drills":[{"drill_name":"AI Drill","focus_area":"defense","difficulty":"advanced"}]}' } }]
+      content: '{"skill_level":"Expert","fight_readiness":"fight_ready","recommended_weight_class":"welterweight","weight_advice":"cut","diet_recommendation":"Low carb","strengths":"Everything","weaknesses":"Nothing","drills":[{"drill_name":"AI Drill","focus_area":"defense","difficulty":"advanced"}]}',
+      finishReason: 'stop'
     };
     const workingOrClient = { completeChat: async () => aiResponse };
     await handler({

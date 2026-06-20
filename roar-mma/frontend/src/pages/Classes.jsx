@@ -5,6 +5,7 @@ import { format, startOfWeek, addDays } from 'date-fns';
 import { useNotifications } from '../contexts/NotificationContext';
 import AddClassModal from '../components/Classes/AddClassModal';
 import EditClassModal from '../components/Classes/EditClassModal';
+import EditTemplateModal from '../components/Classes/EditTemplateModal';
 import CheckInModal from '../components/Classes/CheckInModal';
 import { ConfirmDialog } from '../components/Modal';
 import { ContextMenu } from '../components/Dropdown';
@@ -44,6 +45,8 @@ export default function Classes() {
   const [deletingClass, setDeletingClass] = useState(null);
   const [checkInClass, setCheckInClass] = useState(null);
   const [detailInstance, setDetailInstance] = useState(null);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [locationFilter, setLocationFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [splitView, setSplitView] = useState(false);
@@ -122,11 +125,15 @@ export default function Classes() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Classes</h1>
-        <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Class</button>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setShowTemplateEditor(true)} className="btn-outline text-sm">Edit Template</button>
+          <button type="button" onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Class</button>
+        </div>
       </div>
 
       <AddClassModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
       <EditClassModal isOpen={!!editingClass} onClose={() => setEditingClass(null)} classData={editingClass} />
+      <EditTemplateModal isOpen={showTemplateEditor} onClose={() => { setShowTemplateEditor(false); setEditingTemplate(null); }} classId={editingTemplate} />
       <CheckInModal isOpen={!!checkInClass} onClose={() => setCheckInClass(null)} classInstance={checkInClass} />
       <ConfirmDialog isOpen={!!deletingClass} onClose={() => setDeletingClass(null)} onConfirm={() => deleteClass.mutate(deletingClass.id)} title="Delete Class" message={`Delete ${deletingClass?.name}?`} confirmText="Delete" type="danger" />
       {detailInstance && detailInstance.id && <InstanceDrawer instance={detailInstance} onClose={() => setDetailInstance(null)}
@@ -241,7 +248,8 @@ export default function Classes() {
                       onEdit={() => setEditingClass(inst)}
                       onDelete={() => setDeletingClass(inst)}
                       onCheckIn={() => setCheckInClass(inst)}
-                      onDuplicate={() => duplicateClass.mutate(inst.id)} />
+                      onDuplicate={() => duplicateClass.mutate(inst.id)}
+                      onEditTemplate={() => { setEditingTemplate(inst.class_id); setShowTemplateEditor(true); }} />
                   ))}
                 </div>
               </div>
@@ -266,7 +274,7 @@ function SkeletonDay() {
   );
 }
 
-function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate }) {
+function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate, onEditTemplate }) {
   const fillPct = instance.capacity ? Math.min(100, (instance.booked_count / instance.capacity) * 100) : 0;
   const fillColor = instance.status === 'cancelled' ? 'bg-gray-300' : fillPct >= 90 ? 'bg-red-500' : fillPct >= 80 ? 'bg-orange-500' : fillPct >= 50 ? 'bg-amber-500' : 'bg-gray-400';
   const cardBorder = instance.status === 'cancelled' ? 'border-gray-200' : fillPct >= 90 ? 'border-red-300 bg-red-50' : fillPct >= 80 ? 'border-orange-300 bg-orange-50' : fillPct >= 50 ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-100';
@@ -274,7 +282,9 @@ function ClassCard({ instance, onClick, onEdit, onDelete, onCheckIn, onDuplicate
     <ContextMenu items={[
       { label: 'View Details', icon: '🔍', onClick: onClick },
       { label: 'Mark Attendance', icon: '✓', onClick: onCheckIn, disabled: instance.status === 'cancelled' },
-      { label: 'Edit Class', icon: '✏️', onClick: onEdit },
+      { label: 'Edit Instance', icon: '✏️', onClick: onEdit },
+      { separator: true },
+      { label: 'Edit Template', icon: '📐', onClick: onEditTemplate },
       { separator: true },
       { label: 'Cancel This Class', icon: '❌', onClick: onClick, disabled: instance.status === 'cancelled' },
       { label: 'Duplicate Class', icon: '📋', onClick: () => onDuplicate(instance.id) },
@@ -313,6 +323,9 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
   const [showCapacityOverride, setShowCapacityOverride] = useState(false);
   const [overrideCapacity, setOverrideCapacity] = useState(instance.capacity || '');
   const [overrideReason, setOverrideReason] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState([]);
+  const [showMemberSearch, setShowMemberSearch] = useState(false);
 
   const overrideCapacityMut = useMutation({
     mutationFn: (data) => api.put(`/api/classes/instances/${instance.id}`, data),
@@ -320,12 +333,32 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
     onError: () => error('Failed to update capacity'),
   });
 
-  const { data: roster } = useQuery({
+  const { data: roster, refetch: refetchRoster } = useQuery({
     queryKey: ['class-roster', instance.id],
     queryFn: async () => { const r = await api.get(`/api/classes/instances/${instance.id}/roster`); return r.data; },
     enabled: !!instance.id,
     staleTime: 10000,
   });
+
+  const addToWaitlist = useMutation({
+    mutationFn: (memberId) => api.post('/api/bookings', { member_id: memberId, class_instance_id: instance.id }),
+    onSuccess: () => { refetchRoster(); invalidate(); success('Added to waitlist'); setShowMemberSearch(false); setMemberSearch(''); },
+    onError: () => error('Failed to add to waitlist'),
+  });
+
+  const removeFromWaitlist = useMutation({
+    mutationFn: (bookingId) => api.delete(`/api/bookings/${bookingId}`),
+    onSuccess: () => { refetchRoster(); invalidate(); success('Removed from waitlist'); },
+    onError: () => error('Failed to remove from waitlist'),
+  });
+
+  const searchMembers = useCallback(async (q) => {
+    if (!q || q.length < 2) { setMemberResults([]); return; }
+    try {
+      const r = await api.get(`/api/members?query=${encodeURIComponent(q)}&limit=10`);
+      setMemberResults(r.data?.members || []);
+    } catch { setMemberResults([]); }
+  }, []);
 
   const rosterData = Array.isArray(roster) ? roster : [];
   const bookings = rosterData.filter(b => !b.waitlist);
@@ -395,14 +428,47 @@ function InstanceDrawer({ instance, onClose, onCancel, onCheckIn, onEdit }) {
               <h3 className="text-sm font-semibold text-gray-900 mb-2">Waitlist ({waitlisted.length})</h3>
               <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
                 {waitlisted.map(w => (
-                  <div key={w.id} className="px-3 py-2 text-sm text-gray-700 flex justify-between">
-                    <span>{w.member_name}</span>
-                    <span className="text-xs text-gray-400">#{w.waitlist_position}</span>
+                  <div key={w.id} className="px-3 py-2 text-sm text-gray-700 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">#{w.waitlist_position}</span>
+                      <span>{w.member_name}</span>
+                    </div>
+                    <button type="button" onClick={() => removeFromWaitlist.mutate(w.id)}
+                      className="text-[10px] text-red-600 hover:underline">Remove</button>
                   </div>
                 ))}
               </div>
             </section>
           )}
+
+          {/* Add to Waitlist */}
+          <section className="border-t pt-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Add to Waitlist</h3>
+            {!showMemberSearch ? (
+              <button type="button" onClick={() => setShowMemberSearch(true)}
+                className="btn-outline text-xs">+ Add Member to Waitlist</button>
+            ) : (
+              <div className="space-y-2">
+                <input type="text" placeholder="Search member name..." value={memberSearch}
+                  onChange={e => { setMemberSearch(e.target.value); searchMembers(e.target.value); }}
+                  className="input text-sm w-full" autoFocus />
+                {memberResults.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
+                    {memberResults.map(m => (
+                      <button key={m.id} type="button"
+                        onClick={() => addToWaitlist.mutate(m.id)}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex justify-between">
+                        <span>{m.first_name} {m.last_name}</span>
+                        <span className="text-xs text-gray-400">{m.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => { setShowMemberSearch(false); setMemberSearch(''); setMemberResults([]); }}
+                  className="text-xs text-gray-500 hover:underline">Cancel</button>
+              </div>
+            )}
+          </section>
 
           {/* Capacity Override */}
           <section className="border-t pt-4">

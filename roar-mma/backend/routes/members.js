@@ -138,6 +138,56 @@ router.post('/bulk/message', authenticateToken, requirePermission('members:updat
   }
 });
 
+// Bulk delete (archive) members
+router.post('/bulk-delete', authenticateToken, requirePermission('members:delete'), (req, res) => {
+  try {
+    const { ids, confirm } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array required' });
+    if (ids.length > 500) return res.status(400).json({ error: 'Maximum 500 members per operation' });
+    if (!confirm) return res.status(400).json({ error: 'confirm: true required for bulk delete' });
+
+    const results = []; const errors = [];
+    for (const id of ids) {
+      try {
+        const member = membersData.getMemberById(id);
+        if (!member) { errors.push({ id, error: 'Member not found' }); continue; }
+        membersData.updateMember(id, { status: 'archived', archived_at: new Date().toISOString() });
+        results.push(id);
+      } catch (err) { errors.push({ id, error: err.message }); }
+    }
+    res.json({ deleted: results.length, errors });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to bulk delete members' });
+  }
+});
+
+// Bulk update members
+router.post('/bulk-update', authenticateToken, requirePermission('members:update'), (req, res) => {
+  try {
+    const { ids, data } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array required' });
+    if (!data || typeof data !== 'object') return res.status(400).json({ error: 'data object required' });
+    if (ids.length > 500) return res.status(400).json({ error: 'Maximum 500 members per operation' });
+
+    const allowed = ['status', 'plan', 'location', 'membership_type', 'notes', 'experience_level', 'emergency_contact_name', 'emergency_contact_phone'];
+    const updateData = {};
+    allowed.forEach(f => { if (data[f] !== undefined) updateData[f] = data[f]; });
+    if (Object.keys(updateData).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+
+    const results = []; const errors = [];
+    for (const id of ids) {
+      try {
+        const member = membersData.getMemberById(id);
+        if (!member) { errors.push({ id, error: 'Member not found' }); continue; }
+        results.push(membersData.updateMember(id, { ...updateData }));
+      } catch (err) { errors.push({ id, error: err.message }); }
+    }
+    res.json({ updated: results.length, errors, members: results });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to bulk update members' });
+  }
+});
+
 // Get single member by ID
 router.get('/:id', authenticateToken, requirePermission('members:read'), (req, res) => {
   try {
@@ -293,6 +343,13 @@ router.post('/', authenticateToken, requirePermission('members:create'), auditLo
 
     const member = membersData.createMember(memberData);
 
+    // Notify staff of new member
+    try {
+      const notifService = require('../services/notificationService');
+      notifService.broadcast('member_created', `New member: ${member.first_name} ${member.last_name}`,
+        `${member.first_name} ${member.last_name} joined as ${member.plan || 'member'}`, '/members');
+    } catch (e) {}
+
     // Auto-trigger parent waiver email for under-18 members
     if (member.date_of_birth) {
       const birthDate = new Date(member.date_of_birth);
@@ -340,6 +397,24 @@ router.put('/:id', authenticateToken, requirePermission('members:update'), audit
     const updateData = {};
     allowedFields.forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
     const updatedMember = membersData.updateMember(req.params.id, updateData);
+
+    // Auto-trigger parent waiver if DOB changed to under-18
+    if (req.body.date_of_birth) {
+      const birthDate = new Date(req.body.date_of_birth);
+      const age = Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 86400000));
+      if (age < 18) {
+        const db = require('../db/connection').getDatabase();
+        const existingWaiver = db.prepare("SELECT id FROM member_waivers WHERE member_id = ? ORDER BY signed_at DESC LIMIT 1").get(req.params.id);
+        const pendingExists = db.prepare("SELECT id FROM pending_parent_signatures WHERE member_id = ? AND status = 'pending' LIMIT 1").get(req.params.id);
+        if (!existingWaiver && !pendingExists) {
+          const template = db.prepare("SELECT id FROM waiver_templates WHERE active = 1 ORDER BY id DESC LIMIT 1").get();
+          if (template) {
+            db.prepare(`INSERT INTO event_queue (event_type, payload, status, created_at) VALUES ('SEND_PARENT_WAIVER', ?, 'pending', datetime('now'))`)
+              .run(JSON.stringify({ member_id: parseInt(req.params.id, 10), parent_email: updatedMember.email, template_id: template.id }));
+          }
+        }
+      }
+    }
 
     res.json(updatedMember);
   } catch (error) {

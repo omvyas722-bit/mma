@@ -45,7 +45,7 @@ Has phone: ${!!lead.phone}`;
   const db = getDatabase();
   if (db) {
     const detScore = calculateLeadScore(lead);
-    return { score: detScore.total, reasoning: `Fallback scoring (source: ${detScore.breakdown?.source || 0}, stage: ${detScore.breakdown?.stage || 0}, interest: ${detScore.breakdown?.interest || 0})`, priority: detScore.total >= 60 ? 'high' : detScore.total >= 30 ? 'medium' : 'low' };
+    return { score: detScore, reasoning: `Fallback scoring (source: 0, stage: 0, interest: 0)`, priority: detScore >= 60 ? 'high' : detScore >= 30 ? 'medium' : 'low' };
   }
   return { score: 50, reasoning: 'Fallback scoring', priority: 'medium' };
 }

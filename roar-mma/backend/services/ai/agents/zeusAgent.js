@@ -21,7 +21,8 @@ const AGENT_ROUTES = {
   'MEMBER_COUNT': 'oracle',
   'SALES_TASK': 'sales_team',
   'MEMBER_SUCCESS_TASK': 'member_success_team',
-  'FINANCE_TASK': 'finance_team'
+  'FINANCE_TASK': 'finance_team',
+  'SEND_PARENT_WAIVER': 'messaging'
 };
 
 const EVENT_TYPE_PRIORITY = {

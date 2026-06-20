@@ -164,7 +164,7 @@ function getClassInstanceById(id) {
       c.name as class_name,
       c.class_type,
       c.location,
-      c.capacity as default_capacity,
+      c.max_capacity as default_capacity,
       c.min_belt, bl.color_code as belt_color, c.fighter_only,
       s.name as coach_name,
       (SELECT COUNT(*) FROM bookings WHERE class_instance_id = ci.id AND status = 'booked') as booked_count
@@ -293,7 +293,7 @@ function getClassRoster(classInstanceId) {
       CASE WHEN mc.id IS NOT NULL THEN 1 ELSE 0 END as is_makeup
     FROM bookings b
     JOIN members m ON b.member_id = m.id
-    LEFT JOIN makeup_classes mc ON mc.member_id = m.id AND mc.class_instance_id = b.class_instance_id AND mc.used = 1
+    LEFT JOIN makeup_classes mc ON mc.member_id = m.id AND mc.used_for_class_id = b.class_instance_id AND mc.used_at IS NOT NULL
     WHERE b.class_instance_id = ?
     ORDER BY b.waitlist, b.booked_at
   `).all(classInstanceId);

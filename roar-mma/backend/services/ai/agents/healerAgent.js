@@ -45,6 +45,42 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
         factors.inactivity = -10;
       }
 
+      // Chronic no-show flag (3+ no-shows without cancellation in 60 days)
+      const chronicNoShows = dbConn.prepare(`
+        SELECT COUNT(*) as c FROM bookings
+        WHERE member_id=? AND status='no_show' AND created_at >= datetime('now', '-60 days')
+      `).get(m.id)?.c || 0;
+      if (chronicNoShows >= 3) {
+        score -= 10; factors.chronic_no_show = -10;
+        const existingFlag = dbConn.prepare("SELECT id FROM staff_tasks WHERE member_id=? AND task_type='chronic_no_show' AND status='pending'").get(m.id);
+        if (!existingFlag) {
+          staffTasksData.createTask({
+            member_id: m.id, task_type: 'chronic_no_show', priority: 'high',
+            title: `Chronic no-show: ${m.first_name || ''} ${m.last_name || ''}`.trim(),
+            description: `Flagged for ${chronicNoShows} consecutive no-shows without cancellation. Requires follow-up.`,
+            due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), status: 'pending'
+          });
+          tasksCreated++;
+        }
+      }
+
+      // Pause return alert (7 days before pause_end)
+      if (m.status === 'paused' && m.pause_end) {
+        const daysUntilReturn = Math.round((new Date(m.pause_end).getTime() - Date.now()) / 86400000);
+        if (daysUntilReturn >= 0 && daysUntilReturn <= 7) {
+          const existingAlert = dbConn.prepare("SELECT id FROM staff_tasks WHERE member_id=? AND task_type='pause_return_alert' AND status='pending'").get(m.id);
+          if (!existingAlert) {
+            staffTasksData.createTask({
+              member_id: m.id, task_type: 'pause_return_alert', priority: 'medium',
+              title: `Pause return: ${m.first_name || ''} ${m.last_name || ''}`.trim(),
+              description: `Pause ends ${m.pause_end} (${daysUntilReturn} days). Send return reminder.`,
+              due_date: m.pause_end, status: 'pending'
+            });
+            tasksCreated++;
+          }
+        }
+      }
+
       // Trial bonus (+10 for trial members)
       if (m.status === 'trial') {
         score += 10;

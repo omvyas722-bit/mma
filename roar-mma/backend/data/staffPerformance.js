@@ -120,7 +120,7 @@ function getStaffPerformanceMetrics(staffId, dateFrom = null, dateTo = null) {
        JOIN class_instances ci ON b.class_instance_id = ci.id
        WHERE ci.coach_id = ? AND ci.date BETWEEN ? AND ? AND b.status = 'attended'
       ) as total,
-      COUNT(DISTINCT member_id) as returning
+      COUNT(DISTINCT member_id) as returning_count
     FROM (
       SELECT b.member_id
       FROM bookings b
@@ -130,7 +130,7 @@ function getStaffPerformanceMetrics(staffId, dateFrom = null, dateTo = null) {
       HAVING COUNT(DISTINCT ci.date) >= 2
     )
   `).get(staffId, dateFrom, dateTo, staffId, dateFrom, dateTo);
-  metrics.student_retention_rate = retention.total > 0 ? Math.round((retention.returning / retention.total) * 100) : 0;
+  metrics.student_retention_rate = retention.total > 0 ? Math.round((retention.returning_count / retention.total) * 100) : 0;
 
   return metrics;
 }
