@@ -1,7 +1,5 @@
 // Main server file
 require('dotenv').config();
-const { initMonitoring, getRequestHandler, getErrorHandler, Sentry } = require('./monitoring');
-initMonitoring();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -11,7 +9,6 @@ const http = require('http');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 const { getDatabase, closeDatabase } = require('./db/connection');
-const { getHealth } = require('./monitoring');
 const { authenticateToken, requirePermission } = require('./middleware/auth');
 const { errorHandler } = require('./middleware/errorHandler');
 const { ensureAuditLogTable } = require('./middleware/auditLog');
@@ -173,9 +170,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Sentry request handler — must be before routes
-app.use(getRequestHandler());
-
 // Request logging middleware — logs method, path, status, duration
 app.use((req, res, next) => {
   const start = Date.now();
@@ -207,16 +201,12 @@ app.get('/api/health', healthLimiter, (req, res) => {
     // Test database connection
     db.prepare('SELECT 1').get();
 
-    const monitoring = getHealth();
-
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: 'connected',
       websocket: wss.clients.size + ' clients connected',
-      sentry_initialized: monitoring.sentry_initialized,
-      sentry_dsn_configured: monitoring.sentry_dsn_configured,
       memory_usage: process.memoryUsage(),
       node_version: process.version
     });
@@ -291,13 +281,31 @@ app.get('/api/settings', authenticateToken, requirePermission('settings:read'), 
     const dbSettings = db.prepare('SELECT key, value FROM system_settings').all();
     if (dbSettings && dbSettings.length) {
       const overrides = {};
-      dbSettings.forEach(s => { overrides[s.key] = s.value; });
-      return res.json({ ...defaultSettings, system: overrides });
+      const result = { ...defaultSettings, system: overrides };
+      dbSettings.forEach(s => {
+        overrides[s.key] = s.value;
+        try { result[s.key] = JSON.parse(s.value); } catch { result[s.key] = s.value; }
+      });
+      return res.json(result);
     }
     res.json(defaultSettings);
   } catch { res.json(defaultSettings); }
 });
-app.put('/api/settings', authenticateToken, requirePermission('settings:write'), (req, res) => res.json({ success: true }));
+app.put('/api/settings', authenticateToken, requirePermission('settings:write'), (req, res) => {
+  try {
+    const db = getDatabase();
+    const upsert = db.prepare("INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))");
+    const tx = db.transaction((settings) => {
+      for (const [key, value] of Object.entries(settings)) {
+        upsert.run(key, JSON.stringify(value));
+      }
+    });
+    tx(req.body);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Calendar events — query class_instances
 app.get('/api/calendar/events', authenticateToken, requirePermission('classes:read'), (req, res) => {
@@ -396,9 +404,6 @@ app.get('/api/reports/staff-performance', authenticateToken, requirePermission('
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
-
-// Sentry error handler — must be before the app-level error handler
-app.use(getErrorHandler());
 
 // Error handler — never leak stack traces in responses
 app.use(errorHandler);

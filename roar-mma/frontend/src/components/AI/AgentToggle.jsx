@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import api from '../../lib/api';
-import logger from '../../lib/logger';
 
 const AGENT_ICONS = {
   leads: '🎯',
@@ -26,7 +25,7 @@ export default function AgentToggle({ agentName, enabled, description, lastActio
       const newState = response.data.enabled;
       if (onChange) onChange(agentName, newState);
     } catch (error) {
-      logger.error('Failed to toggle agent:', error);
+      console.error('Failed to toggle agent:', error);
     } finally {
       setIsUpdating(false);
     }

@@ -1,1 +1,0 @@
-QA audit the whole codebase, ignore .playwright-mcp, md files, csvs, report every single issue you can find as you HAVE to read each code file fully no exceptions, write the report to a md file in root

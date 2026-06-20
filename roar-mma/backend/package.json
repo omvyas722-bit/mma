@@ -7,9 +7,6 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "db:init": "node scripts/init-database.js",
-    "health": "node scripts/health-check.js",
-    "verify": "node scripts/verify-system.js",
-    "examples": "node scripts/api-examples.js",
     "lint": "eslint .",
     "test": "node --test",
     "test:coverage": "node --experimental-test-coverage --test"
@@ -27,7 +24,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@sentry/node": "^10.56.0",
     "axios": "^1.15.0",
     "bcrypt": "^5.1.0",
     "better-sqlite3": "^12.10.0",

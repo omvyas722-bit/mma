@@ -3,7 +3,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { settingsApi } from '../lib/api';
 import { useNotifications } from './NotificationContext';
-import logger from '../lib/logger';
 
 const SettingsContext = createContext(null);
 
@@ -81,10 +80,10 @@ export function SettingsProvider({ children }) {
       try {
         const data = await settingsApi.getAll({ signal: controller.signal });
         setSettings({ ...DEFAULT_SETTINGS, ...data });
-        logger.info('Settings loaded');
+        console.log('Settings loaded');
       } catch (err) {
         if (err.name !== 'AbortError') {
-          logger.error('Failed to load settings', err);
+          console.error('Failed to load settings', err);
           error('Failed to load settings');
         }
       } finally {
@@ -96,10 +95,10 @@ export function SettingsProvider({ children }) {
       try {
         const data = await settingsApi.getLocations({ signal: controller.signal });
         setLocations(data);
-        logger.info('Locations loaded', { count: data.length });
+        console.log('Locations loaded', { count: data.length });
       } catch (err) {
         if (err.name !== 'AbortError') {
-          logger.error('Failed to load locations', err);
+          console.error('Failed to load locations', err);
         }
       }
     };
@@ -133,10 +132,10 @@ export function SettingsProvider({ children }) {
         return merged;
       });
       success('Settings saved successfully');
-      logger.info('Settings updated', { updates });
+      console.log('Settings updated', { updates });
       return { success: true };
     } catch (err) {
-      logger.error('Failed to update settings', err);
+      console.error('Failed to update settings', err);
       error('Failed to save settings');
       return { success: false, error: err.message };
     } finally {
@@ -168,10 +167,10 @@ export function SettingsProvider({ children }) {
       const newLocation = await settingsApi.createLocation(locationData);
       setLocations((prev) => [...prev, newLocation]);
       success('Location added successfully');
-      logger.info('Location added', { locationId: newLocation.id });
+      console.log('Location added', { locationId: newLocation.id });
       return { success: true, location: newLocation };
     } catch (err) {
-      logger.error('Failed to add location', err);
+      console.error('Failed to add location', err);
       error('Failed to add location');
       return { success: false, error: err.message };
     }
@@ -184,10 +183,10 @@ export function SettingsProvider({ children }) {
         prev.map((loc) => (loc.id === id ? updatedLocation : loc))
       );
       success('Location updated successfully');
-      logger.info('Location updated', { locationId: id });
+      console.log('Location updated', { locationId: id });
       return { success: true, location: updatedLocation };
     } catch (err) {
-      logger.error('Failed to update location', err);
+      console.error('Failed to update location', err);
       error('Failed to update location');
       return { success: false, error: err.message };
     }
@@ -198,10 +197,10 @@ export function SettingsProvider({ children }) {
       await settingsApi.deleteLocation(id);
       setLocations((prev) => prev.filter((loc) => loc.id !== id));
       success('Location deleted successfully');
-      logger.info('Location deleted', { locationId: id });
+      console.log('Location deleted', { locationId: id });
       return { success: true };
     } catch (err) {
-      logger.error('Failed to delete location', err);
+      console.error('Failed to delete location', err);
       error('Failed to delete location');
       return { success: false, error: err.message };
     }
@@ -236,10 +235,10 @@ export function SettingsProvider({ children }) {
       await settingsApi.update(DEFAULT_SETTINGS);
       setSettings(DEFAULT_SETTINGS);
       success('Settings reset to defaults');
-      logger.info('Settings reset to defaults');
+      console.log('Settings reset to defaults');
       return { success: true };
     } catch (err) {
-      logger.error('Failed to reset settings', err);
+      console.error('Failed to reset settings', err);
       error('Failed to reset settings');
       return { success: false, error: err.message };
     }
@@ -267,7 +266,7 @@ export function SettingsProvider({ children }) {
       success('Settings imported successfully');
       return { success: true };
     } catch (err) {
-      logger.error('Failed to import settings', err);
+      console.error('Failed to import settings', err);
       error('Failed to import settings');
       return { success: false, error: err.message };
     }

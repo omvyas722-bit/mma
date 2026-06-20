@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Modal, { ConfirmDialog } from '../Modal';
 import api from '../../lib/api';
-import { useDebounce } from '../../hooks/useCommon';
+import { useDebounce } from '../../hooks/useCustomHooks';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 export default function CheckInModal({ isOpen, onClose, classInstance }) {

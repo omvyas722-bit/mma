@@ -1,6 +1,6 @@
 // Advanced Search Component with Filters
 import { useState, useEffect, useRef } from 'react';
-import { useDebounce } from '../../hooks/useCommon';
+import { useDebounce } from '../../hooks/useCustomHooks';
 
 export default function AdvancedSearch({
   onSearch,

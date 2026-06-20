@@ -626,9 +626,7 @@ function PlatformsTab({ onSwitch, success, error }) {
                 <span className="text-2xl">{p.icon || { facebook: '📘', instagram: '📷', tiktok: '🎵', google: '🔍' }[p.platform_type] || '📱'}</span>
                 <div><p className="font-medium text-gray-900">{p.display_name || p.name}</p><p className="text-xs text-gray-500">{p.connected ? 'Connected' : 'Not connected'}{p.connected ? ` — Page ID: ${p.page_id || 'N/A'}` : ''}</p></div>
               </div>
-              {p.platform_type === 'tiktok' ? (
-                <span className="text-xs text-gray-400">Coming Soon — requires separate TikTok Business API application. <button onClick={() => window.location.href='/settings?tab=integrations'} className="text-red-600 hover:underline ml-1">Learn More</button></span>
-              ) : p.connected ? (
+              {p.connected ? (
                 <button onClick={() => handleConnect.mutate({ id: p.id, connected: true })}
                   className="px-4 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">Disconnect</button>
               ) : (

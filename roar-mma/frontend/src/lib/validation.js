@@ -1,6 +1,14 @@
 // Validation Utilities - Form validation and data integrity
 
-import { VALIDATION } from './constants';
+const VALIDATION = {
+  EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  PHONE_REGEX: /^0\d{9}$/,
+  POSTCODE_REGEX: /^\d{4}$/,
+  PASSWORD_MIN_LENGTH: 8,
+  NAME_MIN_LENGTH: 2,
+  NAME_MAX_LENGTH: 50,
+  MESSAGE_MAX_LENGTH: 1000,
+};
 
 // Base validator class
 class Validator {

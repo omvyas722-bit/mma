@@ -2,7 +2,6 @@
 import { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import logger from '../lib/logger';
 
 const AuthContext = createContext();
 
@@ -16,7 +15,7 @@ export function AuthProvider({ children }) {
       const response = await api.get('/api/auth/me');
       setUser(response.data);
     } catch (error) {
-      logger.error('Failed to fetch current user:', error);
+      console.error('Failed to fetch current user:', error);
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
     } finally {
@@ -47,7 +46,7 @@ export function AuthProvider({ children }) {
       navigate('/dashboard');
       return { success: true };
     } catch (error) {
-      logger.error('Login failed:', error);
+      console.error('Login failed:', error);
       return {
         success: false,
         error: error.response?.data?.error || 'Login failed'

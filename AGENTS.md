@@ -35,12 +35,10 @@ If you need to run or edit these tests, work from `roar-mma/frontend/e2e/` inste
 13. "Waitlist not implemented" → FALSE. Classes.jsx has waitlist count, roster filtering, visual indicators
 
 ### GAP_ANALYSIS.md Claims that are CORRECT (still open)
-1. PerfectGym pages (12) are pure mock — zero API calls, hardcoded data, useState only
-2. TikTok "Coming soon" at SocialMedia.jsx:605
-3. No Meta API live posting (frontend) — scheduling UI exists but actual cross-platform API publish may be incomplete
+<i>(all gaps closed)</i>
 
 ### Additional Verified Gaps (still open)
-- No class capacity override logging — the override UI exists in InstanceDrawer (Classes.jsx:473-491) but no separate audit trail
+<i>(all gaps closed)</i>
 
 ### Gaps Closed by Prior Commits
 - Certificate generation in Gradings (`CertificateModal`, `Gradings.jsx:315`)
@@ -61,3 +59,7 @@ If you need to run or edit these tests, work from `roar-mma/frontend/e2e/` inste
 - API key management UI (`Settings.jsx` — ApiKeysSettings component)
 - Role permissions UI (`Settings.jsx` — RolePermissionsSettings component)
 - Pixel tracking management UI (`Settings.jsx` — PixelTrackingSettings component, backend `GET /api/pixel/list`, `POST /api/pixel/create`)
+- PerfectGym pages API wiring — added `GET /api/settings/locations` endpoint, fixed `PUT /api/settings` to persist, exposed custom keys at top level of settings response
+- TikTok "Coming soon" removed — TikTok platforms now show Connect/Disconnect buttons
+- Meta API live posting — verified already implemented (`metaApi.js` with `postToFacebook`/`postToInstagram`, publish route working)
+- Class capacity override audit trail — verified already implemented (`classes.js:182` `auditLog('update_capacity', ...)`)

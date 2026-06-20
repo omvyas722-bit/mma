@@ -1,7 +1,6 @@
 // API Client - Centralized HTTP request handling with Axios
 
 import axios from 'axios';
-import logger from './logger';
 
 // API Configuration
 const API_CONFIG = {
@@ -31,7 +30,7 @@ apiClient.interceptors.request.use(
 
     // Log request in development
     if (config.method) {
-      logger.api(config.method.toUpperCase(), config.url, {
+      console.log(config.method.toUpperCase(), config.url, {
         params: config.params,
         data: config.data,
       });
@@ -40,7 +39,7 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
-    logger.error('Request interceptor error', error);
+    console.error('Request interceptor error', error);
     return Promise.reject(error);
   }
 );
@@ -56,11 +55,7 @@ apiClient.interceptors.response.use(
     }
 
     if (response.config) {
-      logger.apiSuccess(
-        response.config.method.toUpperCase(),
-        response.config.url,
-        response.data
-      );
+      console.log(response.config.method.toUpperCase(), response.config.url, response.data);
     }
 
     return response;
@@ -69,7 +64,7 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config || {};
 
     // Log error
-    logger.apiError(
+    console.error(
       originalRequest?.method?.toUpperCase() || 'UNKNOWN',
       originalRequest?.url || 'UNKNOWN',
       {

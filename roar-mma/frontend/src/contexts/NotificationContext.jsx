@@ -1,7 +1,8 @@
 // Notification Context Provider - Toast notifications and alerts
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { NOTIFICATION_TYPES } from '../lib/constants';
+
+const NOTIFICATION_TYPES = { SUCCESS: 'success', ERROR: 'error', WARNING: 'warning', INFO: 'info' };
 
 const NotificationContext = createContext(null);
 
