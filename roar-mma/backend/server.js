@@ -56,7 +56,6 @@ const agenticRoutes = require('./routes/agentic');
 const pixelRoutes = require('./routes/pixel');
 const memberPortalRoutes = require('./routes/memberPortal');
 const workflowsRoutes = require('./routes/workflows');
-const settingsRoutes = require('./routes/settings');
 const waiverPdfRoutes = require('./routes/waiverPdf');
 
 // Import services
@@ -263,7 +262,6 @@ app.use('/api/pixel', pixelRoutes);
 app.use('/api/portal', memberPortalRoutes);
 app.use('/api/workflows', workflowsRoutes);
 app.use('/api/agentic', agenticRoutes);
-app.use('/api/settings', settingsRoutes);
 app.use('/api/mission-control', missionControlRoutes);
 
 // Settings routes (inline — no dedicated module yet)

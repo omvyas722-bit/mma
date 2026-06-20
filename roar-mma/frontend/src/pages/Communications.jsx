@@ -11,7 +11,7 @@ export default function Communications() {
 
   const { data: history = [], isLoading: histLoading, isError: histError, refetch: refetchHist } = useQuery({
     queryKey: ['scheduled-messages'],
-    queryFn: async () => { const r = await api.get('/api/scheduled-messages'); return r.data?.scheduled_messages || r || []; },
+    queryFn: async () => { const r = await api.get('/api/scheduled-messages'); return r.data || []; },
     retry: 2,
     staleTime: 10000,
   });

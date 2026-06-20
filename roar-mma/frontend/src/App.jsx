@@ -61,6 +61,16 @@ const InventoryManagement = lazy(() => import('./pages/InventoryManagement'));
 import AppShell from './components/Layout/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
 
+function UnderDevelopment() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <span className="text-5xl mb-4">🚧</span>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Under Development</h1>
+      <p className="text-gray-500">This feature is currently being built and will be available soon.</p>
+    </div>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -121,14 +131,14 @@ function App() {
                     <Route path="pt-sessions" element={<PageWrapper title="PT Sessions"><PTSessions /></PageWrapper>} />
                     <Route path="phone-system" element={<PageWrapper title="Phone System"><PhoneSystem /></PageWrapper>} />
                     <Route path="privacy" element={<PageWrapper title="Privacy"><Privacy /></PageWrapper>} />
-                    <Route path="agentic" element={<PageWrapper title="Agentic OS"><AgenticOS /></PageWrapper>} />
-                    <Route path="agentic/ceo" element={<PageWrapper title="CEO Dashboard"><CEODashboard /></PageWrapper>} />
-                    <Route path="agentic/intelligence" element={<PageWrapper title="Intelligence Feed"><IntelligenceFeed /></PageWrapper>} />
-                    <Route path="agentic/content" element={<PageWrapper title="Content Pipeline"><ContentPipeline /></PageWrapper>} />
-                    <Route path="agentic/leads" element={<PageWrapper title="Lead Pipeline"><LeadPipeline /></PageWrapper>} />
-                    <Route path="agentic/system" element={<PageWrapper title="System Health"><SystemHealth /></PageWrapper>} />
-                    <Route path="agentic/reports" element={<PageWrapper title="Weekly Reports"><WeeklyReports /></PageWrapper>} />
-                    <Route path="agentic/network" element={<PageWrapper title="Agent Network"><AgentNetwork /></PageWrapper>} />
+                    <Route path="agentic" element={<PageWrapper title="Agentic OS"><UnderDevelopment /></PageWrapper>} />
+                    <Route path="agentic/ceo" element={<PageWrapper title="CEO Dashboard"><UnderDevelopment /></PageWrapper>} />
+                    <Route path="agentic/intelligence" element={<PageWrapper title="Intelligence Feed"><UnderDevelopment /></PageWrapper>} />
+                    <Route path="agentic/content" element={<PageWrapper title="Content Pipeline"><UnderDevelopment /></PageWrapper>} />
+                    <Route path="agentic/leads" element={<PageWrapper title="Lead Pipeline"><UnderDevelopment /></PageWrapper>} />
+                    <Route path="agentic/system" element={<PageWrapper title="System Health"><UnderDevelopment /></PageWrapper>} />
+                    <Route path="agentic/reports" element={<PageWrapper title="Weekly Reports"><UnderDevelopment /></PageWrapper>} />
+                    <Route path="agentic/network" element={<PageWrapper title="Agent Network"><UnderDevelopment /></PageWrapper>} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />

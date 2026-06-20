@@ -149,7 +149,7 @@ export function useErrorHandler() {
 // Specialized error boundaries for different sections
 export function PageErrorBoundary({ children, pageName }) {
   return (
-    <ErrorBoundary
+    <ErrorBoundary key={pageName}
       title={`Error loading ${pageName}`}
       message="We encountered an error while loading this page. Please try again."
       fallback={({ resetError }) => (

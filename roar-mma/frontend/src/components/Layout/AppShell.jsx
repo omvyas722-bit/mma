@@ -123,7 +123,16 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'System',
+    items: [
+      { name: 'Settings', path: '/settings', icon: '⚙️' },
+      { name: 'PerfectGym', path: '/perfectgym', icon: '🔄' },
+      { name: 'Privacy', path: '/privacy', icon: '🔒' },
+    ],
+  },
+  {
     label: 'Agentic OS',
+    underDevelopment: true,
     items: [
       { name: 'Agentic Hub', path: '/agentic', icon: '🧠' },
       { name: 'CEO Dashboard', path: '/agentic/ceo', icon: '👑' },
@@ -133,14 +142,6 @@ const NAV_SECTIONS = [
       { name: 'System Health', path: '/agentic/system', icon: '⚙️' },
       { name: 'Weekly Reports', path: '/agentic/reports', icon: '📊' },
       { name: 'Agent Network', path: '/agentic/network', icon: '🔗' },
-    ],
-  },
-  {
-    label: 'System',
-    items: [
-      { name: 'Settings', path: '/settings', icon: '⚙️' },
-      { name: 'PerfectGym', path: '/perfectgym', icon: '🔄' },
-      { name: 'Privacy', path: '/privacy', icon: '🔒' },
     ],
   },
 ];
@@ -182,6 +183,7 @@ export default function AppShell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const sidebarRef = useRef(null);
   const overlayRef = useRef(null);
 
@@ -244,24 +246,39 @@ export default function AppShell() {
               <span className={`mr-1.5 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} aria-hidden="true">▶</span>
               {section.label}
             </button>
+            {section.underDevelopment && (
+              <div className="px-3 py-1 mb-1">
+                <span className="text-[10px] font-bold text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded uppercase tracking-wider">UNDER DEVELOPMENT</span>
+              </div>
+            )}
             {!isCollapsed && (
               <div className="space-y-0.5 ml-1">
-                {section.items.map((item) => (
-                  <Link
-                    key={item.path + item.name}
-                    to={item.path}
-                    onClick={closeSidebar}
-                    className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      isExactPath(item.path)
-                        ? 'bg-red-900/80 text-white'
-                        : 'text-gray-400 hover:bg-red-900/40 hover:text-white'
-                    }`}
-                    aria-current={isExactPath(item.path) ? 'page' : undefined}
-                  >
-                    <span className="mr-2.5 text-sm" aria-hidden="true">{item.icon}</span>
-                    <span className="truncate">{item.name}</span>
-                  </Link>
-                ))}
+                {section.items.map((item) =>
+                  section.underDevelopment ? (
+                    <span
+                      key={item.path + item.name}
+                      className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-600 opacity-50 pointer-events-none select-none"
+                    >
+                      <span className="mr-2.5 text-sm" aria-hidden="true">{item.icon}</span>
+                      <span className="truncate">{item.name}</span>
+                    </span>
+                  ) : (
+                    <Link
+                      key={item.path + item.name}
+                      to={item.path}
+                      onClick={closeSidebar}
+                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        isExactPath(item.path)
+                          ? 'bg-red-900/80 text-white'
+                          : 'text-gray-400 hover:bg-red-900/40 hover:text-white'
+                      }`}
+                      aria-current={isExactPath(item.path) ? 'page' : undefined}
+                    >
+                      <span className="mr-2.5 text-sm" aria-hidden="true">{item.icon}</span>
+                      <span className="truncate">{item.name}</span>
+                    </Link>
+                  )
+                )}
               </div>
             )}
           </div>
@@ -363,6 +380,12 @@ export default function AppShell() {
               </>
             )}
           </Dropdown>
+
+          {/* Theme Toggle */}
+          <button type="button" onClick={() => { const next = !isDark; document.documentElement.classList.toggle('dark', next); localStorage.setItem('theme', next ? 'dark' : 'light'); setIsDark(next); }}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Toggle dark mode"
+          >{isDark ? '☀️' : '🌙'}</button>
 
           {/* AI Status Pill */}
           <button type="button" onClick={() => navigate('/ai-dashboard')}

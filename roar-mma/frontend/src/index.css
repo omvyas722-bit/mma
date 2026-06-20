@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (toggled by .dark on <html>, falls back to system pref via init script) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Base Styles */
 @layer base {
   * {
@@ -193,6 +196,45 @@
     @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
   }
 }
+
+/* Ponytail: class-based dark fallback for page-level inline classes missing dark: variants.
+   Catches ~250+ across 40+ files without editing each one. */
+.dark .bg-white { background-color: #1f2937; }
+.dark .bg-gray-50 { background-color: #111827; }
+.dark .bg-gray-100 { background-color: #374151; }
+.dark .text-gray-900 { color: #f3f4f6; }
+.dark .text-gray-800 { color: #e5e7eb; }
+.dark .text-gray-700 { color: #d1d5db; }
+.dark .text-gray-600 { color: #9ca3af; }
+.dark .text-gray-500 { color: #9ca3af; }
+.dark .text-gray-400 { color: #d1d5db; }
+.dark .divide-gray-200 > * + * { border-color: #374151; }
+.dark .border-gray-200 { border-color: #374151; }
+.dark .border-gray-300 { border-color: #4b5563; }
+.dark .hover\:bg-gray-50:hover { background-color: #1f2937; }
+.dark .hover\:bg-gray-100:hover { background-color: #374151; }
+/* bg-*-50 surface colors that appear on the now-dark surface */
+.dark .bg-blue-50 { background-color: #1e3a5f; }
+.dark .bg-green-50 { background-color: #064e3b; }
+.dark .bg-red-50 { background-color: #7f1d1d; }
+.dark .bg-yellow-50 { background-color: #713f12; }
+.dark .bg-purple-50 { background-color: #4c1d95; }
+.dark .bg-orange-50 { background-color: #7c2d12; }
+.dark .bg-blue-100 { background-color: #1e3a5f; }
+.dark .bg-green-100 { background-color: #064e3b; }
+.dark .bg-red-100 { background-color: #7f1d1d; }
+.dark .bg-yellow-100 { background-color: #713f12; }
+.dark .bg-purple-100 { background-color: #4c1d95; }
+/* Paired text colors on colored surfaces */
+.dark .text-blue-600, .dark .text-blue-700, .dark .text-blue-800 { color: #93c5fd; }
+.dark .text-green-600, .dark .text-green-700, .dark .text-green-800 { color: #86efac; }
+.dark .text-red-600, .dark .text-red-700, .dark .text-red-800 { color: #fca5a5; }
+.dark .text-yellow-600, .dark .text-yellow-700, .dark .text-yellow-800 { color: #fde047; }
+.dark .text-purple-600, .dark .text-purple-700, .dark .text-purple-800 { color: #d8b4fe; }
+.dark .text-orange-600, .dark .text-orange-700, .dark .text-orange-800 { color: #fdba74; }
+.dark .text-pink-600, .dark .text-pink-700, .dark .text-pink-800 { color: #f9a8d4; }
+.dark .text-indigo-600, .dark .text-indigo-700, .dark .text-indigo-800 { color: #a5b4fc; }
+.dark .text-teal-600, .dark .text-teal-700, .dark .text-teal-800 { color: #5eead4; }
 
 /* Print Styles */
 @media print {

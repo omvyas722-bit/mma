@@ -45,7 +45,8 @@ const MIGRATIONS = [
   '029_system_settings.sql',
   '030_missing_schema_columns.sql',
   '031_social_hashtag_groups.sql',
-  '032_pending_parent_signatures.sql'
+  '032_pending_parent_signatures.sql',
+  '033_unified_notifications.sql'
 ];
 
 function ensureMigrated(db) {
