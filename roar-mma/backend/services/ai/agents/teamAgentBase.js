@@ -1,5 +1,5 @@
 const aiState = require('../aiState');
-const openRouter = require('../openRouterClient');
+const { emit: agentStep } = require('../agentSteps');
 
 class TeamAgent {
   constructor(name, department, systemPrompt) {
@@ -21,12 +21,13 @@ class TeamAgent {
         { role: 'user', content: `Here is the current state of my department data:\n\n${context}\n\nAnalyze this data and decide what actions to take. Return a JSON array of actions.` }
       ];
 
+      agentStep(broadcast, this.name, 'llm', 'Calling Groq for department analysis');
       const controller = new AbortController();
       const llmTimeout = setTimeout(() => controller.abort(), 30000);
       let response;
       try {
         response = await client.completeChat(messages, {
-          model: process.env.AI_MODEL || 'meta-llama/llama-3.1-8b-instruct',
+          model: process.env.AI_MODEL || 'llama-3.3-70b-versatile',
           maxTokens: 512,
           signal: controller.signal
         });
@@ -35,13 +36,14 @@ class TeamAgent {
       }
 
       const rawContent = response?.content || '[]';
-      let actions;
+      let actions = [];
       try {
         const cleaned = rawContent.replace(/```(?:json)?\s*[\s\S]*?```/gi, '').replace(/^[^{[]+|[}\]]+$/g, '').trim();
         const parsed = JSON.parse(cleaned);
         actions = Array.isArray(parsed) ? parsed : (parsed.actions || []);
       } catch (logErr) { console.error('[TEAM] Log activity error:', logErr.message); }
 
+      agentStep(broadcast, this.name, 'actions', `Decided ${actions.length} actions to execute`);
       let executedCount = 0;
       let failedCount = 0;
       const results = [];

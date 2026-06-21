@@ -11,7 +11,7 @@ export default function Communications() {
 
   const { data: history = [], isLoading: histLoading, isError: histError, refetch: refetchHist } = useQuery({
     queryKey: ['scheduled-messages'],
-    queryFn: async () => { const r = await api.get('/api/scheduled-messages'); return r.data || []; },
+    queryFn: async () => { const r = await api.get('/api/scheduled-messages'); return r.data?.scheduled_messages || []; },
     retry: 2,
     staleTime: 10000,
   });
@@ -102,7 +102,7 @@ function ComposeModal({ onClose }) {
 
   const { data: searchResults } = useQuery({
     queryKey: ['member-search', memberSearch],
-    queryFn: async () => { const r = await api.get(`/api/members?query=${encodeURIComponent(memberSearch)}&limit=10`); return r.data?.members || []; },
+    queryFn: async () => { const r = await api.get(`/api/members?query=${encodeURIComponent(memberSearch)}&limit=10`); const d = r.data; return d?.members || []; },
     enabled: memberSearch.length >= 2,
     staleTime: 10000,
   });
@@ -271,7 +271,7 @@ function ComposeModal({ onClose }) {
 function TemplatesPanel() {
   const { data: templates = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['message-templates'],
-    queryFn: async () => { const r = await api.get('/api/message-templates'); return r.data?.templates || []; },
+    queryFn: async () => { const r = await api.get('/api/message-templates'); const d = r.data; return d?.templates || []; },
     retry: 2,
     staleTime: 300000,
   });
@@ -359,7 +359,7 @@ function ScheduledPanel() {
   const { error, success } = useNotifications();
   const { data: scheduled = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['scheduled-messages', 'pending'],
-    queryFn: async () => { const r = await api.get('/api/scheduled-messages?status=pending'); return r.data?.scheduled_messages || []; },
+    queryFn: async () => { const r = await api.get('/api/scheduled-messages?status=pending'); const d = r.data; return d?.scheduled_messages || []; },
     retry: 2,
     staleTime: 10000,
   });
@@ -394,7 +394,7 @@ function ScheduledPanel() {
 function ApprovalPanel() {
   const { data: approvals = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['ai-pending-approval'],
-    queryFn: async () => { const r = await api.get('/api/ai/pending-approval'); return r.data?.pending || []; },
+    queryFn: async () => { const r = await api.get('/api/ai/pending-approval'); const d = r.data; return d?.pending || []; },
     retry: 2,
     refetchInterval: 15000,
     staleTime: 5000,
@@ -715,7 +715,7 @@ function AutomatedMessagesPanel() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ trigger_event: 'birthday', title: '', body: '', channel: 'email', enabled: 1 });
 
-  const { data: msgs = [], isLoading } = useQuery({ queryKey: ['automated-messages'], queryFn: () => api.get('/api/automated-messages').then(r => r.data?.messages || []), staleTime: 300000 });
+  const { data: msgs = [], isLoading } = useQuery({ queryKey: ['automated-messages'], queryFn: () => api.get('/api/automated-messages').then(r => { const d = r.data; return d?.messages || []; }), staleTime: 300000 });
 
   const createTrigger = useMutation({
     mutationFn: (d) => api.post('/api/automated-messages', d),

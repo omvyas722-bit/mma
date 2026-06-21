@@ -1,9 +1,11 @@
 // Task Agent - Manages task pipeline: escalates overdue tasks, adjusts priorities, archives old ones
 const staffTasksData = require('../../../data/staffTasks');
 const { getDatabase } = require('../../../db/connection');
+const { emit: agentStep } = require('../agentSteps');
 
 async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
+    agentStep(broadcast, agentName || 'tasks', 'start', 'Starting task pipeline check');
     console.log('[TASK-AGENT] Starting task pipeline check...');
 
     const dbConn = db || getDatabase();
@@ -55,6 +57,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
       }
     }
 
+    agentStep(broadcast, agentName || 'tasks', 'archive', 'Archiving old completed tasks');
     // 3. Complete and archive old completed tasks (> 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const oldCompletedTasks = dbConn.prepare(`

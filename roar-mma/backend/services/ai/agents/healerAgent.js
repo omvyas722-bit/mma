@@ -1,9 +1,11 @@
 const { getDatabase } = require('../../../db/connection');
 const staffTasksData = require('../../../data/staffTasks');
+const { emit: agentStep } = require('../agentSteps');
 
 async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
     const dbConn = db || getDatabase();
+    agentStep(broadcast, agentName || 'healer', 'load', 'Loading members for health scoring');
     const members = dbConn.prepare(`
       SELECT m.*,
         (SELECT COUNT(*) FROM attendance a WHERE a.member_id = m.id AND a.check_in_time >= datetime('now', '-30 days')) as attendance_30d,
@@ -18,6 +20,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     let updated = 0;
     let tasksCreated = 0;
 
+    agentStep(broadcast, agentName || 'healer', 'scoring', `Scoring ${members.length} members`);
     for (const m of members) {
       let score = 100;
       const factors = {};
@@ -131,6 +134,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
 
 async function analyzeRejectionPatterns({ db, aiState, broadcast, agentName }) {
   try {
+    agentStep(broadcast, agentName || 'healer', 'rejection_analysis', 'Analyzing failure patterns');
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const recentRejections = db.prepare(`
@@ -143,6 +147,7 @@ async function analyzeRejectionPatterns({ db, aiState, broadcast, agentName }) {
       HAVING count >= 3
     `).all();
 
+    agentStep(broadcast, agentName || 'healer', 'rejection_analysis', `Found ${recentRejections.length} failure patterns to analyze`);
     for (const rejection of recentRejections) {
       const existingProposal = db.prepare(`
         SELECT id FROM ai_activity_log
@@ -183,6 +188,7 @@ async function analyzeRejectionPatterns({ db, aiState, broadcast, agentName }) {
         VALUES (?, ?, ?, ?, ?)
       `).run('healer', 'healer_proposal', suggestion, JSON.stringify(details), 'pending');
 
+      agentStep(broadcast, agentName || 'healer', 'healing', `Proposed fix for ${rejection.action_type} (${rejection.count} failures)`);
       console.log(`[HEALER] Generated improvement proposal for ${rejection.action_type} (${rejection.count} failures)`);
 
       if (broadcast) {

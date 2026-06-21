@@ -224,7 +224,6 @@ export const leadsApi = {
   create: (data) => api.post('/api/leads', data),
   update: (id, data) => api.put(`/api/leads/${id}`, data),
   delete: (id) => api.delete(`/api/leads/${id}`),
-  bulkDelete: (ids) => api.post('/api/leads/bulk-delete', { ids }),
   bulkUpdate: (ids, data) => api.post('/api/leads/bulk-update', { ids, data }),
   convertToMember: (id, memberData) => api.post(`/api/leads/${id}/convert`, memberData),
   addNote: (id, note) => api.post(`/api/leads/${id}/notes`, { note }),

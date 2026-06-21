@@ -15,25 +15,25 @@ export default function Gradings() {
 
   const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['grading-sessions', sessionFilter],
-    queryFn: async () => { const p = sessionFilter ? `?status=${sessionFilter}` : ''; const r = await api.get(`/api/grading/sessions${p}`); return Array.isArray(r) ? r : r.sessions || []; },
+    queryFn: async () => { const p = sessionFilter ? `?status=${sessionFilter}` : ''; const r = await api.get(`/api/grading/sessions${p}`); const d = r.data; return Array.isArray(d) ? d : d?.sessions || []; },
     staleTime: 10000,
   });
 
   const { data: registry = [] } = useQuery({
     queryKey: ['belt-registry'],
-    queryFn: async () => { const r = await api.get('/api/grading/belts/registry'); return r.registry || []; },
+    queryFn: async () => { const r = await api.get('/api/grading/belts/registry'); const d = r.data; return d?.registry || []; },
     staleTime: 10000,
   });
 
   const { data: belts } = useQuery({
     queryKey: ['belt-levels'],
-    queryFn: async () => { const r = await api.get('/api/grading/belts'); return Array.isArray(r) ? r : r.belts || []; },
+    queryFn: async () => { const r = await api.get('/api/grading/belts'); const d = r.data; return Array.isArray(d) ? d : d?.belts || []; },
     staleTime: 300000,
   });
 
   const { data: leaderboard = [], isLoading: lbLoading } = useQuery({
     queryKey: ['fighter-leaderboard'],
-    queryFn: async () => { const r = await api.get('/api/grading/fighters/leaderboard'); return Array.isArray(r) ? r : []; },
+    queryFn: async () => { const r = await api.get('/api/grading/fighters/leaderboard'); const d = r.data; return Array.isArray(d) ? d : []; },
     staleTime: 30000,
   });
 
@@ -250,7 +250,7 @@ function RecordResultsModal({ session, onClose, onGenerateCert }) {
                 };
               });
               onGenerateCert(certData);
-            }} className="bg-purple-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-purple-700">Generate Certificate{certData.length > 1 ? 's' : ''}</button>
+            }} className="bg-purple-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-purple-700">Generate Certificate{passedParticipants.length > 1 ? 's' : ''}</button>
           )}
         </div>
       </div>

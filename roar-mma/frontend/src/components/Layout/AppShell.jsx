@@ -119,6 +119,7 @@ const NAV_SECTIONS = [
       { name: 'Mission Control', path: '/mission-control', icon: '🎮' },
       { name: 'AI Assistant', path: '/ai', icon: '💬' },
       { name: 'Agent Tracking', path: '/agents', icon: '📡' },
+      { name: 'Agent Watcher', path: '/agent-watcher', icon: '👁️' },
       { name: 'Phone System', path: '/phone-system', icon: '📞' },
     ],
   },

@@ -1,10 +1,16 @@
-// Calendar Page - Visual Schedule Management
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays, startOfWeek, endOfWeek } from 'date-fns';
 import { PageLoader } from '../components/Shared/Spinner';
 import { useNotifications } from '../contexts/NotificationContext';
+
+const DOT = {
+  class: 'bg-blue-500',
+  event: 'bg-green-500',
+  private: 'bg-purple-500',
+  maintenance: 'bg-gray-400',
+};
 
 export default function Calendar() {
   const queryClient = useQueryClient();
@@ -84,74 +90,80 @@ export default function Calendar() {
     return events.filter(event => event.date === dayStr);
   };
 
+  const resetForm = () => setEventForm({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '', repeat: 'none', repeatEndAfter: 1 });
+
   if (isLoading) return <PageLoader />;
 
   if (isError) return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center" role="alert">
-      <p className="text-red-700 text-sm mb-3">Failed to load calendar events</p>
-      <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
+    <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center">
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center max-w-sm" role="alert">
+        <p className="text-red-700 text-sm font-medium mb-3">Failed to load calendar events</p>
+        <button type="button" onClick={refetch} className="text-sm text-red-600 underline hover:no-underline">Try again</button>
+      </div>
     </div>
   );
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
-        <div className="flex gap-3">
-          <button type="button" onClick={() => setShowAddEvent(true)} className="btn-primary text-sm">+ Add Event</button>
-          <select value={view} onChange={(e) => setView(e.target.value)} className="input">
-            <option value="month">Month</option>
-            <option value="week">Week</option>
-            <option value="day">Day</option>
-          </select>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#0B0F19] p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden">
 
-      {/* Calendar Header */}
-      <div className="bg-white rounded-lg shadow mb-6 p-4">
-        <div className="flex items-center justify-between">
-          <button type="button" onClick={previous} className="btn btn-secondary">
-            ◀ Previous
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Schedule</h1>
+            <p className="text-[11px] text-gray-400 mt-0.5">Class & event calendar</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setShowAddEvent(true)} className="btn-primary text-xs px-3 py-1.5">+ Add Event</button>
+            <div className="flex bg-gray-100 rounded-lg p-0.5">
+              {['month', 'week', 'day'].map(v => (
+                <button key={v} onClick={() => setView(v)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}>
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between px-5 py-3 bg-gray-50/50 border-b border-gray-100">
+          <button type="button" onClick={previous}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-lg font-extrabold tracking-tight text-gray-900">
               {view === 'day' ? format(currentDate, 'EEEE, MMMM d, yyyy') :
-               view === 'week' ? `${format(startOfWeek(currentDate), 'MMM d')} - ${format(endOfWeek(currentDate), 'MMM d, yyyy')}` :
+               view === 'week' ? `${format(startOfWeek(currentDate), 'MMM d')} \u2013 ${format(endOfWeek(currentDate), 'MMM d, yyyy')}` :
                format(currentDate, 'MMMM yyyy')}
             </h2>
-            <button type="button" onClick={today} className="text-sm text-red-600 hover:underline">
-              Today
-            </button>
+            <button type="button" onClick={today} className="text-[11px] font-semibold text-red-600 hover:text-red-700 transition-colors">Today</button>
           </div>
-          <button type="button" onClick={next} className="btn btn-secondary">
-            Next ▶
+          <button type="button" onClick={next}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
-      </div>
 
-      {view === 'day' ? (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            {format(currentDate, 'EEEE, MMMM d, yyyy')}
-          </h3>
-          <DaySchedule events={getEventsForDay(currentDate)} />
-        </div>
-      ) : (<>
-        {/* Calendar Grid */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Calendar grid / day view */}
+        {view === 'day' ? (
+          <div className="p-5">
+            <DaySchedule events={getEventsForDay(currentDate)} />
+          </div>
+        ) : (<>
           {/* Day Headers */}
-          <div className="grid grid-cols-7 border-b border-gray-200">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div
-                key={day}
-                className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50"
-              >
+          <div className="grid grid-cols-7 border-b border-gray-100">
+            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day) => (
+              <div key={day} className="py-3 text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-gray-400">
                 {day}
               </div>
             ))}
           </div>
 
-          {/* Calendar Days */}
+          {/* Days */}
           <div className="grid grid-cols-7">
             {days.map((day) => {
               const dayEvents = getEventsForDay(day);
@@ -166,37 +178,34 @@ export default function Calendar() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDate(day); } }}
-                  className={`min-h-32 border-r border-b border-gray-200 p-2 cursor-pointer hover:bg-gray-50 ${
-                    !isCurrentMonth ? 'bg-gray-50' : ''
-                  } ${isSelected ? 'bg-red-50' : ''}`}
+                  className={`min-h-[90px] border-r border-b border-gray-100 p-2 cursor-pointer transition-colors duration-150
+                    ${!isCurrentMonth ? 'bg-gray-50/50' : 'bg-white'}
+                    ${isSelected ? 'bg-red-50/70' : 'hover:bg-gray-50'}
+                    ${isToday ? 'ring-2 ring-amber-400/60 ring-inset' : ''}
+                    ${dayEvents.length === 0 ? 'opacity-80' : ''}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-sm font-medium ${
-                        !isCurrentMonth
-                          ? 'text-gray-400'
-                          : isToday
-                          ? 'bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center'
-                          : 'text-gray-900'
-                      }`}
-                    >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm font-semibold leading-none
+                      ${!isCurrentMonth ? 'text-gray-300' :
+                        isToday ? 'bg-red-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm' :
+                        'text-gray-900'}`}>
                       {format(day, 'd')}
                     </span>
                     {dayEvents.length > 0 && (
-                      <span className="text-xs text-gray-500">
-                        {dayEvents.length} {dayEvents.length === 1 ? 'class' : 'classes'}
+                      <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full leading-none">
+                        {dayEvents.length}
                       </span>
                     )}
                   </div>
 
-                  {/* Events */}
-                  <div className="space-y-1">
-                    {getEventsForDay(day).slice(0, showAllDays.has(format(day, 'yyyy-MM-dd')) ? undefined : 5).map((event) => (
+                  <div className="space-y-0.5">
+                    {dayEvents.slice(0, showAllDays.has(format(day, 'yyyy-MM-dd')) ? undefined : 4).map((event) => (
                       <CalendarEvent key={event.id} event={event} compact />
                     ))}
-                    {getEventsForDay(day).length > 5 && (
-                      <button onClick={(e) => { e.stopPropagation(); toggleShowAll(format(day, 'yyyy-MM-dd')); }} className="text-xs text-red-600 hover:underline w-full text-center">
-                        {showAllDays.has(format(day, 'yyyy-MM-dd')) ? 'Show less' : `+${getEventsForDay(day).length - 5} more`}
+                    {dayEvents.length > 4 && (
+                      <button onClick={(e) => { e.stopPropagation(); toggleShowAll(format(day, 'yyyy-MM-dd')); }}
+                        className="text-[10px] font-medium text-red-600 hover:text-red-700 w-full text-left transition-colors">
+                        {showAllDays.has(format(day, 'yyyy-MM-dd')) ? '\u2013 less' : `+${dayEvents.length - 4} more`}
                       </button>
                     )}
                   </div>
@@ -204,43 +213,67 @@ export default function Calendar() {
               );
             })}
           </div>
-        </div>
+        </>)}
 
         {/* Selected Day Details */}
-        {selectedDate && (
-          <div className="mt-6 bg-white rounded-lg shadow p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-            </h3>
+        {selectedDate && view !== 'day' && (
+          <div className="border-t border-gray-100 p-5 bg-gray-50/30">
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="w-1 h-5 bg-red-500 rounded-full flex-shrink-0" />
+              <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              </h3>
+            </div>
             <DaySchedule events={getEventsForDay(selectedDate)} />
           </div>
         )}
 
         {/* Add Event Modal */}
         {showAddEvent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowAddEvent(false); setEventForm({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '', repeat: 'none', repeatEndAfter: 1 }); }}>
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-event-title">
-              <h2 id="add-event-title" className="text-lg font-semibold mb-4">Add Event</h2>
-              <div className="space-y-3">
-                <div><label className="block text-xs font-medium text-gray-700 mb-1">Title</label><input type="text" value={eventForm.title} onChange={e => setEventForm(p => ({...p, title: e.target.value}))} className="input text-sm w-full" required /></div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={() => { setShowAddEvent(false); resetForm(); }}>
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md zoom-in-95"
+              onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-event-title">
+              <div className="flex items-center gap-2.5 mb-5">
+                <span className="w-1 h-5 bg-red-500 rounded-full flex-shrink-0" />
+                <h2 id="add-event-title" className="text-base font-bold text-gray-900 tracking-tight">Add Event</h2>
+              </div>
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Title</label>
+                  <input type="text" value={eventForm.title} onChange={e => setEventForm(p => ({...p, title: e.target.value}))} className="input text-sm w-full" required />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Type</label>
                     <select value={eventForm.type} onChange={e => setEventForm(p => ({...p, type: e.target.value}))} className="input text-sm w-full">
                       <option value="class">Class</option><option value="event">Event</option><option value="private">Private</option><option value="maintenance">Maintenance</option>
                     </select>
                   </div>
-                  <div><label className="block text-xs font-medium text-gray-700 mb-1">Date</label><input type="date" value={eventForm.date} onChange={e => setEventForm(p => ({...p, date: e.target.value}))} className="input text-sm w-full" /></div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date</label>
+                    <input type="date" value={eventForm.date} onChange={e => setEventForm(p => ({...p, date: e.target.value}))} className="input text-sm w-full" />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs font-medium text-gray-700 mb-1">Start</label><input type="time" value={eventForm.start_time} onChange={e => setEventForm(p => ({...p, start_time: e.target.value}))} className="input text-sm w-full" /></div>
-                  <div><label className="block text-xs font-medium text-gray-700 mb-1">End</label><input type="time" value={eventForm.end_time} onChange={e => setEventForm(p => ({...p, end_time: e.target.value}))} className="input text-sm w-full" /></div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Start</label>
+                    <input type="time" value={eventForm.start_time} onChange={e => setEventForm(p => ({...p, start_time: e.target.value}))} className="input text-sm w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">End</label>
+                    <input type="time" value={eventForm.end_time} onChange={e => setEventForm(p => ({...p, end_time: e.target.value}))} className="input text-sm w-full" />
+                  </div>
                 </div>
-                <div><label className="block text-xs font-medium text-gray-700 mb-1">Description</label><textarea rows={3} value={eventForm.description} onChange={e => setEventForm(p => ({...p, description: e.target.value}))} className="input text-sm w-full" /></div>
-                <div className="border-t pt-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-2">Repeat</label>
-                  <div className="flex gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
+                  <textarea rows={3} value={eventForm.description} onChange={e => setEventForm(p => ({...p, description: e.target.value}))} className="input text-sm w-full" />
+                </div>
+                <div className="border-t border-gray-100 pt-3.5">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Repeat</label>
+                  <div className="flex gap-4">
                     {['none', 'daily', 'weekly', 'monthly'].map(r => (
-                      <label key={r} className="flex items-center gap-1 text-xs cursor-pointer">
+                      <label key={r} className="flex items-center gap-1.5 text-xs cursor-pointer text-gray-700">
                         <input type="radio" name="repeat" value={r} checked={eventForm.repeat === r}
                           onChange={e => setEventForm(p => ({...p, repeat: e.target.value}))}
                           className="text-red-600 focus:ring-red-500" />
@@ -249,8 +282,8 @@ export default function Calendar() {
                     ))}
                   </div>
                   {eventForm.repeat !== 'none' && (
-                    <div className="mt-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">End After (occurrences)</label>
+                    <div className="mt-2.5">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">End After (occurrences)</label>
                       <input type="number" value={eventForm.repeatEndAfter} min="1" max="365"
                         onChange={e => setEventForm(p => ({...p, repeatEndAfter: e.target.value}))}
                         className="input text-sm w-32" />
@@ -259,62 +292,53 @@ export default function Calendar() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
-                <button onClick={() => { setShowAddEvent(false); setEventForm({ title: '', type: 'class', date: format(new Date(), 'yyyy-MM-dd'), start_time: '09:00', end_time: '10:00', description: '', repeat: 'none', repeatEndAfter: 1 }); }} className="btn-outline text-sm">Cancel</button>
+                <button onClick={() => { setShowAddEvent(false); resetForm(); }} className="btn-outline text-sm">Cancel</button>
                 <button onClick={createEvent.mutate} disabled={!eventForm.title || createEvent.isPending} className="btn-primary text-sm">{createEvent.isPending ? 'Creating...' : 'Create Event'}</button>
               </div>
             </div>
           </div>
         )}
-      </>)}
+      </div>
     </div>
   );
 }
 
 function CalendarEvent({ event, compact = false }) {
-  const typeColors = {
-    class: 'bg-blue-100 text-blue-800 border-blue-300',
-    event: 'bg-green-100 text-green-800 border-green-300',
-    private: 'bg-purple-100 text-purple-800 border-purple-300',
-    maintenance: 'bg-gray-100 text-gray-800 border-gray-300',
-  };
-
   if (compact) {
     return (
-      <div
-        className={`text-xs px-2 py-1 rounded border ${
-          typeColors[event.type] || typeColors.class
-        } truncate`}
-      >
-        {event.start_time} - {event.title}
+      <div className="flex items-center gap-1.5 truncate">
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${DOT[event.type] || DOT.class}`} />
+        <span className="text-[11px] text-gray-600 truncate leading-tight">
+          <span className="font-medium text-gray-700">{event.start_time}</span> {event.title}
+        </span>
       </div>
     );
   }
 
   return (
-    <div
-      className={`p-3 rounded-lg border-l-4 ${
-        typeColors[event.type] || typeColors.class
-      }`}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h4 className="font-medium text-gray-900">{event.title}</h4>
-          <p className="text-sm text-gray-600">
-            {event.start_time} - {event.end_time}
-          </p>
-          {event.instructor && (
-            <p className="text-sm text-gray-500">Instructor: {event.instructor}</p>
-          )}
-          {event.location && (
-            <p className="text-sm text-gray-500">Location: {event.location}</p>
+    <div className="p-3.5 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow transition-shadow">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${DOT[event.type] || DOT.class}`} />
+            <h4 className="font-semibold text-gray-900 text-sm truncate">{event.title}</h4>
+            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider flex-shrink-0">{event.type}</span>
+          </div>
+          <p className="text-xs text-gray-500">{event.start_time} – {event.end_time}</p>
+          {(event.instructor || event.location) && (
+            <p className="text-[11px] text-gray-400 mt-1">
+              {event.instructor && `Coach: ${event.instructor}`}
+              {event.instructor && event.location && ' \u00B7 '}
+              {event.location}
+            </p>
           )}
         </div>
         {event.capacity && (
-          <div className="text-right">
-            <p className="text-sm font-medium text-gray-900">
-              {event.booked}/{event.capacity}
-            </p>
-            <p className="text-xs text-gray-500">spots</p>
+          <div className="flex-shrink-0 text-right">
+            <p className="text-xs font-bold text-gray-900">{event.booked}/{event.capacity}</p>
+            <div className="w-12 h-1 bg-gray-100 rounded-full mt-1 overflow-hidden">
+              <div className="h-full rounded-full transition-all" style={{width: `${Math.min((event.booked/event.capacity)*100, 100)}%`, backgroundColor: event.booked/event.capacity >= 0.9 ? '#DC2626' : '#22C55E'}} />
+            </div>
           </div>
         )}
       </div>
@@ -325,17 +349,14 @@ function CalendarEvent({ event, compact = false }) {
 function DaySchedule({ events }) {
   if (events.length === 0) {
     return (
-      <p className="text-gray-500 text-center py-8">No classes or events scheduled</p>
+      <p className="text-gray-400 text-sm text-center py-8">No classes or events scheduled</p>
     );
   }
 
-  // Sort events by start time
-  const sortedEvents = [...events].sort((a, b) => {
-    return a.start_time.localeCompare(b.start_time);
-  });
+  const sortedEvents = [...events].sort((a, b) => a.start_time.localeCompare(b.start_time));
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {sortedEvents.map((event) => (
         <CalendarEvent key={event.id} event={event} />
       ))}

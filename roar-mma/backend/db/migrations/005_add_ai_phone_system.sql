@@ -130,7 +130,7 @@ CREATE INDEX IF NOT EXISTS idx_phone_calls_staff ON phone_calls(staff_id);
 CREATE INDEX IF NOT EXISTS idx_voicemails_listened_by ON voicemails(listened_by);
 
 -- Default AI phone settings
-INSERT INTO ai_phone_settings (setting_key, setting_value, description) VALUES
+INSERT OR IGNORE INTO ai_phone_settings (setting_key, setting_value, description) VALUES
   ('business_hours_start', '06:00', 'Business hours start time (24hr format)'),
   ('business_hours_end', '21:00', 'Business hours end time (24hr format)'),
   ('business_days', '1,2,3,4,5,6', 'Business days (1=Mon, 7=Sun)'),

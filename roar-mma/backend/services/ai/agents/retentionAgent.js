@@ -3,9 +3,11 @@ const membersData = require('../../../data/members');
 const retentionData = require('../../../data/retention');
 const staffTasksData = require('../../../data/staffTasks');
 const { getDatabase } = require('../../../db/connection');
+const { emit: agentStep } = require('../agentSteps');
 
 async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
+    agentStep(broadcast, agentName || 'retention', 'start', 'Starting retention check');
     console.log('[RETENTION-AGENT] Starting retention check...');
 
     const dbConn = db || getDatabase();
@@ -66,6 +68,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
       }
     }
 
+    agentStep(broadcast, agentName || 'retention', 'at_risk', `Found ${atRiskCount} at-risk members`);
     // 2. Cancelled members not contacted for win-back in 30+ days
     const cancelledMembers = (membersData.getAllMembers({ status: 'cancelled' }).members || []).slice(0, 100);
     const winbackCandidates = cancelledMembers.filter(m => m && m.id && m.cancellation_date && (new Date(m.cancellation_date).getTime() + 30 * 24 * 60 * 60 * 1000) <= Date.now());
@@ -133,6 +136,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
       insertRec.run(member.id, 'winback_candidate', 'medium', `Cancelled on ${member.cancellation_date}`, JSON.stringify({ detected_by: 'retention_agent', cancellation_date: member.cancellation_date }));
     }
 
+    agentStep(broadcast, agentName || 'retention', 'winback', `${winbackCreated} win-back candidates`);
     // 3. Check winback_campaigns for expired campaigns
     const expiredCampaigns = dbConn.prepare(`
       SELECT id, member_id FROM winback_campaigns

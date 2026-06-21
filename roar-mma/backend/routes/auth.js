@@ -290,13 +290,18 @@ router.delete('/revoke-api-key', authenticateToken, requirePermission('settings:
 });
 
 router.get('/check-api-key', (req, res) => {
-  const apiKey = req.headers['x-api-key'];
-  if (!apiKey) return res.status(401).json({ error: 'API key required' });
-  const db = getDatabase();
-  const user = db.prepare('SELECT id, name, email, role FROM staff WHERE api_key = ? AND active = 1').get(apiKey);
-  if (!user) return res.status(401).json({ error: 'Invalid API key' });
-  const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '1h' });
-  res.json({ token, user });
+  try {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey) return res.status(401).json({ error: 'API key required' });
+    const db = getDatabase();
+    const user = db.prepare('SELECT id, name, email, role FROM staff WHERE api_key = ? AND active = 1').get(apiKey);
+    if (!user) return res.status(401).json({ error: 'Invalid API key' });
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token, user });
+  } catch (err) {
+    console.error('[AUTH] Check API key error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = router;

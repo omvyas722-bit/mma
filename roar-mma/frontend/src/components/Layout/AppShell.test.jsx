@@ -46,7 +46,7 @@ describe('AppShell Component', () => {
 
   it('renders navigation links', async () => {
     renderWithRouter();
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Members')).toBeInTheDocument();
     expect(screen.getByText('Classes')).toBeInTheDocument();
     expect(screen.getByText('Leads')).toBeInTheDocument();

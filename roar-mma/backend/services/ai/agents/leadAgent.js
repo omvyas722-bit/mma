@@ -3,6 +3,7 @@ const leadsData = require('../../../data/leads');
 const leadScoringData = require('../../../data/leadScoring');
 const staffTasksData = require('../../../data/staffTasks');
 const { getDatabase } = require('../../../db/connection');
+const { emit: agentStep } = require('../agentSteps');
 
 function hasExistingTrialBooking(leadId) {
   const dbConn = getDatabase();
@@ -19,6 +20,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     console.log('[LEAD-AGENT] Starting lead processing...');
 
     // 1. Check for new leads in last 60 min that haven't been contacted
+    agentStep(broadcast, agentName || 'leads', 'hot_leads', 'Scanning hot leads from last 60 min');
     const sixtyMinAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const allLeads = (leadsData.getAllLeads({}).leads || []).slice(0, 500);
     const newUncontactedLeads = allLeads.filter(l => {
@@ -52,6 +54,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     }
 
     // 2. Check leads in 'new' stage for > 24 hours - flag needing attention
+    agentStep(broadcast, agentName || 'leads', 'untouched_leads', `Flagging untouched leads (${untouchedLeads.length} found)`);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const untouchedLeads = allLeads.filter(l => {
       if (l.stage !== 'new') return false;
@@ -98,6 +101,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     }
 
     // 4. Check leads not contacted in 3+ days with warm/hot interest
+    agentStep(broadcast, agentName || 'leads', 'stale_leads', 'Checking stale warm/hot leads');
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const staleWarmLeads = allLeads.filter(l => {
       if (l.stage === 'converted' || l.stage === 'lost') return false;

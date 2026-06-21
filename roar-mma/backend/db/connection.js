@@ -175,7 +175,7 @@ function ensureMigrated(db) {
       console.log(`[DB] Migration ${index + 1}/${MIGRATIONS.length} ${filename}`);
     } catch (error) {
       // Idempotent ALTER TABLE: ignore duplicate column / table errors
-      if (error.message?.includes('duplicate column name') || error.message?.includes('already exists')) {
+      if (error.message?.includes('duplicate column name') || error.message?.includes('already exists') || error.message?.includes('UNIQUE constraint')) {
         console.log(`[DB] Migration ${filename} skipped (already applied): ${error.message}`);
       } else {
         console.error(`[DB] Migration ${filename} failed:`, error.message);

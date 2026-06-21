@@ -1,11 +1,9 @@
 const https = require('https');
-const urlMod = require('url');
 
 function graphRequest(path, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {
-    const url = `https://graph.facebook.com/v19.0${path}`;
-    const parsed = urlMod.parse(url);
-    const opts = { hostname: parsed.hostname, path: parsed.path, method, headers: { 'Content-Type': 'application/json' } };
+    const url = new URL(`https://graph.facebook.com/v19.0${path}`);
+    const opts = { hostname: url.hostname, path: url.pathname + url.search, method, headers: { 'Content-Type': 'application/json' } };
     const req = https.request(opts, (res) => {
       let data = '';
       res.on('data', c => data += c);

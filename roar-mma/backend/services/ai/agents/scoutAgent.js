@@ -1,8 +1,10 @@
 const { getDatabase } = require('../../../db/connection');
+const { emit: agentStep } = require('../agentSteps');
 
 async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
     const dbConn = db || getDatabase();
+    agentStep(broadcast, agentName || 'scout', 'load', 'Fetching leads to score');
     const leads = dbConn.prepare(`
       SELECT l.*,
         (SELECT COUNT(*) FROM ai_activity_log WHERE agent_name='leads' AND created_at >= datetime('now', '-30 days')) as interactions_30d,
@@ -12,6 +14,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
     `).all();
 
     let updated = 0;
+    agentStep(broadcast, agentName || 'scout', 'scoring', `Scoring ${leads.length} leads`);
     for (const lead of leads) {
       let score = 0;
       const factors = {};
@@ -76,6 +79,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
       dbConn.prepare("UPDATE leads SET score=?, score_updated_at=datetime('now'), score_factors=? WHERE id=?")
         .run(finalScore, JSON.stringify(factors), lead.id);
       updated++;
+      if (updated % 5 === 0) agentStep(broadcast, agentName || 'scout', 'scoring', `Scored ${updated}/${leads.length} leads`);
     }
 
     const summary = `Scouted ${leads.length} leads, scored ${updated}`;

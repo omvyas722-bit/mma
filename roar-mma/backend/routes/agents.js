@@ -25,7 +25,7 @@ router.post('/run', authenticateToken, requirePermission('ai:manage'), async (re
   const agentName = req.body.agent;
   const db = getDatabase();
   const broadcast = typeof global.wsBroadcast === 'function' ? global.wsBroadcast : null;
-  const openRouter = require('../services/ai/openRouterClient');
+  const providerChain = require('../services/ai/providerChain');
 
   try {
     if (agentName) {
@@ -33,7 +33,7 @@ router.post('/run', authenticateToken, requirePermission('ai:manage'), async (re
       if (!handler) return res.status(404).json({ error: `Agent "${agentName}" not found` });
       const logEntry = await aiState.logActivity({ agentName, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(agentName)}`, status: 'running' });
       try {
-        const result = await handler({ db, aiState, openRouter, broadcast, config: {} });
+        const result = await handler({ db, aiState, openRouter: providerChain, broadcast, config: {} });
         if (logEntry && logEntry.id) await aiState.updateActivityStatus(logEntry.id, 'completed');
         res.json({ agent: agentName, ...result });
       } catch (handlerError) {
@@ -45,7 +45,7 @@ router.post('/run', authenticateToken, requirePermission('ai:manage'), async (re
       for (const [name, handler] of teamAgents) {
         const logEntry = await aiState.logActivity({ agentName: name, actionType: 'manual_run', summary: `Manual run triggered for ${agentLabel(name)}`, status: 'running' });
         try {
-          const result = await handler({ db, aiState, openRouter, broadcast, config: {} });
+        const result = await handler({ db, aiState, openRouter: providerChain, broadcast, config: {} });
           if (logEntry && logEntry.id) await aiState.updateActivityStatus(logEntry.id, 'completed');
           results.push({ agent: name, ...result });
         } catch (handlerError) {
@@ -187,7 +187,7 @@ Available locations: ${locations.join(', ')}
 Available class types: ${classTypes.join(', ')}
 Respond with valid JSON only: { "class_name": "...", "class_type": "...", "coach_name": "...", "location": "...", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM", "capacity": number, "recurrence": "none|weekly|biweekly" }`;
 
-    const response = await llm.chat([{ role: 'user', content: prompt }], { model: 'gpt-4o-mini', temperature: 0.1 });
+    const response = await llm.chat([{ role: 'user', content: prompt }], { model: 'llama-3.3-70b-versatile', temperature: 0.1 });
     const parsed = JSON.parse(response.content);
     const classId = classesData.createClass({ name: parsed.class_name, class_type: parsed.class_type || 'bjj', description: `AI scheduled: ${query}`, active: 1 });
     const coach = coaches.find(c => parsed.coach_name?.toLowerCase().includes(c.name.toLowerCase()));

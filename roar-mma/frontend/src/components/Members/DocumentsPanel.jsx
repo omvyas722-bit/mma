@@ -4,7 +4,6 @@ import api from '../../lib/api';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 export default function DocumentsPanel({ memberId }) {
-  if (!memberId) return <div>No member selected</div>;
   const queryClient = useQueryClient();
   const { error, success } = useNotifications();
   const [showUpload, setShowUpload] = useState(false);
@@ -33,6 +32,8 @@ export default function DocumentsPanel({ memberId }) {
     queryFn: async () => { const r = await api.get(`/api/waivers/member/${memberId}`); return r.data; },
   });
   const waivers = waiversData?.waivers || [];
+
+  if (!memberId) return <div>No member selected</div>;
 
   const DOC_TYPE_LABELS = { waiver: 'Waiver', health: 'Health', insurance: 'Insurance', id: 'ID', other: 'Other' };
 

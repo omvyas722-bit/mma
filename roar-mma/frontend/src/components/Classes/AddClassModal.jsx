@@ -50,8 +50,9 @@ export default function AddClassModal({ isOpen, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = validateClassForm(formData);
-    if (mode === 'instance' && !formData.date) {
-      newErrors.date = 'Date is required for class instance';
+    if (mode === 'instance') {
+      if (!formData.date) newErrors.date = 'Date is required for class instance';
+      delete newErrors.day_of_week;
     }
     setErrors(newErrors);
     if (Object.keys(newErrors).length === 0) {

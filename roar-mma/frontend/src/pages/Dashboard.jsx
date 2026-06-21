@@ -263,9 +263,9 @@ function Sparkline({ data = [], color = '#dc2626' }) {
 }
 
 function KpiCard({ title, value, change, onClick, loading, sparkline, color }) {
+  const [hovered, setHovered] = useState(false);
   if (loading) return <div className="bg-white rounded-lg shadow p-4 animate-pulse"><div className="h-3 bg-gray-200 rounded w-20 mb-2"></div><div className="h-6 bg-gray-200 rounded w-16"></div></div>;
   const changeNum = Number(change) || 0;
-  const [hovered, setHovered] = useState(false);
   return (
     <button type="button" onClick={onClick} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow w-full group relative" aria-label={`${title}: ${value}`}>

@@ -1,5 +1,4 @@
 const coaching = require('../../../data/studentCoaching');
-const openRouter = require('../openRouterClient');
 
 const SYSTEM_PROMPT = `You are an expert MMA/BJJ coach AI. Analyze the student's training data and produce:
 
@@ -76,7 +75,7 @@ async function handler({ db, aiState, openRouter: orClient, broadcast, config, a
             const response = await orClient.completeChat([
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: `Analyze this student's training data and provide coaching insights:\n\n${profile}` }
-            ], { model: config?.model_override || 'openai/gpt-4o-mini', temperature: 0.3, max_tokens: 1000 });
+            ], { model: config?.model_override || 'llama-3.3-70b-versatile', temperature: 0.3, max_tokens: 1000 });
 
             if (response && response.content) {
               const parsed = extractJson(response.content);

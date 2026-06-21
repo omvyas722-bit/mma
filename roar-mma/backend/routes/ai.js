@@ -4,7 +4,6 @@ const aiState = require('../services/ai/aiState');
 const aiDaemon = require('../services/ai/aiDaemon');
 const providerChain = require('../services/ai/providerChain');
 const chatEngine = require('../services/ai/chatEngine');
-const openRouterClient = require('../services/ai/openRouterClient');
 const dbConn = require('../db/connection');
 
 const router = express.Router();
@@ -154,11 +153,11 @@ router.post('/task', authenticateToken, requirePermission('staff:update'), async
 router.get('/stats', authenticateToken, requirePermission('reports:read'), async (req, res) => {
   try {
     const stats = await aiState.getStats();
-    const usage = openRouterClient.getUsageStats();
+    const usage = providerChain.getUsageStats();
 
     res.json({
       ...stats,
-      openRouter: usage
+      usage
     });
   } catch (error) {
     console.error('Error fetching AI stats:', error);

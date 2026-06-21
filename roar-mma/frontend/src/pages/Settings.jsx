@@ -907,6 +907,7 @@ function ApiKeysSettings() {
 }
 
 function WebhooksSettings() {
+  const { error, success } = useNotifications();
   const [copiedIdx, setCopiedIdx] = useState(null);
 
   const { data: webhooks, isLoading } = useQuery({

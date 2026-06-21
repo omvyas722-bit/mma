@@ -1,14 +1,31 @@
-// WebSocket context for real-time updates
 import { createContext, useEffect, useState, useRef, useContext, useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 const WebSocketContext = createContext();
+
+const MAX_STEPS = 500;
 
 export function WebSocketProvider({ children }) {
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
   const queryClient = useQueryClient();
   const reconnectTimeoutRef = useRef(null);
+  const stepListenersRef = useRef(new Set());
+  const latestStepsRef = useRef([]);
+
+  const addStepListener = useCallback((fn) => {
+    stepListenersRef.current.add(fn);
+    return () => stepListenersRef.current.delete(fn);
+  }, []);
+
+  const onAgentStep = useCallback((step) => {
+    latestStepsRef.current = [step, ...latestStepsRef.current].slice(0, MAX_STEPS);
+    stepListenersRef.current.forEach(fn => { try { fn(step); } catch {} });
+  }, []);
+
+  const getRecentSteps = useCallback((count = 100) => {
+    return latestStepsRef.current.slice(0, count);
+  }, []);
 
   const connectWebSocket = useCallback(function connectWs() {
     if (wsRef.current) {
@@ -24,11 +41,12 @@ export function WebSocketProvider({ children }) {
     function handleWebSocketMessage(message) {
       const { type, data } = message;
 
-      if (import.meta.env.DEV) console.log('WebSocket message received:', type);
-
       switch (type) {
+        case 'agent:step':
+          onAgentStep(message);
+          break;
+
         case 'connected':
-          if (import.meta.env.DEV) console.log('WebSocket connection confirmed:', data);
           break;
 
         case 'member:created':
@@ -61,7 +79,7 @@ export function WebSocketProvider({ children }) {
           break;
 
         default:
-          if (import.meta.env.DEV) console.log('Unknown WebSocket message type:', type);
+          if (import.meta.env.DEV && !type?.startsWith('agent:')) console.log('WebSocket message:', type);
       }
     }
 
@@ -71,7 +89,6 @@ export function WebSocketProvider({ children }) {
 
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: 'auth', token }));
-        if (import.meta.env.DEV) console.log('WebSocket connected');
         setConnected(true);
       };
 
@@ -85,7 +102,6 @@ export function WebSocketProvider({ children }) {
       };
 
       ws.onclose = () => {
-        if (import.meta.env.DEV) console.log('WebSocket disconnected');
         setConnected(false);
 
         if (reconnectTimeoutRef.current) {
@@ -93,19 +109,16 @@ export function WebSocketProvider({ children }) {
         }
         reconnectTimeoutRef.current = setTimeout(() => {
           if (localStorage.getItem('token')) {
-            if (import.meta.env.DEV) console.log('Attempting to reconnect WebSocket...');
             connectWs();
           }
         }, 3000);
       };
 
-      ws.onerror = (error) => {
-        if (import.meta.env.DEV) console.error('WebSocket error:', error);
-      };
+      ws.onerror = () => {};
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Failed to create WebSocket connection:', error);
+      if (import.meta.env.DEV) console.error('Failed to create WebSocket:', error);
     }
-  }, [queryClient]);
+  }, [queryClient, onAgentStep]);
 
   const token = localStorage.getItem('token');
   const hasToken = !!token;
@@ -127,7 +140,7 @@ export function WebSocketProvider({ children }) {
     };
   }, [hasToken, connectWebSocket]);
 
-  const value = useMemo(() => ({ connected }), [connected]);
+  const value = useMemo(() => ({ connected, addStepListener, getRecentSteps }), [connected, addStepListener, getRecentSteps]);
 
   return (
     <WebSocketContext.Provider value={value}>

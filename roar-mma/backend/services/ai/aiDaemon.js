@@ -1,5 +1,6 @@
 const aiState = require('./aiState');
-const openRouter = require('./openRouterClient');
+const providerChain = require('./providerChain');
+const { emit: agentStep } = require('./agentSteps');
 const { getDatabase } = require('../../db/connection');
 const weeklyDigest = require('../weeklyDigest');
 
@@ -90,7 +91,7 @@ async function processTaskQueue(db, broadcast) {
       if (handler) {
         const config = await aiState.getAgentConfig(task.agent_name);
         await Promise.race([
-          handler({ db, aiState, openRouter, broadcast, config, agentName: task.agent_name, taskId: task.id }),
+          handler({ db, aiState, openRouter: providerChain, broadcast, config, agentName: task.agent_name, taskId: task.id }),
           new Promise((_, reject) => setTimeout(() => reject(new Error(`Task ${task.id} timed out`)), 120000))
         ]);
       }
@@ -155,14 +156,16 @@ async function tick() {
         continue;
       }
 
+      agentStep(broadcast, name, 'starting', config?.config_json?.description || '');
       console.log(`[AI-DAEMON] Executing agent: ${name}`);
       const agentTimeout = new Promise((_, reject) => {
         setTimeout(() => reject(new Error(`Agent ${name} timed out after 120s`)), 120000);
       });
       const result = await Promise.race([
-        handler({ db, aiState, openRouter, broadcast, config, agentName: name }),
+        handler({ db, aiState, openRouter: providerChain, broadcast, config, agentName: name }),
         agentTimeout
       ]);
+      agentStep(broadcast, name, 'complete', result?.summary || result?.executedCount !== undefined ? `${result.executedCount} actions, ${result.failedCount} failed` : 'done');
 
       failureTracker.delete(name);
 
@@ -175,6 +178,7 @@ async function tick() {
         status: 'completed'
       });
     } catch (error) {
+      agentStep(broadcast, name, 'error', error.message);
       console.error(`[AI-DAEMON] Agent "${name}" failed:`, error.message);
       daemonErrors.push({ agent: name, error: error.message, time: new Date().toISOString() });
       if (daemonErrors.length > 200) {

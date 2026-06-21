@@ -154,7 +154,7 @@ function NlSchedulerForm() {
     setResult(null);
     try {
       const res = await api.post('/api/agents/nl-schedule', { query: query.trim() });
-      setResult(res);
+      setResult(res.data);
       success('Schedule created!');
       setQuery('');
       queryClient.invalidateQueries({ queryKey: ['mission-control-overview'] });
@@ -206,7 +206,10 @@ export default function MissionControl() {
 
   const { data: overview, isLoading: overviewLoading, isError: overviewError, refetch: refetchOverview } = useQuery({
     queryKey: ['mission-control-overview'],
-    queryFn: () => api.get('/api/mission-control/overview'),
+    queryFn: async () => {
+      const r = await api.get('/api/mission-control/overview');
+      return r.data;
+    },
     refetchInterval: 30000,
   });
 
@@ -214,14 +217,18 @@ export default function MissionControl() {
     queryKey: ['mission-control-history', historyAgentFilter],
     queryFn: async () => {
       const params = historyAgentFilter ? `?agent=${historyAgentFilter}` : '';
-      return api.get(`/api/ai/history${params}`);
+      const r = await api.get(`/api/ai/history${params}`);
+      return r.data;
     },
     refetchInterval: 30000,
   });
 
   const { data: tokenData, isLoading: tokenLoading } = useQuery({
     queryKey: ['mission-control-token-usage'],
-    queryFn: () => api.get('/api/agents/token-usage?days=30'),
+    queryFn: async () => {
+      const r = await api.get('/api/agents/token-usage?days=30');
+      return r.data;
+    },
     refetchInterval: 60000,
   });
 

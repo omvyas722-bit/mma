@@ -352,3 +352,5 @@ router.get('/status', require('../middleware/auth').authenticateToken, require('
 });
 
 module.exports = router;
+module.exports.determineTransactionType = determineTransactionType;
+module.exports.verifyWebhookSignature = verifyWebhookSignature;

@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/mocks/server';
 import Coaching from './Coaching';
@@ -20,9 +20,11 @@ const mockStudents = [
 
 afterEach(() => server.resetHandlers());
 
+const mockNavigate = vi.fn();
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => vi.fn() };
+  return { ...actual, useNavigate: () => mockNavigate };
 });
 
 const createWrapper = () => {
@@ -37,6 +39,10 @@ const createWrapper = () => {
 };
 
 describe('Coaching Page', () => {
+  beforeEach(() => {
+    mockNavigate.mockReset();
+  });
+
   it('displays loading spinner initially', () => {
     render(<Coaching />, { wrapper: createWrapper() });
     const spinner = document.querySelector('.animate-spin');
@@ -74,6 +80,77 @@ describe('Coaching Page', () => {
     await waitFor(() => {
       expect(screen.queryByText('John Doe')).not.toBeInTheDocument();
       expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+    });
+  });
+
+  it('search filters by last name', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(mockStudents);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText('Search students...'), { target: { value: 'Johnson' } });
+    await waitFor(() => {
+      expect(screen.getByText('Bob Johnson')).toBeInTheDocument();
+      expect(screen.queryByText('John Doe')).not.toBeInTheDocument();
+    });
+  });
+
+  it('search filters by email', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(mockStudents);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText('Search students...'), { target: { value: 'jane@example.com' } });
+    await waitFor(() => {
+      expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+      expect(screen.queryByText('Bob Johnson')).not.toBeInTheDocument();
+    });
+  });
+
+  it('search with no matches shows empty state', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(mockStudents);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText('Search students...'), { target: { value: 'XyzNotFound' } });
+    await waitFor(() => {
+      expect(screen.getByText(/No students found/i)).toBeInTheDocument();
+    });
+  });
+
+  it('clearing search shows all students', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(mockStudents);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText('Search students...'), { target: { value: 'Jane' } });
+    await waitFor(() => {
+      expect(screen.queryByText('John Doe')).not.toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText('Search students...'), { target: { value: '' } });
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+      expect(screen.getByText('Bob Johnson')).toBeInTheDocument();
     });
   });
 
@@ -134,6 +211,36 @@ describe('Coaching Page', () => {
     });
   });
 
+  it('clicking student row navigates to member profile', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(mockStudents);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+    const row = screen.getByText('John Doe').closest('tr');
+    fireEvent.click(row);
+    expect(mockNavigate).toHaveBeenCalledWith('/members/1');
+  });
+
+  it('clicking second student row navigates to correct profile', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(mockStudents);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+    });
+    const row = screen.getByText('Jane Smith').closest('tr');
+    fireEvent.click(row);
+    expect(mockNavigate).toHaveBeenCalledWith('/members/2');
+  });
+
   it('displays empty state when no students returned', async () => {
     server.use(
       http.get(`${API_URL}/api/coaching/ratings`, () => {
@@ -143,6 +250,60 @@ describe('Coaching Page', () => {
     render(<Coaching />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/No students found/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows error state on API failure', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.error();
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load coaching data')).toBeInTheDocument();
+    });
+  });
+
+  it('shows retry button on error', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.error();
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('Try again')).toBeInTheDocument();
+    });
+  });
+
+  it('rating cell shows dash for null values', async () => {
+    const studentsWithNullRating = [
+      { ...mockStudents[0], avg_defense: null, avg_stance: null, avg_offense: null, avg_practice: null },
+    ];
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(studentsWithNullRating);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      const dashes = screen.getAllByText('-');
+      expect(dashes.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  it('shows ratings count for each student', async () => {
+    server.use(
+      http.get(`${API_URL}/api/coaching/ratings`, () => {
+        return HttpResponse.json(mockStudents);
+      })
+    );
+    render(<Coaching />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('10')).toBeInTheDocument();
     });
   });
 });

@@ -159,12 +159,14 @@ export const handlers = [
 
   // Classes endpoints
   http.get(`${API_URL}/api/classes/instances`, () => {
-    // Compute Monday of the current week so dates are always correct
     const now = new Date();
     const day = now.getDay();
     const monday = new Date(now);
     monday.setDate(now.getDate() - ((day + 6) % 7));
-    const dateStr = monday.toISOString().split('T')[0];
+    const y = monday.getFullYear();
+    const m = String(monday.getMonth() + 1).padStart(2, '0');
+    const d = String(monday.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
     return HttpResponse.json([
       {
         id: 1,
@@ -400,6 +402,14 @@ export const handlers = [
 
   http.post(`${API_URL}/api/grading/sessions`, () => HttpResponse.json({ id: 2 }, { status: 201 })),
 
+  http.get(`${API_URL}/api/grading/belts/registry`, () => {
+    return HttpResponse.json({ registry: [] });
+  }),
+
+  http.get(`${API_URL}/api/grading/fighters/leaderboard`, () => {
+    return HttpResponse.json([]);
+  }),
+
   // Stock
   http.get(`${API_URL}/api/stock/products`, () => {
     return HttpResponse.json({ products: [
@@ -473,4 +483,60 @@ export const handlers = [
   }),
 
   http.delete(`${API_URL}/api/waivers/documents/:id`, () => HttpResponse.json({ success: true })),
+
+  http.get(`${API_URL}/api/settings`, () => {
+    return HttpResponse.json({
+      general: { gym_name: 'ROAR MMA', gym_phone: '(08) 9999 9999', gym_email: 'info@roarmma.com.au', timezone: 'Australia/Perth' },
+      locations: [{ id: 'rockingham', name: 'Rockingham' }, { id: 'bibra_lake', name: 'Bibra Lake' }],
+      membership: { trial_duration_days: 14, monthly_fee: 99.99, pt_rate: 75 },
+      notifications: { sms_enabled: true, email_enabled: true, reminder_hours: 24 },
+      webhooks: { lightspeed_url: 'https://hooks.roarmma.com.au/lightspeed', lightspeed_enabled: true, stripe_url: 'https://hooks.roarmma.com.au/stripe', stripe_enabled: true },
+      integrations: { sendgrid_api_key: '', twilio_account_sid: '', twilio_auth_token: '' },
+    });
+  }),
+
+  http.put(`${API_URL}/api/settings`, async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({ ...body, updated_at: new Date().toISOString() });
+  }),
+
+  http.get(`${API_URL}/api/webhooks/status`, () => {
+    return HttpResponse.json({
+      lightspeed: { url: 'https://hooks.roarmma.com.au/lightspeed', enabled: true, last_delivery: new Date().toISOString() },
+      stripe: { url: 'https://hooks.roarmma.com.au/stripe', enabled: true, last_delivery: null },
+    });
+  }),
+
+  http.post(`${API_URL}/api/webhooks/lightspeed/sync`, () => {
+    return HttpResponse.json({ success: true, synced: 42 });
+  }),
+
+  http.get(`${API_URL}/api/auth/api-key`, () => {
+    return HttpResponse.json({ keys: [] });
+  }),
+
+  http.get(`${API_URL}/api/reports/:type`, ({ params }) => {
+    const { type } = params;
+    if (type === 'membership') {
+      return HttpResponse.json({
+        summary: { total_members: 150, active: 120, trial: 20, paused: 5, cancelled: 10 },
+        by_location: [{ location: 'rockingham', count: 80 }, { location: 'bibra_lake', count: 70 }],
+        by_plan: [{ membership_type: 'adult', count: 100 }, { membership_type: 'kids', count: 30 }, { membership_type: 'fighter', count: 20 }],
+        new_members: [{ month: '2026-01', count: 15 }, { month: '2026-02', count: 20 }],
+        membership_trend: [{ date: '2026-01', active: 100, trial: 15 }, { date: '2026-02', active: 110, trial: 18 }],
+      });
+    }
+    return HttpResponse.json({});
+  }),
+
+  http.get(`${API_URL}/api/reports/weekly-digest`, () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.get(`${API_URL}/api/calendar/events`, () => {
+    return HttpResponse.json([
+      { id: 1, title: 'BJJ Class', type: 'class', date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '10:00', description: 'Gi BJJ' },
+      { id: 2, title: 'Gym Event', type: 'event', date: new Date().toISOString().split('T')[0], start_time: '18:00', end_time: '20:00', description: 'Sparring night' },
+    ]);
+  }),
 ];

@@ -1,3 +1,25 @@
+## Graphify / Knowledge Graph First
+Before answering any question about this codebase, consult the Graphify knowledge graph first.
+
+Use this exact executable path because `graphify` is not on PATH:
+
+```powershell
+& "C:\Users\DA PRO XTREME GENJI\AppData\Roaming\uv\tools\graphifyy\Scripts\graphify.exe" query "<question>"
+
+Rules:
+
+Prefer graphify query "<question>" over reading raw files or grepping.
+Use the graph first for architecture, ownership, dependencies, side effects, and “where is X handled?” questions.
+Use graphify explain "<node>" for node-level clarification.
+Use graphify path "<A>" "<B>" for relationships between two nodes.
+Use graphify affected "<X>" for reverse impact analysis.
+Use GRAPH_REPORT.md only for broad architecture review.
+Read raw files only if the graph is missing, stale, or clearly insufficient.
+
+If the graph seems stale after code changes, update it with the full executable path before continuing:
+
+& "C:\Users\DA PRO XTREME GENJI\AppData\Roaming\uv\tools\graphifyy\Scripts\graphify.exe" update "D:\gym software\mma"
+
 ## CRITICAL: Groq API Key
 
 The Groq API key (`GROQ_API_KEY`) is stored in `roar-mma/backend/.env`.

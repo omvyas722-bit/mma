@@ -3,14 +3,15 @@ const leadsData = require('../../../data/leads');
 const staffTasksData = require('../../../data/staffTasks');
 const scheduledMessagesData = require('../../../data/scheduledMessages');
 const { getDatabase } = require('../../../db/connection');
+const { emit: agentStep } = require('../agentSteps');
 
 async function handler({ db, aiState, broadcast, config, agentName }) {
   try {
+    agentStep(broadcast, agentName || 'trials', 'start', 'Starting trial pipeline check');
     console.log('[TRIAL-AGENT] Starting trial pipeline check...');
 
     const dbConn = db || getDatabase();
     const today = new Date().toISOString().split('T')[0];
-    const todayStart = today + 'T00:00:00';
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -47,6 +48,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
       }
     }
 
+    agentStep(broadcast, agentName || 'trials', 'follow_ups', 'Checking completed trials needing follow-up');
     // 2. High interest trial_completed not converted in 7 days
     const completedLeads = (leadsData.getAllLeads({ stage: 'trial_completed' }).leads || []).slice(0, 200);
     const highInterestNotConverted = completedLeads.filter(l => {
@@ -82,6 +84,7 @@ async function handler({ db, aiState, broadcast, config, agentName }) {
       }
     }
 
+    agentStep(broadcast, agentName || 'trials', 'reminders', 'Scheduling tomorrow trial reminders');
     // 3. Trial tomorrow - schedule reminder messages
     const tomorrowBooked = trialLeads.filter(l => l && l.trial_date === tomorrow).slice(0, 50);
 
